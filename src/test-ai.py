@@ -4,9 +4,8 @@ import time
 import os
 
 
-WhisperModel
-WHISPER_MODEL = "base" 
 
+WHISPER_MODEL = "base" 
 YOUTUBE_URL = "https://youtu.be/DdoJWX8YEWs?si=zQjbjmbyYg8C5Ken" 
 OUTPUT_AUDIO = "data/output_mp3/audio"
 

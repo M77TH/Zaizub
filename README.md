@@ -1,3 +1,5 @@
 # Whisper
 
-# winget install ffmpeg
+
+winget install ffmpeg
+pip install faster-whisper firebase-admin

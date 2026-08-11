@@ -1,2 +1,3 @@
 # Whisper
 
+# winget install ffmpeg

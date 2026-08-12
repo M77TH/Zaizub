@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Subtitle Generator</title>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; text-align: center; }
+        .box { border: 1px solid #ccc; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
+        button { padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        #status { margin-top: 20px; font-weight: bold; color: #d9534f; }
+    </style>
+</head>
+<body>
+
+    <h2>โปรเจกต์ AI ใส่ซับไตเติ้ลวิดีโอ 🎬</h2>
+
+    <!-- เปลี่ยน URL ตรงนี้เป็นลิงก์ที่ได้จาก ngrok ในภายหลัง -->
+    <p>API URL: <input type="text" id="apiUrl" value="https://xxxx.ngrok-free.app" style="width: 80%;"></p>
+
+    <div class="box">
+        <h3>วิธีที่ 1: อัปโหลดไฟล์วิดีโอ</h3>
+        <input type="file" id="videoFile" accept="video/mp4,video/x-m4v,video/*">
+        <br><br>
+        <button onclick="processVideo('file')">สร้างซับไตเติ้ลจากไฟล์</button>
+    </div>
+
+    <div class="box">
+        <h3>วิธีที่ 2: ใช้ลิงก์ YouTube</h3>
+        <input type="text" id="ytLink" placeholder="วางลิงก์ YouTube ที่นี่" style="width: 80%; padding: 5px;">
+        <br><br>
+        <button onclick="processVideo('youtube')">สร้างซับไตเติ้ลจาก YouTube</button>
+    </div>
+
+    <div id="status">รอรับคำสั่ง...</div>
+    <div id="result"></div>
+
+    <script>
+        async function processVideo(method) {
+            const apiUrl = document.getElementById('apiUrl').value;
+            const statusText = document.getElementById('status');
+            const resultDiv = document.getElementById('result');
+            
+            statusText.innerText = "กำลังประมวลผล (อาจใช้เวลาหลายนาที)...";
+            resultDiv.innerHTML = ""; // ล้างผลลัพธ์เก่า
+
+            let formData = new FormData();
+            let endpoint = "";
+
+            if (method === 'file') {
+                const file = document.getElementById('videoFile').files[0];
+                if (!file) { alert("กรุณาเลือกไฟล์ก่อน!"); return; }
+                formData.append("file", file);
+                endpoint = `${apiUrl}/process-file`;
+            } else {
+                const link = document.getElementById('ytLink').value;
+                if (!link) { alert("กรุณาใส่ลิงก์ YouTube!"); return; }
+                formData.append("url", link);
+                endpoint = `${apiUrl}/process-youtube`;
+            }
+
+            try {
+                // ส่งข้อมูลไปที่เครื่อง Local ของคุณ
+                const response = await fetch(endpoint, {
+                    method: "POST",
+                    body: formData
+                });
+
+                if (response.ok) {
+                    // รับไฟล์วิดีโอที่มีซับกลับมา
+                    const blob = await response.blob();
+                    const videoUrl = URL.createObjectURL(blob);
+                    statusText.innerText = "เสร็จสิ้น! วิดีโอพร้อมแล้ว";
+                    statusText.style.color = "green";
+                    
+                    // แสดงวิดีโอบนหน้าเว็บ
+                    resultDiv.innerHTML = `
+                        <video width="100%" controls>
+                            <source src="${videoUrl}" type="video/mp4">
+                        </video>
+                        <br>
+                        <a href="${videoUrl}" download="output_video.mp4">
+                            <button style="margin-top:10px; background-color: #28a745;">ดาวน์โหลดวิดีโอ</button>
+                        </a>
+                    `;
+                } else {
+                    statusText.innerText = "เกิดข้อผิดพลาดจากเซิร์ฟเวอร์";
+                }
+            } catch (error) {
+                statusText.innerText = "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาตรวจสอบ ngrok";
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -21,7 +21,9 @@ app.add_middleware(
 
 # 2. โหลดโมเดล Whisper เตรียมไว้ในหน่วยความจำ (ทำครั้งเดียวตอนเปิดเซิร์ฟเวอร์)
 print("กำลังโหลดโมเดล AI...")
-model = WhisperModel("base", device="cpu", compute_type="int8")
+
+model = WhisperModel("small", device="cpu", compute_type="int8")
+
 print("โหลดโมเดลเสร็จสิ้น!")
 
 # --- ฟังก์ชันช่วยเหลือ (Helper Functions) ---
@@ -45,13 +47,13 @@ def create_srt_file(segments, srt_filename: str):
             f.write(f"{segment.text.strip()}\n\n")
 
 def burn_subtitles(video_path: str, srt_path: str, output_path: str):
-    """ใช้ FFmpeg ฝังซับไตเติ้ลลงในวิดีโอ"""
-    # แก้ไข path ให้รองรับ FFmpeg บน Windows
-    safe_srt_path = srt_path.replace('\\', '/').replace(':', '\\:')
+    """ใช้ FFmpeg ฝังซับไตเติ้ลลงในวิดีโอ (พร้อมดึงเสียงมาด้วย)"""
     command = [
         'ffmpeg', '-y',
         '-i', video_path,
-        '-vf', f"subtitles='{safe_srt_path}'",
+        '-vf', f"subtitles={srt_path}",
+        '-c:v', 'libx264',
+        '-c:a', 'copy',  
         output_path
     ]
     subprocess.run(command, check=True)

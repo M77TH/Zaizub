@@ -2,6 +2,4 @@
 
 
 winget install ffmpeg
-pip install faster-whisper firebase-admin
-
-pip install yt-dlp
+pip install faster-whisper firebase-admin uvicorn python-multipart yt-dlp

@@ -10,12 +10,12 @@
 ระบบนี้ต้องการเครื่องมือพื้นฐานในการจัดการวิดีโอและเครือข่าย กรุณาเปิด PowerShell และรันคำสั่งต่อไปนี้ (แนะนำให้ปิดแล้วเปิด Terminal ใหม่หลังติดตั้งเสร็จ):
 
 1. ติดตั้ง FFmpeg(สำหรับจัดการภาพและเสียง)
-```winget install ffmpeg```
+```winget install ffmpeg
 
 2. ติดตั้ง ngrok (สำหรับทำ Public URL ให้หน้าเว็บ)
 เลือกใช้เครื่องมือติดตั้งอย่างใดอย่างหนึ่ง:
 
-winget install ngrok -s msstore```
+```winget install ngrok -s msstore```
 # หรือ
 ```scoop install ngrok```
 

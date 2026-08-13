@@ -1,4 +1,3 @@
-
 # Whisper AI Subtitle Project 🎬
 
 โปรเจกต์ใส่ซับไตเติ้ลอัตโนมัติจากไฟล์วิดีโอและ ลิงค์YouTube โดยใช้โมเดล Whisper

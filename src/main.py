@@ -20,8 +20,9 @@ app.add_middleware(
 )
 
 # 2. โหลดโมเดล Whisper เตรียมไว้ในหน่วยความจำ (ทำครั้งเดียวตอนเปิดเซิร์ฟเวอร์)
-print("กำลังโหลดโมเดล AI...")
-
+print(" ----------------- ")
+print("กำลังโหลดโมเดล AI >")
+print(" ----------------- ")
 model = WhisperModel("small", device="cpu", compute_type="int8")
 
 print("โหลดโมเดลเสร็จสิ้น!")
@@ -101,7 +102,7 @@ async def process_file(background_tasks: BackgroundTasks, file: UploadFile = Fil
         burn_subtitles(input_vid, srt_file, output_vid)
 
         # 4. ตั้งเวลาลบไฟล์ชั่วคราว (ไฟล์ต้นฉบับ และ .srt) หลังจากส่ง Response เสร็จ
-        background_tasks.add_task(cleanup_files, input_vid, srt_file)
+        .add_task(cleanup_files, input_vid, srt_file)
 
         # ส่งไฟล์วิดีโอที่มีซับกลับไปให้ผู้ใช้
         return FileResponse(output_vid, media_type="video/mp4", filename=f"subtitled_{file.filename}")

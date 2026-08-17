@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 export default function Home() {
   const [file, setFile] = useState<File | null>(null);
-  const [apiUrl, setApiUrl] = useState('http://localhost:8000'); // เปลี่ยนเป็น ngrok URL ตอนเทสเครื่องคนอื่น
+  const [apiUrl, setApiUrl] = useState('https://prude-unloving-poet.ngrok-free.dev'); // เปลี่ยนเป็น ngrok URL ตอนเทสเครื่องคนอื่นhttp://localhost:8000
   const [loading, setLoading] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
@@ -22,6 +22,9 @@ export default function Home() {
       // ยิง Request ไปที่ FastAPI Backend
       const response = await fetch(`${apiUrl}/api/v1/process-video`, {
         method: 'POST',
+        headers: {
+          "ngrok-skip-browser-warning": "69420",
+        },
         body: formData,
       });
 

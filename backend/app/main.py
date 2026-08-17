@@ -7,7 +7,9 @@ app = FastAPI(title="Auto Subtitles API")
 # เปิด CORS ให้ Next.js (ปกติ Next.js รันที่พอร์ต 3000)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"], # อย่าลืมใส่ ngrok URL ทีหลัง
+    allow_origins=[
+        "https://prude-unloving-poet.ngrok-free.dev",
+        "https://zaizub.vercel.app"], # อย่าลืมใส่ ngrok URL ทีหลัง http://localhost:3000
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

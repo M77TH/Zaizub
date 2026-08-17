@@ -1,4 +1,4 @@
-# Whisper AI Subtitle Project 🎬
+# Subtitle Project 🎬
 
 โปรเจกต์ใส่ซับไตเติ้ลอัตโนมัติจากไฟล์วิดีโอและ ลิงค์YouTube โดยใช้โมเดล Whisper
 
@@ -6,11 +6,21 @@
 
 ระบบนี้ต้องการเครื่องมือพื้นฐานในการจัดการวิดีโอและเครือข่าย กรุณาเปิด PowerShell และรันคำสั่งต่อไปนี้ (แนะนำให้ปิดแล้วเปิด Terminal ใหม่หลังติดตั้งเสร็จ):
 
-**1. ติดตั้ง FFmpeg(สำหรับจัดการภาพและเสียง)**
+**1. ติดตั้ง FFmpeg:**
 ``` powershell
 winget install ffmpeg
 ```
-**2. ติดตั้ง ngrok (สำหรับทำ Public URL ให้หน้าเว็บ)**
+
+**2. ติดตั้งไลบรารี Python:**
+``` powershell
+pip install fastapi uvicorn python-multipart groq
+```
+
+**3. เก็บ API Key ไว้ในไฟล์ .env**
+``` powershell
+pip install pydantic-settings
+```
+**4. ติดตั้ง ngrok (สำหรับทำ Public URL ให้หน้าเว็บ)**
 
 เลือกใช้เครื่องมือติดตั้งอย่างใดอย่างหนึ่ง:
 ``` powershell
@@ -20,11 +30,10 @@ winget install ngrok -s msstore
 ``` powershell
 scoop install ngrok
 ```
-**3. ตั้งค่า Authtoken สำหรับ ngrok (ทำแค่ครั้งแรกครั้งเดียว)**
 
-สมัครใช้งานใน https://ngrok.com/
+**3. ตั้งค่า Authtoken สำหรับ ngrok (ทำแค่ครั้งแรกครั้งเดียว)**
 ``` powershell
-ngrok config add-authtoken <ใส่_YOUR_AUTHTOKEN_ของคุณที่นี่>
+ngrok config add-authtoken 3HpMxwhprb7E55WNe7Kf8927fxL_7aH2X5gGyyxRSeej1YZHG
 ```
 
 ## 📦 Installation (การตั้งค่าและติดตั้งไลบรารี Python)
@@ -44,7 +53,7 @@ venv\Scripts\activate
 **Terminal 1: เปิดเซิร์ฟเวอร์ AI (Backend)**
 เข้าสู่ Virtual Environment (ถ้ามี) ตรวจสอบให้อยู่ในโฟลเดอร์ที่มีไฟล์ main.py จากนั้นรันคำสั่ง:
 ``` bash
-uvicorn main:app --reload
+uvicorn app.main:app --reload
 ```
 (เซิร์ฟเวอร์จะรันอยู่ที่ http://localhost:8000)
 
@@ -53,4 +62,4 @@ uvicorn main:app --reload
 ``` bash
 ngrok http 8000
 ```
-Note: เมื่อ ngrok ทำงานสำเร็จ ให้นำลิงก์ที่ขึ้นต้นด้วย https://...ngrok-free.app ไปใส่เป็น API URL ในโค้ดหน้าเว็บ (Frontend) ของคุณเพื่อเริ่มทดสอบระบบได้เลย!
+เปิด Terminal ที่สองรัน Frontend: cd frontend -> npm run dev

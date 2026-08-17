@@ -1,0 +1,17 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from app.api import video_routes
+
+app = FastAPI(title="Auto Subtitles API")
+
+# เปิด CORS ให้ Next.js (ปกติ Next.js รันที่พอร์ต 3000)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"], # อย่าลืมใส่ ngrok URL ทีหลัง
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ดึง Route มาใช้งาน
+app.include_router(video_routes.router, prefix="/api/v1")

@@ -29,13 +29,7 @@ backend/data/output_subtitles/*
 !backend/data/input_videos/.gitkeep
 !backend/data/output_mp3/.gitkeep
 !backend/data/output_subtitles/.gitkeep
-
-# เผื่อมีการสร้างไฟล์วิดีโอ/ซับไตเติ้ลหลงไว้ข้างนอกโฟลเดอร์ data
-*.mp4
-*.mp3
-*.m4a
-*.srt
-*.vtt
+temp_storage/*
 
 # =========================
 # 4. ไฟล์ขยะที่เกิดจากระบบปฏิบัติการ (OS-specific files)

@@ -36,6 +36,9 @@ scoop install ngrok
 ngrok config add-authtoken 3HpMxwhprb7E55WNe7Kf8927fxL_7aH2X5gGyyxRSeej1YZHG
 ```
 
+``` powershell
+npm install @supabase/supabase-js @supabase/ssr
+```
 ## 📦 Installation (การตั้งค่าและติดตั้งไลบรารี Python)
 **1. สร้างและเปิดใช้งาน Virtual Environment (venv)** 
 เปิด Terminal ขึ้นมา โดยให้แน่ใจว่าอยู่ในโฟลเดอร์ของโปรเจกต์ แล้วรันคำสั่งเพื่อสร้างพื้นที่จำลอง:

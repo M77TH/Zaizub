@@ -62,4 +62,12 @@ uvicorn app.main:app --reload
 ``` bash
 ngrok http 8000
 ```
-เปิด Terminal ที่สองรัน Frontend: cd frontend -> npm run dev
+
+**local Next.js**
+เปิด Terminal Frontend:
+``` bash
+npm run dev
+```
+
+เช็คสถานะ Render API
+https://zaizub.onrender.com/docs

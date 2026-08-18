@@ -4,10 +4,7 @@ import { useState } from 'react';
 
 export default function Home() {
   const [file, setFile] = useState<File | null>(null);
-
-  // ngrok URL = https://prude-unloving-poet.ngrok-free.dev
-  // local = http://localhost:8000
-  const [apiUrl, setApiUrl] = useState(process.env.NEXT_PUBLIC_API_URL);
+  const [apiUrl, setApiUrl] = useState(process.env.NEXT_PUBLIC_API_URL || '');
   const [loading, setLoading] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
@@ -22,8 +19,10 @@ export default function Home() {
     formData.append('file', file);
 
     try {
+      const cleanApiUrl = apiUrl.replace(/\/$/, "");
+
       // ยิง Request ไปที่ FastAPI Backend
-      const response = await fetch(`${apiUrl}/api/v1/process-video`, {
+      const response = await fetch(`${cleanApiUrl}/api/v1/process-video`, {
         method: 'POST',
         headers: {
           "ngrok-skip-browser-warning": "69420",
@@ -59,12 +58,13 @@ export default function Home() {
           {/* ช่องใส่ API URL */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              API URL (Localhost หรือ ngrok)
+              API URL (Localhost หรือ Render)
             </label>
             <input
               type="text"
               value={apiUrl}
               onChange={(e) => setApiUrl(e.target.value)}
+              placeholder="https://zaizub.onrender.com"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
             />
           </div>

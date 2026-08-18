@@ -4,7 +4,10 @@ import { useState } from 'react';
 
 export default function Home() {
   const [file, setFile] = useState<File | null>(null);
-  const [apiUrl, setApiUrl] = useState('https://prude-unloving-poet.ngrok-free.dev'); // เปลี่ยนเป็น ngrok URL ตอนเทสเครื่องคนอื่นhttp://localhost:8000
+
+  // ngrok URL = https://prude-unloving-poet.ngrok-free.dev
+  // local = http://localhost:8000
+  const [apiUrl, setApiUrl] = useState(process.env.NEXT_PUBLIC_API_URL);
   const [loading, setLoading] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState('');

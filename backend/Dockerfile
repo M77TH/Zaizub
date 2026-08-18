@@ -3,7 +3,7 @@ FROM python:3.10-slim
 
 # 2. ติดตั้ง FFmpeg บนระบบ Linux ของเซิร์ฟเวอร์
 RUN apt-get update && \
-    apt-get install -y ffmpeg && \
+    apt-get install -y ffmpeg fonts-thai-tlwg && \
     apt-get clean
 
 # 3. กำหนดโฟลเดอร์หลักสำหรับทำงานในเซิร์ฟเวอร์

@@ -1,6 +1,8 @@
-'use client'; // บังคับให้เป็น Client Component เพราะมีการจัดการ State
+'use client'; 
 
 import { useState } from 'react';
+// 1. นำเข้า Supabase Client ที่เราสร้างไว้ในเฟสที่แล้ว
+import { createClient } from '../supabase/client'; // ตรวจสอบ path ให้ตรงกับโฟลเดอร์ของคุณด้วยนะครับ
 
 export default function Home() {
   const [file, setFile] = useState<File | null>(null);
@@ -9,38 +11,51 @@ export default function Home() {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
 
+  // เรียกใช้งาน Supabase
+  const supabase = createClient();
+
   const handleUpload = async () => {
     if (!file) return;
     setLoading(true);
     setErrorMsg('');
     setVideoUrl(null);
 
-    const formData = new FormData();
-    formData.append('file', file);
-
     try {
-      const cleanApiUrl = apiUrl.replace(/\/$/, "");
+      // --- ส่วนที่ 1: อัปโหลดขึ้น Supabase Storage ---
+      console.log("กำลังอัปโหลดวิดีโอขึ้น Supabase...");
+      
+      // สร้างชื่อไฟล์ใหม่ให้ไม่ซ้ำกันด้วย Timestamp
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `uploads/${fileName}`;
 
-      // ยิง Request ไปที่ FastAPI Backend
-      const response = await fetch(`${cleanApiUrl}/api/v1/process-video`, {
-        method: 'POST',
-        headers: {
-          "ngrok-skip-browser-warning": "69420",
-        },
-        body: formData,
-      });
+      // อัปโหลดไฟล์เข้า Bucket ที่ชื่อว่า 'videos'
+      const { error: uploadError } = await supabase.storage
+        .from('videos')
+        .upload(filePath, file);
 
-      if (!response.ok) throw new Error('เกิดข้อผิดพลาดในการประมวลผล');
+      if (uploadError) throw new Error(`อัปโหลดล้มเหลว: ${uploadError.message}`);
 
-      // รับไฟล์วิดีโอกลับมาเป็น Blob
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      setVideoUrl(url);
+      // ดึง URL สาธารณะของไฟล์ที่เพิ่งอัปโหลดเสร็จ
+      const { data: publicUrlData } = supabase.storage
+        .from('videos')
+        .getPublicUrl(filePath);
+
+      const publicVideoUrl = publicUrlData.publicUrl;
+      console.log("อัปโหลดสำเร็จ! ได้ลิงก์:", publicVideoUrl);
+
+      // (ชั่วคราว) นำลิงก์มาแสดงผลบนหน้าเว็บดูก่อนว่าอัปโหลดเข้าจริงไหม
+      setVideoUrl(publicVideoUrl);
+
+
+      // --- ส่วนที่ 2: เดี๋ยวเราจะเอา publicVideoUrl ส่งไปให้ FastAPI ที่ตรงนี้ในขั้นตอนต่อไป ---
+      
+
     } catch (error: unknown) {
       if (error instanceof Error) {
         setErrorMsg(error.message);
       } else {
-        setErrorMsg('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
+        setErrorMsg('เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ');
       }
     } finally {
       setLoading(false);
@@ -49,13 +64,13 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4">
+      {/* ... (ส่วน UI ด้านล่างปล่อยไว้เหมือนเดิมได้เลยครับ) ... */}
       <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl p-8">
         <h1 className="text-3xl font-bold text-center text-gray-800 mb-8">
           🎬 AI Subtitle Generator
         </h1>
 
         <div className="space-y-6">
-          {/* ช่องใส่ API URL */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               API URL (Localhost หรือ Render)
@@ -64,12 +79,10 @@ export default function Home() {
               type="text"
               value={apiUrl}
               onChange={(e) => setApiUrl(e.target.value)}
-              placeholder="https://zaizub.onrender.com"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
             />
           </div>
 
-          {/* อัปโหลดไฟล์ */}
           <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:bg-gray-50 transition">
             <input
               type="file"
@@ -88,28 +101,19 @@ export default function Home() {
                 : 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg'
             }`}
           >
-            {loading ? 'กำลังให้ AI ประมวลผล... (อาจใช้เวลาสักครู่)' : 'เริ่มสร้างซับไตเติ้ล'}
+            {loading ? 'กำลังอัปโหลดวิดีโอขึ้น Cloud...' : 'อัปโหลดวิดีโอ'}
           </button>
 
-          {/* แสดงแจ้งเตือน Error */}
           {errorMsg && (
             <div className="p-4 bg-red-50 text-red-600 rounded-lg text-center">
               {errorMsg}
             </div>
           )}
 
-          {/* แสดงผลลัพธ์วิดีโอ */}
           {videoUrl && (
             <div className="mt-8 space-y-4 animate-fade-in">
-              <h2 className="text-xl font-semibold text-gray-800 border-b pb-2">ผลลัพธ์วิดีโอ</h2>
+              <h2 className="text-xl font-semibold text-gray-800 border-b pb-2">ทดสอบผลลัพธ์จาก Supabase</h2>
               <video src={videoUrl} controls className="w-full rounded-lg shadow-sm" />
-              <a
-                href={videoUrl}
-                download="subtitled_video.mp4"
-                className="block w-full text-center bg-green-500 hover:bg-green-600 text-white font-semibold py-3 rounded-xl shadow-md transition-all"
-              >
-                ดาวน์โหลดวิดีโอ
-              </a>
             </div>
           )}
         </div>

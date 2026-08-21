@@ -61,5 +61,5 @@ export default function LandingPage() {
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-[500px] bg-purple-900/20 blur-[120px] rounded-full pointer-events-none -z-0"></div>
       <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-fuchsia-900/10 blur-[100px] rounded-full pointer-events-none -z-0"></div>
     </div>
-  );
+  );  
 }

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 // 1. นำเข้า Supabase Client ที่เราสร้างไว้ในเฟสที่แล้ว
-import { createClient } from '../../lib/supabase/client'; // ตรวจสอบ path ให้ตรงกับโฟลเดอร์ของคุณด้วยนะครับ
+import { createClient } from '../../../lib/supabase/client'; // ตรวจสอบ path ให้ตรงกับโฟลเดอร์ของคุณด้วยนะครับ
 
 export default function Home() {
   const [file, setFile] = useState<File | null>(null);

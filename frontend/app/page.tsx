@@ -56,7 +56,7 @@ export default function LandingPage() {
             เริ่มต้นใช้งานฟรี
           </Link>
           <Link
-            href="/(video)/demo"
+            href="/demo"
             className="px-8 py-4 text-base font-semibold text-gray-300 bg-transparent border border-gray-700 rounded-full hover:bg-white/5 transition-all duration-300"
           >
             ทดลองแบบไม่ต้องล็อกอิน

@@ -1,0 +1,33 @@
+---
+description: Auth forms, input validation, and safe error handling for users
+globs: app/**/login/**/*.{ts,tsx},app/**/signup/**/*.{ts,tsx},app/**/(Account)/**/*.{ts,tsx},app/**/auth/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Auth Forms & Errors
+
+## Validation
+
+- Validate email/password (and other fields) on the server before `signUp` / `signInWithPassword` / similar.
+- Reject empty, malformed, or out-of-policy inputs early; do not call Supabase with invalid data.
+
+```typescript
+// ❌ BAD
+await supabase.auth.signInWithPassword({ email, password })
+
+// ✅ GOOD
+const parsed = loginSchema.safeParse({ email, password })
+if (!parsed.success) return { error: "Invalid email or password." }
+await supabase.auth.signInWithPassword(parsed.data)
+```
+
+## Errors shown to users
+
+- Never return raw Supabase/Postgres messages or stack traces to the UI.
+- Use generic copy (e.g. "Invalid email or password.", "Unable to create account.").
+- Log full error details only on the server.
+
+## Components
+
+- Forms that need state/handlers: Client Components.
+- Data fetching and session reads for protected pages: Server Components by default.

@@ -50,13 +50,13 @@ export default function LandingPage() {
         {/* ปุ่ม Call to Action */}
         <div className="flex flex-col sm:flex-row gap-5 w-full sm:w-auto">
           <Link
-            href="/generator"
+            href="/register"
             className="px-8 py-4 text-base font-semibold text-white bg-purple-600 rounded-full hover:bg-purple-500 shadow-[0_0_20px_rgba(147,51,234,0.4)] hover:shadow-[0_0_30px_rgba(147,51,234,0.6)] transition-all duration-300"
           >
             เริ่มต้นใช้งานฟรี
           </Link>
           <Link
-            href="/generator"
+            href="/(video)/demo"
             className="px-8 py-4 text-base font-semibold text-gray-300 bg-transparent border border-gray-700 rounded-full hover:bg-white/5 transition-all duration-300"
           >
             ทดลองแบบไม่ต้องล็อกอิน

@@ -1,0 +1,27 @@
+---
+description: Core secure auth stack and security workflow for Next.js + Supabase
+alwaysApply: true
+---
+
+# Secure Auth Core
+
+Stack: Next.js App Router, TypeScript, Supabase Auth, `@supabase/ssr`, Tailwind CSS.
+
+## Before writing code
+
+Always explain the security decision first (threat, control, why), then implement.
+
+## Non-negotiables
+
+- Prefer Server Components; use `"use client"` only for interactivity (forms, listeners).
+- Never use `service_role` in Client Components or any browser-exposed code.
+- Store Supabase session in cookies via `@supabase/ssr` (not localStorage-only auth).
+- Protect private routes in `middleware.ts` (session check + redirect).
+- Validate and sanitize inputs before calling Supabase Auth.
+- Map auth/DB errors to generic user messages; log details server-side only.
+- User-owned tables must include `user_id` and enforce Row Level Security (RLS).
+
+## Env keys
+
+- Client / browser: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` only.
+- `SUPABASE_SERVICE_ROLE_KEY`: server-only, never import into client bundles.

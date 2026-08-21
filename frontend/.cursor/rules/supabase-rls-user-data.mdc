@@ -1,0 +1,23 @@
+---
+description: RLS and user_id requirements for user-owned Supabase data
+globs: "**/*.{sql,ts,tsx}"
+alwaysApply: false
+---
+
+# Row Level Security (RLS)
+
+## Schema
+
+- Every table that stores user data must include `user_id` (UUID, FK to `auth.users`).
+- Enable RLS on those tables; do not rely on client filtering alone.
+
+## Policies (intent)
+
+- `SELECT` / `UPDATE` / `DELETE`: only when `auth.uid() = user_id`.
+- `INSERT`: require `user_id = auth.uid()` (or set it from the session server-side).
+- Prefer the anon/authenticated roles with RLS over bypassing via `service_role` in app code.
+
+## App code
+
+- Always scope queries to the authenticated user; still assume RLS is the real boundary.
+- Never disable RLS in production migrations without an explicit security review note.

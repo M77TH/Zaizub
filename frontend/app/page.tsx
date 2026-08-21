@@ -5,9 +5,32 @@ export default function LandingPage() {
     <div className="min-h-screen bg-[#050505] text-gray-200 font-sans selection:bg-purple-500/30 overflow-hidden relative">
       {/* 1. Navbar */}
       <nav className="w-full flex justify-between items-center px-6 py-6 max-w-7xl mx-auto relative z-10">
-        <div className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-purple-600 tracking-tight">
-          AI Subtitles
+        
+        {/* โลโก้ ZaiZub (SVG) */}
+        <div className="flex items-center gap-3">
+          <svg 
+            width="40" 
+            height="40" 
+            viewBox="0 0 40 40" 
+            fill="none" 
+            xmlns="http://www.w3.org/2000/svg"
+            className="drop-shadow-[0_0_10px_rgba(168,85,247,0.5)]"
+          >
+            <defs>
+              <linearGradient id="purpleGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#c026d3" /> {/* Fuchsia */}
+                <stop offset="100%" stopColor="#9333ea" /> {/* Purple */}
+              </linearGradient>
+            </defs>
+            <rect x="4" y="8" width="32" height="24" rx="6" stroke="url(#purpleGlow)" strokeWidth="3" />
+            <path d="M12 16 L24 16 L16 24 L28 24" stroke="url(#purpleGlow)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M30 6 C30 9 33 12 36 12 C33 12 30 15 30 18 C30 15 27 12 24 12 C27 12 30 9 30 6 Z" fill="url(#purpleGlow)" />
+          </svg>
+          <span className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-fuchsia-500 tracking-tight">
+            ZaiZub
+          </span>
         </div>
+
         <div>
           <Link
             href="/login"
@@ -57,9 +80,9 @@ export default function LandingPage() {
         </div>
       </main>
 
-      {/* 3. Background Glow Effects (ใช้ CSS ล้วนเพื่อความเสถียร ไม่พึ่งพา JS Library) */}
+      {/* 3. Background Glow Effects */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-[500px] bg-purple-900/20 blur-[120px] rounded-full pointer-events-none -z-0"></div>
       <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-fuchsia-900/10 blur-[100px] rounded-full pointer-events-none -z-0"></div>
     </div>
-  );  
+  );
 }

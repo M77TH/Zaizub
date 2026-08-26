@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
-import SmoothScroll from "@/components/SmoothScroll";
+import SmoothScroll from "@/components/landing/SmoothScroll";
 import "./globals.css";
 
 const display = Space_Grotesk({

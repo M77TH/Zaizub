@@ -1,99 +1,26 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-html {
-  scroll-behavior: smooth;
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
 }
 
-body {
-  background-color: #07060a;
-  color: #f4f2f8;
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
 }
 
-/* Custom scrollbar & Lenis Smooth Scroll */
-html {
-  overflow-y: scroll;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-html.lenis,
-html.lenis body {
-  height: auto;
-}
-
-.lenis.lenis-smooth {
-  scroll-behavior: auto !important;
-}
-
-.lenis.lenis-smooth [data-lenis-prevent] {
-  overscroll-behavior: contain;
-}
-
-.lenis.lenis-stopped {
-  overflow: hidden;
-}
-
-.lenis.lenis-smooth iframe {
-  pointer-events: none;
-}
-
-body {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-::-webkit-scrollbar {
-  display: none;
-}
-
-::selection {
-  background: #8b5cf6;
-  color: #07060a;
-}
-
-.caption-word {
-  display: inline-block;
-  color: var(--caption-idle, #6b6779);
-  animation: wordPop 0.5s ease forwards;
-  animation-play-state: paused;
-}
-
-.caption-line[data-active="true"] .caption-word {
-  animation-play-state: running;
-}
-
-@keyframes upload-overlay-fade-out {
-  from { opacity: 1; }
-  to { opacity: 0; }
-}
-
-@keyframes upload-modal-fade-out {
-  from { opacity: 1; transform: translateY(0) scale(1); }
-  to { opacity: 0; transform: translateY(6px) scale(0.98); }
-}
-
-.upload-overlay-closing {
-  animation: upload-overlay-fade-out 300ms ease-out both;
-}
-
-.upload-modal-closing {
-  animation: upload-modal-fade-out 300ms ease-out both;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
   }
 }
 
-.focus-ring:focus-visible {
-  outline: 2px solid #a78bfa;
-  outline-offset: 3px;
-  border-radius: 6px;
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
 }

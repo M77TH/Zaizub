@@ -95,14 +95,14 @@ export default function Navbar({
           </div>
 
           <a
-            href="#"
+            href="/login"
             className="hidden text-sm text-ink-muted transition-colors hover:text-ink sm:inline focus-ring rounded"
           >
             {lang === "en" ? "Log in" : "เข้าสู่ระบบ"}
           </a>
 
           <a
-            href="#generate"
+            href="/register"
             onClick={(e) => scrollToSection(e, "top")}
             className="focus-ring rounded-xl bg-gradient-to-b from-accent-soft to-accent-deep px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium text-white shadow-[0_0_20px_rgba(130,80,255,0.3)] transition-transform hover:scale-[1.03]"
           >
@@ -172,7 +172,7 @@ export default function Navbar({
             </div>
 
             <a
-              href="#"
+              href="/login"
               className="mt-2 text-sm text-center text-ink-muted py-2 hover:text-ink"
             >
               {lang === "en" ? "Log in" : "เข้าสู่ระบบ"}

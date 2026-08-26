@@ -22,7 +22,6 @@ export default function PhoneMockup({
   const [lineIndex, setLineIndex] = useState(0);
 
   useEffect(() => {
-    setLineIndex(0);
     const id = setInterval(() => {
       setLineIndex((i) => (i + 1) % lines.length);
     }, 2200);

@@ -12,14 +12,11 @@ const LenisContext = createContext<LenisContextType>({ lenis: null });
 export const useLenis = () => useContext(LenisContext);
 
 export default function SmoothScroll({ children }: { children: ReactNode }) {
-  const [lenis, setLenis] = useState<Lenis | null>(null);
+  const [lenis] = useState<Lenis | null>(() => {
+    if (typeof window === "undefined") return null;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return null;
 
-  useEffect(() => {
-    // Respect prefers-reduced-motion
-    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (prefersReducedMotion) return;
-
-    const lenisInstance = new Lenis({
+    return new Lenis({
       duration: 1.15,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       orientation: "vertical",
@@ -28,8 +25,12 @@ export default function SmoothScroll({ children }: { children: ReactNode }) {
       wheelMultiplier: 1.05,
       touchMultiplier: 1.5,
     });
+  });
 
-    setLenis(lenisInstance);
+  useEffect(() => {
+    if (!lenis) return;
+
+    const lenisInstance = lenis;
     (window as unknown as { __lenis?: Lenis }).__lenis = lenisInstance;
 
     let rafId: number;
@@ -69,7 +70,7 @@ export default function SmoothScroll({ children }: { children: ReactNode }) {
       lenisInstance.destroy();
       (window as unknown as { __lenis?: Lenis }).__lenis = undefined;
     };
-  }, []);
+  }, [lenis]);
 
   return (
     <LenisContext.Provider value={{ lenis }}>

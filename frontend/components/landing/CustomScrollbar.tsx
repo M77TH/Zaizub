@@ -6,14 +6,13 @@ import { useLenis } from "./SmoothScroll";
 export default function CustomScrollbar() {
   const { lenis } = useLenis();
   const [thumb, setThumb] = useState({ height: 0, top: 0 });
+  const [maxThumbTop, setMaxThumbTop] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
 
   const thumbRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef(false);
   const thumbStateRef = useRef({ height: 0, top: 0, maxScroll: 0, maxThumbTop: 0 });
-
-  const trackPadding = 0;
 
   const updateGeometry = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -24,6 +23,7 @@ export default function CustomScrollbar() {
 
     if (maxScroll <= 0) {
       setThumb({ height: 0, top: 0 });
+      setMaxThumbTop(0);
       thumbStateRef.current = { height: 0, top: 0, maxScroll: 0, maxThumbTop: 0 };
       return;
     }
@@ -40,6 +40,7 @@ export default function CustomScrollbar() {
 
     thumbStateRef.current = { height, top, maxScroll, maxThumbTop };
     setThumb({ height, top });
+    setMaxThumbTop(maxThumbTop);
   }, []);
 
   useEffect(() => {
@@ -48,7 +49,7 @@ export default function CustomScrollbar() {
       updateGeometry();
     };
 
-    updateGeometry();
+    const initialUpdateFrame = window.requestAnimationFrame(updateGeometry);
 
     window.addEventListener("scroll", handleScroll, { passive: true });
     window.addEventListener("resize", updateGeometry);
@@ -64,6 +65,7 @@ export default function CustomScrollbar() {
     observer.observe(document.body);
 
     return () => {
+      window.cancelAnimationFrame(initialUpdateFrame);
       window.removeEventListener("scroll", handleScroll);
       window.removeEventListener("resize", updateGeometry);
       lenisUnsubscribe?.();
@@ -151,7 +153,7 @@ export default function CustomScrollbar() {
       aria-controls="main-content"
       aria-valuenow={Math.round(thumb.top)}
       aria-valuemin={0}
-      aria-valuemax={thumbStateRef.current.maxThumbTop}
+      aria-valuemax={maxThumbTop}
       aria-orientation="vertical"
       onClick={handleTrackClick}
       className="fixed inset-y-0 right-0 z-50 flex w-3 select-none justify-end cursor-pointer"

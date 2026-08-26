@@ -1,8 +1,9 @@
 "use client";
 
+import React from "react";
 import { featuresCopy, type Lang } from "./copy";
 
-const featureIcons: Record<string, JSX.Element> = {
+const featureIcons: Record<string, React.ReactElement> = {
   sync: (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />

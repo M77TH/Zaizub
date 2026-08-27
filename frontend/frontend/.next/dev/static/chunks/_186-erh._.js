@@ -750,8 +750,8 @@ __turbopack_context__.s([
     ()=>Hero
 ]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/jsx-dev-runtime.js [app-client] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/navigation.js [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/index.js [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/navigation.js [app-client] (ecmascript)"); // 1. นำเข้า useRouter
 var __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$landing$2f$copy$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/components/landing/copy.ts [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$landing$2f$PhoneMockup$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/components/landing/PhoneMockup.tsx [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$landing$2f$InteractiveDots$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/components/landing/InteractiveDots.tsx [app-client] (ecmascript)");
@@ -765,7 +765,7 @@ var _s = __turbopack_context__.k.signature();
 ;
 function Hero({ lang }) {
     _s();
-    const router = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRouter"])();
+    const router = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRouter"])(); // 2. เรียกใช้งาน router
     const t = __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$landing$2f$copy$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["heroCopy"][lang];
     const upload = lang === "en" ? {
         title: "Upload your video",
@@ -914,7 +914,6 @@ function Hero({ lang }) {
         clearUploadTimer,
         closeUpload
     ]);
-    // Clean up timers on unmount
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
         "Hero.useEffect": ()=>{
             return ({
@@ -929,7 +928,6 @@ function Hero({ lang }) {
     }["Hero.useEffect"], [
         clearUploadTimer
     ]);
-    // Handle drag-and-drop on entire window
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
         "Hero.useEffect": ()=>{
             const isFileDrag = {
@@ -1006,7 +1004,6 @@ function Hero({ lang }) {
         scrollToHero,
         selectFile
     ]);
-    // Handle Escape key to close modal
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
         "Hero.useEffect": ()=>{
             if (!uploadOpen) return;
@@ -1069,6 +1066,7 @@ function Hero({ lang }) {
         setIsDragging(false);
         closeUpload();
     }
+    // 3. ฟังก์ชัน handleGenerate แบบใหม่ เชื่อมต่อ Backend และ Redirect
     async function handleGenerate(e) {
         e.preventDefault();
         if (status === "generating") return;
@@ -1081,7 +1079,6 @@ function Hero({ lang }) {
         setPulseKey((k)=>k + 1);
         try {
             let response;
-            // กรณีที่ 1: ส่งลิ้งก์วิดีโอ (เช่น YouTube แบบในภาพ)
             if (link) {
                 response = await fetch("http://localhost:8000/api/v1/process-link", {
                     method: "POST",
@@ -1101,17 +1098,14 @@ function Hero({ lang }) {
                 });
             }
             if (!response || !response.ok) {
-                throw new Error("เกิดข้อผิดพลาดในการส่งข้อมูลไปยัง Backend");
+                throw new Error("เกิดข้อผิดพลาดในการส่งข้อมูล");
             }
             const data = await response.json();
-            // เมื่อสำเร็จ สามารถใช้ data.subtitles บันทึกลง State Management (Zustand/Context) 
-            // หรือแนบไปกับ URL แล้วสั่งเปลี่ยนหน้าไปที่ Editor
             console.log("Success:", data);
-            // เด้งไปหน้า Editor (ปรับ path ให้ตรงกับโปรเจกต์ของคุณ)
+            // เมื่อส่งสำเร็จ เด้งไปหน้า /editor
             router.push("/editor");
         } catch (error) {
-            console.error("Backend Error:", error);
-        // TODO: เพิ่ม State แจ้งเตือนผู้ใช้กรณี API พัง
+            console.error("Error generating captions:", error);
         } finally{
             setStatus("idle");
         }
@@ -1135,12 +1129,12 @@ function Hero({ lang }) {
                 "aria-hidden": true
             }, void 0, false, {
                 fileName: "[project]/components/landing/Hero.tsx",
-                lineNumber: 359,
+                lineNumber: 352,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$landing$2f$InteractiveDots$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
                 fileName: "[project]/components/landing/Hero.tsx",
-                lineNumber: 360,
+                lineNumber: 353,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1154,7 +1148,7 @@ function Hero({ lang }) {
                                     t.headlineTop,
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("br", {}, void 0, false, {
                                         fileName: "[project]/components/landing/Hero.tsx",
-                                        lineNumber: 371,
+                                        lineNumber: 364,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1162,13 +1156,13 @@ function Hero({ lang }) {
                                         children: t.headlineAccent
                                     }, void 0, false, {
                                         fileName: "[project]/components/landing/Hero.tsx",
-                                        lineNumber: 372,
+                                        lineNumber: 365,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/landing/Hero.tsx",
-                                lineNumber: 364,
+                                lineNumber: 357,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1176,7 +1170,7 @@ function Hero({ lang }) {
                                 children: t.sub
                             }, void 0, false, {
                                 fileName: "[project]/components/landing/Hero.tsx",
-                                lineNumber: 377,
+                                lineNumber: 370,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("form", {
@@ -1190,7 +1184,7 @@ function Hero({ lang }) {
                                         children: lang === "en" ? "Upload a video file" : "อัปโหลดไฟล์วิดีโอ"
                                     }, void 0, false, {
                                         fileName: "[project]/components/landing/Hero.tsx",
-                                        lineNumber: 389,
+                                        lineNumber: 382,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
@@ -1201,7 +1195,7 @@ function Hero({ lang }) {
                                         className: "hidden"
                                     }, void 0, false, {
                                         fileName: "[project]/components/landing/Hero.tsx",
-                                        lineNumber: 392,
+                                        lineNumber: 385,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1230,7 +1224,7 @@ function Hero({ lang }) {
                                                                     strokeWidth: "2"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/components/landing/Hero.tsx",
-                                                                    lineNumber: 398,
+                                                                    lineNumber: 391,
                                                                     columnNumber: 23
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
@@ -1246,13 +1240,13 @@ function Hero({ lang }) {
                                                                     className: "transition-[stroke-dashoffset] duration-150"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/components/landing/Hero.tsx",
-                                                                    lineNumber: 399,
+                                                                    lineNumber: 392,
                                                                     columnNumber: 23
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/components/landing/Hero.tsx",
-                                                            lineNumber: 397,
+                                                            lineNumber: 390,
                                                             columnNumber: 21
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("svg", {
@@ -1269,12 +1263,12 @@ function Hero({ lang }) {
                                                                 strokeLinejoin: "round"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/components/landing/Hero.tsx",
-                                                                lineNumber: 402,
+                                                                lineNumber: 395,
                                                                 columnNumber: 23
                                                             }, this)
                                                         }, void 0, false, {
                                                             fileName: "[project]/components/landing/Hero.tsx",
-                                                            lineNumber: 401,
+                                                            lineNumber: 394,
                                                             columnNumber: 21
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("svg", {
@@ -1291,23 +1285,23 @@ function Hero({ lang }) {
                                                                 strokeLinejoin: "round"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/components/landing/Hero.tsx",
-                                                                lineNumber: 405,
+                                                                lineNumber: 398,
                                                                 columnNumber: 23
                                                             }, this)
                                                         }, void 0, false, {
                                                             fileName: "[project]/components/landing/Hero.tsx",
-                                                            lineNumber: 404,
+                                                            lineNumber: 397,
                                                             columnNumber: 21
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/components/landing/Hero.tsx",
-                                                    lineNumber: 396,
+                                                    lineNumber: 389,
                                                     columnNumber: 19
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/components/landing/Hero.tsx",
-                                                lineNumber: 395,
+                                                lineNumber: 388,
                                                 columnNumber: 17
                                             }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
                                                 id: "upload",
@@ -1332,17 +1326,17 @@ function Hero({ lang }) {
                                                         strokeLinejoin: "round"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/landing/Hero.tsx",
-                                                        lineNumber: 421,
+                                                        lineNumber: 414,
                                                         columnNumber: 21
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "[project]/components/landing/Hero.tsx",
-                                                    lineNumber: 420,
+                                                    lineNumber: 413,
                                                     columnNumber: 19
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/components/landing/Hero.tsx",
-                                                lineNumber: 410,
+                                                lineNumber: 403,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1350,7 +1344,7 @@ function Hero({ lang }) {
                                                 "aria-hidden": true
                                             }, void 0, false, {
                                                 fileName: "[project]/components/landing/Hero.tsx",
-                                                lineNumber: 425,
+                                                lineNumber: 418,
                                                 columnNumber: 15
                                             }, this),
                                             file && uploadStage !== "complete" ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1358,7 +1352,7 @@ function Hero({ lang }) {
                                                 children: uploadStage === "error" ? uploadErrorText : upload.uploading
                                             }, void 0, false, {
                                                 fileName: "[project]/components/landing/Hero.tsx",
-                                                lineNumber: 428,
+                                                lineNumber: 421,
                                                 columnNumber: 17
                                             }, this) : file ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                 className: "min-w-0 flex-1 overflow-hidden px-2",
@@ -1369,7 +1363,7 @@ function Hero({ lang }) {
                                                         children: file.name
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/landing/Hero.tsx",
-                                                        lineNumber: 431,
+                                                        lineNumber: 424,
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1381,13 +1375,13 @@ function Hero({ lang }) {
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/components/landing/Hero.tsx",
-                                                        lineNumber: 432,
+                                                        lineNumber: 425,
                                                         columnNumber: 19
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/landing/Hero.tsx",
-                                                lineNumber: 430,
+                                                lineNumber: 423,
                                                 columnNumber: 17
                                             }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
                                                 value: link,
@@ -1400,7 +1394,7 @@ function Hero({ lang }) {
                                                 className: "focus-ring h-12 flex-1 bg-transparent px-2 text-sm text-ink placeholder:text-ink-muted focus:outline-none"
                                             }, void 0, false, {
                                                 fileName: "[project]/components/landing/Hero.tsx",
-                                                lineNumber: 437,
+                                                lineNumber: 430,
                                                 columnNumber: 17
                                             }, this),
                                             file && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -1411,7 +1405,7 @@ function Hero({ lang }) {
                                                 children: "×"
                                             }, void 0, false, {
                                                 fileName: "[project]/components/landing/Hero.tsx",
-                                                lineNumber: 440,
+                                                lineNumber: 433,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1434,7 +1428,7 @@ function Hero({ lang }) {
                                                                 "aria-hidden": true
                                                             }, void 0, false, {
                                                                 fileName: "[project]/components/landing/Hero.tsx",
-                                                                lineNumber: 460,
+                                                                lineNumber: 453,
                                                                 columnNumber: 19
                                                             }, this),
                                                             sourceReady && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1442,7 +1436,7 @@ function Hero({ lang }) {
                                                                 "aria-hidden": true
                                                             }, void 0, false, {
                                                                 fileName: "[project]/components/landing/Hero.tsx",
-                                                                lineNumber: 461,
+                                                                lineNumber: 454,
                                                                 columnNumber: 35
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1462,7 +1456,7 @@ function Hero({ lang }) {
                                                                                 fill: "currentColor"
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/components/landing/Hero.tsx",
-                                                                                lineNumber: 465,
+                                                                                lineNumber: 458,
                                                                                 columnNumber: 23
                                                                             }, this),
                                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
@@ -1471,25 +1465,25 @@ function Hero({ lang }) {
                                                                                 fill: "currentColor"
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/components/landing/Hero.tsx",
-                                                                                lineNumber: 469,
+                                                                                lineNumber: 462,
                                                                                 columnNumber: 23
                                                                             }, this)
                                                                         ]
                                                                     }, void 0, true, {
                                                                         fileName: "[project]/components/landing/Hero.tsx",
-                                                                        lineNumber: 464,
+                                                                        lineNumber: 457,
                                                                         columnNumber: 21
                                                                     }, this)
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/components/landing/Hero.tsx",
-                                                                lineNumber: 462,
+                                                                lineNumber: 455,
                                                                 columnNumber: 19
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/components/landing/Hero.tsx",
-                                                        lineNumber: 450,
+                                                        lineNumber: 443,
                                                         columnNumber: 17
                                                     }, this),
                                                     !sourceReady && sourceHintOpen && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1497,19 +1491,19 @@ function Hero({ lang }) {
                                                         children: sourceHint
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/landing/Hero.tsx",
-                                                        lineNumber: 478,
+                                                        lineNumber: 471,
                                                         columnNumber: 19
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/landing/Hero.tsx",
-                                                lineNumber: 449,
+                                                lineNumber: 442,
                                                 columnNumber: 15
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/landing/Hero.tsx",
-                                        lineNumber: 393,
+                                        lineNumber: 386,
                                         columnNumber: 13
                                     }, this),
                                     linkError && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1532,7 +1526,7 @@ function Hero({ lang }) {
                                                         strokeLinejoin: "round"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/landing/Hero.tsx",
-                                                        lineNumber: 487,
+                                                        lineNumber: 480,
                                                         columnNumber: 19
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
@@ -1542,192 +1536,32 @@ function Hero({ lang }) {
                                                         strokeLinecap: "round"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/landing/Hero.tsx",
-                                                        lineNumber: 488,
+                                                        lineNumber: 481,
                                                         columnNumber: 19
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/landing/Hero.tsx",
-                                                lineNumber: 486,
+                                                lineNumber: 479,
                                                 columnNumber: 17
                                             }, this),
                                             linkErrorText
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/landing/Hero.tsx",
-                                        lineNumber: 485,
-                                        columnNumber: 15
-                                    }, this),
-                                    uploadOpen && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                        className: `fixed inset-0 z-30 flex items-center justify-center bg-black/60 px-6 backdrop-blur-sm ${isClosing ? "upload-overlay-closing pointer-events-none" : "animate-[uploadOverlayIn_300ms_ease-out_both]"}`,
-                                        onAnimationEnd: (event)=>{
-                                            if (isClosing && event.target === event.currentTarget) {
-                                                setUploadOpen(false);
-                                                setIsClosing(false);
-                                            }
-                                        },
-                                        onDragOver: (event)=>event.preventDefault(),
-                                        onDragLeave: handleOverlayDragLeave,
-                                        onDragEnd: handleOverlayDragLeave,
-                                        onDrop: handleOverlayDrop,
-                                        onClick: closeUpload,
-                                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                            role: "dialog",
-                                            "aria-modal": "true",
-                                            "aria-labelledby": "upload-modal-title",
-                                            "data-upload-modal": true,
-                                            className: `w-full max-w-md rounded-3xl border border-white/10 bg-[#100c18] p-5 ${isClosing ? "upload-modal-closing pointer-events-none" : "animate-[uploadModalIn_300ms_ease-out_both]"}`,
-                                            onClick: (e)=>e.stopPropagation(),
-                                            children: [
-                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                    className: "mb-4 flex items-start justify-between",
-                                                    children: [
-                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                            children: [
-                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                                                    id: "upload-modal-title",
-                                                                    className: "text-base font-semibold text-ink",
-                                                                    children: upload.title
-                                                                }, void 0, false, {
-                                                                    fileName: "[project]/components/landing/Hero.tsx",
-                                                                    lineNumber: 519,
-                                                                    columnNumber: 23
-                                                                }, this),
-                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                                                    className: "mt-1 text-sm text-ink-faint",
-                                                                    children: upload.description
-                                                                }, void 0, false, {
-                                                                    fileName: "[project]/components/landing/Hero.tsx",
-                                                                    lineNumber: 520,
-                                                                    columnNumber: 23
-                                                                }, this)
-                                                            ]
-                                                        }, void 0, true, {
-                                                            fileName: "[project]/components/landing/Hero.tsx",
-                                                            lineNumber: 518,
-                                                            columnNumber: 21
-                                                        }, this),
-                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
-                                                            type: "button",
-                                                            onClick: closeUpload,
-                                                            className: "focus-ring rounded-full px-2 text-xl leading-none text-ink-faint hover:text-ink",
-                                                            "aria-label": upload.close,
-                                                            children: "×"
-                                                        }, void 0, false, {
-                                                            fileName: "[project]/components/landing/Hero.tsx",
-                                                            lineNumber: 522,
-                                                            columnNumber: 21
-                                                        }, this)
-                                                    ]
-                                                }, void 0, true, {
-                                                    fileName: "[project]/components/landing/Hero.tsx",
-                                                    lineNumber: 517,
-                                                    columnNumber: 19
-                                                }, this),
-                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                    className: `cursor-pointer rounded-2xl border border-dashed px-5 py-9 text-center transition-[border-color,background-color,transform,box-shadow] duration-200 ease-out ${file ? "border-white/10 bg-white/[0.01]" : isDragging ? "scale-[1.02] animate-[dropZonePulse_1.4s_ease-in-out_infinite] border-accent bg-accent/10 shadow-[0_0_35px_rgba(139,92,246,0.25)]" : "border-white/15 bg-white/[0.02]"}`,
-                                                    onClick: ()=>{
-                                                        if (!file) fileInputRef.current?.click();
-                                                    },
-                                                    onDragEnter: file ? undefined : handleDragEnter,
-                                                    onDragOver: file ? undefined : (e)=>{
-                                                        e.preventDefault();
-                                                        setIsDragging(true);
-                                                    },
-                                                    onDragLeave: file ? undefined : handleDragLeave,
-                                                    onDrop: file ? undefined : handleDrop,
-                                                    children: [
-                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                            className: `mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/15 text-accent-soft transition-[transform,background-color] duration-200 ${isDragging ? "scale-110 -rotate-6 bg-accent/25" : ""}`,
-                                                            "aria-hidden": true,
-                                                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("svg", {
-                                                                width: "24",
-                                                                height: "24",
-                                                                viewBox: "0 0 24 24",
-                                                                fill: "none",
-                                                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
-                                                                    d: "M12 16V4m0 0L8 8m4-4 4 4M5 20h14",
-                                                                    stroke: "currentColor",
-                                                                    strokeWidth: "1.8",
-                                                                    strokeLinecap: "round",
-                                                                    strokeLinejoin: "round"
-                                                                }, void 0, false, {
-                                                                    fileName: "[project]/components/landing/Hero.tsx",
-                                                                    lineNumber: 535,
-                                                                    columnNumber: 25
-                                                                }, this)
-                                                            }, void 0, false, {
-                                                                fileName: "[project]/components/landing/Hero.tsx",
-                                                                lineNumber: 534,
-                                                                columnNumber: 23
-                                                            }, this)
-                                                        }, void 0, false, {
-                                                            fileName: "[project]/components/landing/Hero.tsx",
-                                                            lineNumber: 533,
-                                                            columnNumber: 21
-                                                        }, this),
-                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                                            className: "mt-4 text-sm font-medium text-ink",
-                                                            children: file ? upload.alreadyAttached : isDragging ? upload.release : upload.drop
-                                                        }, void 0, false, {
-                                                            fileName: "[project]/components/landing/Hero.tsx",
-                                                            lineNumber: 538,
-                                                            columnNumber: 21
-                                                        }, this),
-                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                                            className: "mt-1 text-xs text-ink-faint",
-                                                            children: upload.formats
-                                                        }, void 0, false, {
-                                                            fileName: "[project]/components/landing/Hero.tsx",
-                                                            lineNumber: 539,
-                                                            columnNumber: 21
-                                                        }, this),
-                                                        uploadErrorText && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                                            className: "mt-3 text-xs text-red-300",
-                                                            children: uploadErrorText
-                                                        }, void 0, false, {
-                                                            fileName: "[project]/components/landing/Hero.tsx",
-                                                            lineNumber: 540,
-                                                            columnNumber: 41
-                                                        }, this),
-                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
-                                                            type: "button",
-                                                            disabled: Boolean(file),
-                                                            onClick: ()=>fileInputRef.current?.click(),
-                                                            className: "focus-ring mt-5 rounded-xl bg-gradient-to-b from-accent-soft to-accent-deep px-4 py-2 text-sm font-medium text-white transition-[filter] duration-200 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-30",
-                                                            children: upload.browse
-                                                        }, void 0, false, {
-                                                            fileName: "[project]/components/landing/Hero.tsx",
-                                                            lineNumber: 541,
-                                                            columnNumber: 21
-                                                        }, this)
-                                                    ]
-                                                }, void 0, true, {
-                                                    fileName: "[project]/components/landing/Hero.tsx",
-                                                    lineNumber: 525,
-                                                    columnNumber: 19
-                                                }, this)
-                                            ]
-                                        }, void 0, true, {
-                                            fileName: "[project]/components/landing/Hero.tsx",
-                                            lineNumber: 509,
-                                            columnNumber: 17
-                                        }, this)
-                                    }, void 0, false, {
-                                        fileName: "[project]/components/landing/Hero.tsx",
-                                        lineNumber: 495,
+                                        lineNumber: 478,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/landing/Hero.tsx",
-                                lineNumber: 384,
+                                lineNumber: 377,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/landing/Hero.tsx",
-                        lineNumber: 363,
+                        lineNumber: 356,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$landing$2f$PhoneMockup$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
@@ -1735,19 +1569,182 @@ function Hero({ lang }) {
                         pulseKey: pulseKey
                     }, void 0, false, {
                         fileName: "[project]/components/landing/Hero.tsx",
-                        lineNumber: 556,
+                        lineNumber: 489,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/landing/Hero.tsx",
-                lineNumber: 362,
+                lineNumber: 355,
                 columnNumber: 7
+            }, this),
+            uploadOpen && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                className: `fixed inset-0 z-[100] flex items-center justify-center bg-black/60 px-6 backdrop-blur-sm ${isClosing ? "upload-overlay-closing pointer-events-none" : "animate-[uploadOverlayIn_300ms_ease-out_both]"}`,
+                onAnimationEnd: (event)=>{
+                    if (isClosing && event.target === event.currentTarget) {
+                        setUploadOpen(false);
+                        setIsClosing(false);
+                    }
+                },
+                onDragOver: (event)=>event.preventDefault(),
+                onDragLeave: handleOverlayDragLeave,
+                onDragEnd: handleOverlayDragLeave,
+                onDrop: handleOverlayDrop,
+                onClick: closeUpload,
+                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                    role: "dialog",
+                    "aria-modal": "true",
+                    "aria-labelledby": "upload-modal-title",
+                    "data-upload-modal": true,
+                    className: `w-full max-w-md rounded-3xl border border-white/10 bg-[#100c18] p-5 ${isClosing ? "upload-modal-closing pointer-events-none" : "animate-[uploadModalIn_300ms_ease-out_both]"}`,
+                    onClick: (e)=>e.stopPropagation(),
+                    children: [
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                            className: "mb-4 flex items-start justify-between",
+                            children: [
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                    children: [
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                            id: "upload-modal-title",
+                                            className: "text-base font-semibold text-ink",
+                                            children: upload.title
+                                        }, void 0, false, {
+                                            fileName: "[project]/components/landing/Hero.tsx",
+                                            lineNumber: 518,
+                                            columnNumber: 17
+                                        }, this),
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                            className: "mt-1 text-sm text-ink-faint",
+                                            children: upload.description
+                                        }, void 0, false, {
+                                            fileName: "[project]/components/landing/Hero.tsx",
+                                            lineNumber: 519,
+                                            columnNumber: 17
+                                        }, this)
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "[project]/components/landing/Hero.tsx",
+                                    lineNumber: 517,
+                                    columnNumber: 15
+                                }, this),
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                                    type: "button",
+                                    onClick: closeUpload,
+                                    className: "focus-ring rounded-full px-2 text-xl leading-none text-ink-faint hover:text-ink",
+                                    "aria-label": upload.close,
+                                    children: "×"
+                                }, void 0, false, {
+                                    fileName: "[project]/components/landing/Hero.tsx",
+                                    lineNumber: 521,
+                                    columnNumber: 15
+                                }, this)
+                            ]
+                        }, void 0, true, {
+                            fileName: "[project]/components/landing/Hero.tsx",
+                            lineNumber: 516,
+                            columnNumber: 13
+                        }, this),
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                            className: `cursor-pointer rounded-2xl border border-dashed px-5 py-9 text-center transition-[border-color,background-color,transform,box-shadow] duration-200 ease-out ${file ? "border-white/10 bg-white/[0.01]" : isDragging ? "scale-[1.02] animate-[dropZonePulse_1.4s_ease-in-out_infinite] border-accent bg-accent/10 shadow-[0_0_35px_rgba(139,92,246,0.25)]" : "border-white/15 bg-white/[0.02]"}`,
+                            onClick: ()=>{
+                                if (!file) fileInputRef.current?.click();
+                            },
+                            onDragEnter: file ? undefined : handleDragEnter,
+                            onDragOver: file ? undefined : (e)=>{
+                                e.preventDefault();
+                                setIsDragging(true);
+                            },
+                            onDragLeave: file ? undefined : handleDragLeave,
+                            onDrop: file ? undefined : handleDrop,
+                            children: [
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                    className: `mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/15 text-accent-soft transition-[transform,background-color] duration-200 ${isDragging ? "scale-110 -rotate-6 bg-accent/25" : ""}`,
+                                    "aria-hidden": true,
+                                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("svg", {
+                                        width: "24",
+                                        height: "24",
+                                        viewBox: "0 0 24 24",
+                                        fill: "none",
+                                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
+                                            d: "M12 16V4m0 0L8 8m4-4 4 4M5 20h14",
+                                            stroke: "currentColor",
+                                            strokeWidth: "1.8",
+                                            strokeLinecap: "round",
+                                            strokeLinejoin: "round"
+                                        }, void 0, false, {
+                                            fileName: "[project]/components/landing/Hero.tsx",
+                                            lineNumber: 537,
+                                            columnNumber: 19
+                                        }, this)
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/landing/Hero.tsx",
+                                        lineNumber: 536,
+                                        columnNumber: 17
+                                    }, this)
+                                }, void 0, false, {
+                                    fileName: "[project]/components/landing/Hero.tsx",
+                                    lineNumber: 535,
+                                    columnNumber: 15
+                                }, this),
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                    className: "mt-4 text-sm font-medium text-ink",
+                                    children: file ? upload.alreadyAttached : isDragging ? upload.release : upload.drop
+                                }, void 0, false, {
+                                    fileName: "[project]/components/landing/Hero.tsx",
+                                    lineNumber: 540,
+                                    columnNumber: 15
+                                }, this),
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                    className: "mt-1 text-xs text-ink-faint",
+                                    children: upload.formats
+                                }, void 0, false, {
+                                    fileName: "[project]/components/landing/Hero.tsx",
+                                    lineNumber: 541,
+                                    columnNumber: 15
+                                }, this),
+                                uploadErrorText && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                    className: "mt-3 text-xs text-red-300",
+                                    children: uploadErrorText
+                                }, void 0, false, {
+                                    fileName: "[project]/components/landing/Hero.tsx",
+                                    lineNumber: 542,
+                                    columnNumber: 35
+                                }, this),
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                                    type: "button",
+                                    disabled: Boolean(file),
+                                    onClick: (e)=>{
+                                        e.stopPropagation(); // กันการทำงานซ้ำซ้อนกับ onClick ของกรอบนอก
+                                        fileInputRef.current?.click();
+                                    },
+                                    className: "focus-ring mt-5 rounded-xl bg-gradient-to-b from-accent-soft to-accent-deep px-4 py-2 text-sm font-medium text-white transition-[filter] duration-200 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-30",
+                                    children: upload.browse
+                                }, void 0, false, {
+                                    fileName: "[project]/components/landing/Hero.tsx",
+                                    lineNumber: 543,
+                                    columnNumber: 15
+                                }, this)
+                            ]
+                        }, void 0, true, {
+                            fileName: "[project]/components/landing/Hero.tsx",
+                            lineNumber: 525,
+                            columnNumber: 13
+                        }, this)
+                    ]
+                }, void 0, true, {
+                    fileName: "[project]/components/landing/Hero.tsx",
+                    lineNumber: 508,
+                    columnNumber: 11
+                }, this)
+            }, void 0, false, {
+                fileName: "[project]/components/landing/Hero.tsx",
+                lineNumber: 494,
+                columnNumber: 9
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/landing/Hero.tsx",
-        lineNumber: 358,
+        lineNumber: 351,
         columnNumber: 5
     }, this);
 }

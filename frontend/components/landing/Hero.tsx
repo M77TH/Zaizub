@@ -1,14 +1,15 @@
 "use client";
-import { useRouter } from "next/navigation";
+
 import { useEffect, useRef, useState, useCallback } from "react";
 import type { ChangeEvent, DragEvent, FormEvent } from "react";
+import { useRouter } from "next/navigation"; // 1. นำเข้า useRouter
 import { heroCopy } from "./copy";
 import type { Lang } from "./copy";
 import PhoneMockup from "./PhoneMockup";
 import InteractiveDots from "./InteractiveDots";
 
 export default function Hero({ lang }: { lang: Lang }) {
-  const router = useRouter();
+  const router = useRouter(); // 2. เรียกใช้งาน router
   const t = heroCopy[lang];
   const upload = lang === "en"
     ? {
@@ -35,6 +36,7 @@ export default function Hero({ lang }: { lang: Lang }) {
       remove: "ลบไฟล์ที่อัปโหลด",
       uploading: "กำลังอัปโหลดวิดีโอ...",
     };
+    
   const [link, setLink] = useState("");
   const [linkError, setLinkError] = useState(false);
   const [sourceHintOpen, setSourceHintOpen] = useState(false);
@@ -151,17 +153,17 @@ export default function Hero({ lang }: { lang: Lang }) {
     closeUpload();
   }, [file, clearUploadTimer, closeUpload]);
 
-  // Clean up timers on unmount
   useEffect(() => {
+    const statusTimer = statusTimerRef.current;
+
     return () => {
       clearUploadTimer();
-      if (statusTimerRef.current !== null) {
-        window.clearTimeout(statusTimerRef.current);
+      if (statusTimer !== null) {
+        window.clearTimeout(statusTimer);
       }
     };
   }, [clearUploadTimer]);
 
-  // Handle drag-and-drop on entire window
   useEffect(() => {
     const isFileDrag = (event: globalThis.DragEvent) => Array.from(event.dataTransfer?.types ?? []).includes("Files");
     const isHeaderDrag = (event: globalThis.DragEvent) => event.target instanceof Element && Boolean(event.target.closest("header"));
@@ -222,7 +224,6 @@ export default function Hero({ lang }: { lang: Lang }) {
     };
   }, [file, openUpload, closeUpload, scrollToHero, selectFile]);
 
-  // Handle Escape key to close modal
   useEffect(() => {
     if (!uploadOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -288,6 +289,7 @@ export default function Hero({ lang }: { lang: Lang }) {
     closeUpload();
   }
 
+  // 3. ฟังก์ชัน handleGenerate แบบใหม่ เชื่อมต่อ Backend และ Redirect
   async function handleGenerate(e: FormEvent) {
     e.preventDefault();
     if (status === "generating") return;
@@ -303,16 +305,13 @@ export default function Hero({ lang }: { lang: Lang }) {
     try {
       let response;
 
-      // กรณีที่ 1: ส่งลิ้งก์วิดีโอ (เช่น YouTube แบบในภาพ)
       if (link) {
-        response = await fetch("http://localhost:8000/api/v1/process-link", { // แก้ URL เป็น Endpoint จริงของคุณ
+        response = await fetch("http://localhost:8000/api/v1/process-link", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ url: link }),
         });
-      } 
-      // กรณีที่ 2: ส่งไฟล์วิดีโออัปโหลด
-      else if (file) {
+      } else if (file) {
         const formData = new FormData();
         formData.append("file", file);
         
@@ -323,21 +322,26 @@ export default function Hero({ lang }: { lang: Lang }) {
       }
 
       if (!response || !response.ok) {
-        throw new Error("เกิดข้อผิดพลาดในการส่งข้อมูลไปยัง Backend");
+        throw new Error("เกิดข้อผิดพลาดในการส่งข้อมูล");
       }
 
       const data = await response.json();
-      
-      // เมื่อสำเร็จ สามารถใช้ data.subtitles บันทึกลง State Management (Zustand/Context) 
-      // หรือแนบไปกับ URL แล้วสั่งเปลี่ยนหน้าไปที่ Editor
       console.log("Success:", data);
       
-      // เด้งไปหน้า Editor (ปรับ path ให้ตรงกับโปรเจกต์ของคุณ)
+      // เก็บข้อมูลโครงการและซับไตเติ้ลลง sessionStorage เพื่อส่งต่อไปหน้า /editor
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("subtitle_project", JSON.stringify({
+          video_url: data.video_url || (file ? URL.createObjectURL(file) : ""),
+          video_filename: data.video_filename || file?.name || "video.mp4",
+          subtitles: data.subtitles || []
+        }));
+      }
+      
+      // เมื่อส่งสำเร็จ เด้งไปหน้า /editor
       router.push("/editor"); 
 
     } catch (error) {
-      console.error("Backend Error:", error);
-      // TODO: เพิ่ม State แจ้งเตือนผู้ใช้กรณี API พัง
+      console.error("Error generating captions:", error);
     } finally {
       setStatus("idle");
     }
@@ -490,71 +494,78 @@ export default function Hero({ lang }: { lang: Lang }) {
                 {linkErrorText}
               </p>
             )}
-
-            {uploadOpen && (
-              <div
-                className={`fixed inset-0 z-30 flex items-center justify-center bg-black/60 px-6 backdrop-blur-sm ${isClosing ? "upload-overlay-closing pointer-events-none" : "animate-[uploadOverlayIn_300ms_ease-out_both]"}`}
-                onAnimationEnd={(event) => {
-                  if (isClosing && event.target === event.currentTarget) {
-                    setUploadOpen(false);
-                    setIsClosing(false);
-                  }
-                }}
-                onDragOver={(event) => event.preventDefault()}
-                onDragLeave={handleOverlayDragLeave}
-                onDragEnd={handleOverlayDragLeave}
-                onDrop={handleOverlayDrop}
-                onClick={closeUpload}
-              >
-                <div
-                  role="dialog"
-                  aria-modal="true"
-                  aria-labelledby="upload-modal-title"
-                  data-upload-modal
-                  className={`w-full max-w-md rounded-3xl border border-white/10 bg-[#100c18] p-5 ${isClosing ? "upload-modal-closing pointer-events-none" : "animate-[uploadModalIn_300ms_ease-out_both]"}`}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="mb-4 flex items-start justify-between">
-                    <div>
-                      <p id="upload-modal-title" className="text-base font-semibold text-ink">{upload.title}</p>
-                      <p className="mt-1 text-sm text-ink-faint">{upload.description}</p>
-                    </div>
-                    <button type="button" onClick={closeUpload} className="focus-ring rounded-full px-2 text-xl leading-none text-ink-faint hover:text-ink" aria-label={upload.close}>×</button>
-                  </div>
-
-                  <div
-                    className={`cursor-pointer rounded-2xl border border-dashed px-5 py-9 text-center transition-[border-color,background-color,transform,box-shadow] duration-200 ease-out ${file ? "border-white/10 bg-white/[0.01]" : isDragging ? "scale-[1.02] animate-[dropZonePulse_1.4s_ease-in-out_infinite] border-accent bg-accent/10 shadow-[0_0_35px_rgba(139,92,246,0.25)]" : "border-white/15 bg-white/[0.02]"}`}
-                    onClick={() => { if (!file) fileInputRef.current?.click(); }}
-                    onDragEnter={file ? undefined : handleDragEnter}
-                    onDragOver={file ? undefined : (e) => { e.preventDefault(); setIsDragging(true); }}
-                    onDragLeave={file ? undefined : handleDragLeave}
-                    onDrop={file ? undefined : handleDrop}
-                  >
-                    <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/15 text-accent-soft transition-[transform,background-color] duration-200 ${isDragging ? "scale-110 -rotate-6 bg-accent/25" : ""}`} aria-hidden>
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                        <path d="M12 16V4m0 0L8 8m4-4 4 4M5 20h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </div>
-                    <p className="mt-4 text-sm font-medium text-ink">{file ? upload.alreadyAttached : isDragging ? upload.release : upload.drop}</p>
-                    <p className="mt-1 text-xs text-ink-faint">{upload.formats}</p>
-                    {uploadErrorText && <p className="mt-3 text-xs text-red-300">{uploadErrorText}</p>}
-                    <button
-                      type="button"
-                      disabled={Boolean(file)}
-                      onClick={() => fileInputRef.current?.click()}
-                      className="focus-ring mt-5 rounded-xl bg-gradient-to-b from-accent-soft to-accent-deep px-4 py-2 text-sm font-medium text-white transition-[filter] duration-200 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-30"
-                    >
-                      {upload.browse}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
           </form>
         </div>
 
         <PhoneMockup lang={lang} pulseKey={pulseKey} />
       </div>
+
+      {/* 4. ย้าย Pop-up ອอกมานอกกรอบ Form/Grid และแก้ z-index เป็น z-[100] */}
+      {uploadOpen && (
+        <div
+          className={`fixed inset-0 z-[100] flex items-center justify-center bg-black/60 px-6 backdrop-blur-sm ${isClosing ? "upload-overlay-closing pointer-events-none" : "animate-[uploadOverlayIn_300ms_ease-out_both]"}`}
+          onAnimationEnd={(event) => {
+            if (isClosing && event.target === event.currentTarget) {
+              setUploadOpen(false);
+              setIsClosing(false);
+            }
+          }}
+          onDragOver={(event) => event.preventDefault()}
+          onDragLeave={handleOverlayDragLeave}
+          onDragEnd={handleOverlayDragLeave}
+          onDrop={handleOverlayDrop}
+          onClick={closeUpload}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="upload-modal-title"
+            data-upload-modal
+            className={`w-full max-w-md rounded-3xl border border-white/10 bg-[#100c18] p-5 ${isClosing ? "upload-modal-closing pointer-events-none" : "animate-[uploadModalIn_300ms_ease-out_both]"}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-start justify-between">
+              <div>
+                <p id="upload-modal-title" className="text-base font-semibold text-ink">{upload.title}</p>
+                <p className="mt-1 text-sm text-ink-faint">{upload.description}</p>
+              </div>
+              <button type="button" onClick={closeUpload} className="focus-ring rounded-full px-2 text-xl leading-none text-ink-faint hover:text-ink" aria-label={upload.close}>×</button>
+            </div>
+
+            {/* 5. เพิ่ม cursor-pointer และ onClick ให้ตัวกรอบเส้นประสามารถกดได้ทั้งหมด */}
+            <div
+              className={`cursor-pointer rounded-2xl border border-dashed px-5 py-9 text-center transition-[border-color,background-color,transform,box-shadow] duration-200 ease-out ${file ? "border-white/10 bg-white/[0.01]" : isDragging ? "scale-[1.02] animate-[dropZonePulse_1.4s_ease-in-out_infinite] border-accent bg-accent/10 shadow-[0_0_35px_rgba(139,92,246,0.25)]" : "border-white/15 bg-white/[0.02]"}`}
+              onClick={() => {
+                if (!file) fileInputRef.current?.click();
+              }}
+              onDragEnter={file ? undefined : handleDragEnter}
+              onDragOver={file ? undefined : (e) => { e.preventDefault(); setIsDragging(true); }}
+              onDragLeave={file ? undefined : handleDragLeave}
+              onDrop={file ? undefined : handleDrop}
+            >
+              <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/15 text-accent-soft transition-[transform,background-color] duration-200 ${isDragging ? "scale-110 -rotate-6 bg-accent/25" : ""}`} aria-hidden>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 16V4m0 0L8 8m4-4 4 4M5 20h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <p className="mt-4 text-sm font-medium text-ink">{file ? upload.alreadyAttached : isDragging ? upload.release : upload.drop}</p>
+              <p className="mt-1 text-xs text-ink-faint">{upload.formats}</p>
+              {uploadErrorText && <p className="mt-3 text-xs text-red-300">{uploadErrorText}</p>}
+              <button
+                type="button"
+                disabled={Boolean(file)}
+                onClick={(e) => {
+                  e.stopPropagation(); // กันการทำงานซ้ำซ้อนกับ onClick ของกรอบนอก
+                  fileInputRef.current?.click();
+                }}
+                className="focus-ring mt-5 rounded-xl bg-gradient-to-b from-accent-soft to-accent-deep px-4 py-2 text-sm font-medium text-white transition-[filter] duration-200 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                {upload.browse}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

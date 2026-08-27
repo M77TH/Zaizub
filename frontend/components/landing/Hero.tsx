@@ -1,5 +1,5 @@
 "use client";
-
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useCallback } from "react";
 import type { ChangeEvent, DragEvent, FormEvent } from "react";
 import { heroCopy } from "./copy";
@@ -8,6 +8,7 @@ import PhoneMockup from "./PhoneMockup";
 import InteractiveDots from "./InteractiveDots";
 
 export default function Hero({ lang }: { lang: Lang }) {
+  const router = useRouter();
   const t = heroCopy[lang];
   const upload = lang === "en"
     ? {
@@ -287,7 +288,7 @@ export default function Hero({ lang }: { lang: Lang }) {
     closeUpload();
   }
 
-  function handleGenerate(e: FormEvent) {
+  async function handleGenerate(e: FormEvent) {
     e.preventDefault();
     if (status === "generating") return;
     if (!file && !linkIsValid) {
@@ -299,13 +300,47 @@ export default function Hero({ lang }: { lang: Lang }) {
     setStatus("generating");
     setPulseKey((k) => k + 1);
 
-    if (statusTimerRef.current !== null) {
-      window.clearTimeout(statusTimerRef.current);
-    }
-    statusTimerRef.current = window.setTimeout(() => {
+    try {
+      let response;
+
+      // กรณีที่ 1: ส่งลิ้งก์วิดีโอ (เช่น YouTube แบบในภาพ)
+      if (link) {
+        response = await fetch("http://localhost:8000/api/v1/process-link", { // แก้ URL เป็น Endpoint จริงของคุณ
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: link }),
+        });
+      } 
+      // กรณีที่ 2: ส่งไฟล์วิดีโออัปโหลด
+      else if (file) {
+        const formData = new FormData();
+        formData.append("file", file);
+        
+        response = await fetch("http://localhost:8000/api/v1/extract-audio", {
+          method: "POST",
+          body: formData,
+        });
+      }
+
+      if (!response || !response.ok) {
+        throw new Error("เกิดข้อผิดพลาดในการส่งข้อมูลไปยัง Backend");
+      }
+
+      const data = await response.json();
+      
+      // เมื่อสำเร็จ สามารถใช้ data.subtitles บันทึกลง State Management (Zustand/Context) 
+      // หรือแนบไปกับ URL แล้วสั่งเปลี่ยนหน้าไปที่ Editor
+      console.log("Success:", data);
+      
+      // เด้งไปหน้า Editor (ปรับ path ให้ตรงกับโปรเจกต์ของคุณ)
+      router.push("/editor"); 
+
+    } catch (error) {
+      console.error("Backend Error:", error);
+      // TODO: เพิ่ม State แจ้งเตือนผู้ใช้กรณี API พัง
+    } finally {
       setStatus("idle");
-      statusTimerRef.current = null;
-    }, 1600);
+    }
   }
 
   const handleResetFile = () => {
@@ -488,7 +523,8 @@ export default function Hero({ lang }: { lang: Lang }) {
                   </div>
 
                   <div
-                    className={`rounded-2xl border border-dashed px-5 py-9 text-center transition-[border-color,background-color,transform,box-shadow] duration-200 ease-out ${file ? "border-white/10 bg-white/[0.01]" : isDragging ? "scale-[1.02] animate-[dropZonePulse_1.4s_ease-in-out_infinite] border-accent bg-accent/10 shadow-[0_0_35px_rgba(139,92,246,0.25)]" : "border-white/15 bg-white/[0.02]"}`}
+                    className={`cursor-pointer rounded-2xl border border-dashed px-5 py-9 text-center transition-[border-color,background-color,transform,box-shadow] duration-200 ease-out ${file ? "border-white/10 bg-white/[0.01]" : isDragging ? "scale-[1.02] animate-[dropZonePulse_1.4s_ease-in-out_infinite] border-accent bg-accent/10 shadow-[0_0_35px_rgba(139,92,246,0.25)]" : "border-white/15 bg-white/[0.02]"}`}
+                    onClick={() => { if (!file) fileInputRef.current?.click(); }}
                     onDragEnter={file ? undefined : handleDragEnter}
                     onDragOver={file ? undefined : (e) => { e.preventDefault(); setIsDragging(true); }}
                     onDragLeave={file ? undefined : handleDragLeave}

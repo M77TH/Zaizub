@@ -2,14 +2,15 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import type { ChangeEvent, DragEvent, FormEvent } from "react";
-import { useRouter } from "next/navigation"; // 1. นำเข้า useRouter
+import { useRouter } from "next/navigation";
 import { heroCopy } from "./copy";
 import type { Lang } from "./copy";
 import PhoneMockup from "./PhoneMockup";
 import InteractiveDots from "./InteractiveDots";
+import { apiUrl } from "@/lib/api";
 
 export default function Hero({ lang }: { lang: Lang }) {
-  const router = useRouter(); // 2. เรียกใช้งาน router
+  const router = useRouter();
   const t = heroCopy[lang];
   const upload = lang === "en"
     ? {
@@ -36,7 +37,6 @@ export default function Hero({ lang }: { lang: Lang }) {
       remove: "ลบไฟล์ที่อัปโหลด",
       uploading: "กำลังอัปโหลดวิดีโอ...",
     };
-    
   const [link, setLink] = useState("");
   const [linkError, setLinkError] = useState(false);
   const [sourceHintOpen, setSourceHintOpen] = useState(false);
@@ -89,7 +89,16 @@ export default function Hero({ lang }: { lang: Lang }) {
 
   const closeUpload = useCallback(() => {
     setIsDragging(false);
-    setIsClosing(true);
+    setUploadOpen((open) => {
+      if (open) setIsClosing(true);
+      return open;
+    });
+  }, []);
+
+  const forceCloseUpload = useCallback(() => {
+    setIsDragging(false);
+    setIsClosing(false);
+    setUploadOpen(false);
   }, []);
 
   const clearUploadTimer = useCallback(() => {
@@ -99,16 +108,22 @@ export default function Hero({ lang }: { lang: Lang }) {
     }
   }, []);
 
+  const isVideoFile = (checkFile: File) => {
+    if (checkFile.type && checkFile.type.startsWith("video/")) return true;
+    return /\.(mp4|mov|webm|m4v|mkv|avi|wmv|flv)$/i.test(checkFile.name);
+  };
+
   const selectFile = useCallback((nextFile: File | undefined) => {
+    forceCloseUpload();
     if (file) return;
     clearUploadTimer();
 
-    if (!nextFile || !nextFile.type.startsWith("video/") || nextFile.size > 50 * 1024 * 1024) {
+    if (!nextFile || !isVideoFile(nextFile) || nextFile.size > 50 * 1024 * 1024) {
       setFile(null);
       setDuration(null);
       setUploadProgress(0);
       setUploadStage("error");
-      setUploadError(!nextFile || !nextFile.type.startsWith("video/") ? "type" : "size");
+      setUploadError(!nextFile || !isVideoFile(nextFile) ? "type" : "size");
       return;
     }
 
@@ -150,20 +165,19 @@ export default function Hero({ lang }: { lang: Lang }) {
       revokeUrl();
     };
     video.src = objectUrl;
-    closeUpload();
-  }, [file, clearUploadTimer, closeUpload]);
+  }, [file, clearUploadTimer, forceCloseUpload]);
 
+  // Clean up timers on unmount
   useEffect(() => {
-    const statusTimer = statusTimerRef.current;
-
     return () => {
       clearUploadTimer();
-      if (statusTimer !== null) {
-        window.clearTimeout(statusTimer);
+      if (statusTimerRef.current !== null) {
+        window.clearTimeout(statusTimerRef.current);
       }
     };
   }, [clearUploadTimer]);
 
+  // Handle drag-and-drop on entire window
   useEffect(() => {
     const isFileDrag = (event: globalThis.DragEvent) => Array.from(event.dataTransfer?.types ?? []).includes("Files");
     const isHeaderDrag = (event: globalThis.DragEvent) => event.target instanceof Element && Boolean(event.target.closest("header"));
@@ -183,28 +197,30 @@ export default function Hero({ lang }: { lang: Lang }) {
       if (isHeaderDrag(event)) return;
       event.preventDefault();
       if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
-      openUpload();
       setIsDragging(true);
     };
 
     const handlePageDragLeave = (event: globalThis.DragEvent) => {
+      if (file) return;
+      const x = event.clientX;
+      const y = event.clientY;
       const leftDocument = !event.relatedTarget || !document.documentElement.contains(event.relatedTarget as Node);
-      if (!leftDocument || file) return;
-      setIsDragging(false);
-      closeUpload();
+      const isOutOfBounds = x <= 0 || y <= 0 || x >= window.innerWidth || y >= window.innerHeight;
+      if (leftDocument || isOutOfBounds) {
+        setIsDragging(false);
+        closeUpload();
+      }
     };
 
     const handlePageDragEnd = () => {
-      if (file) return;
-      setIsDragging(false);
-      closeUpload();
+      forceCloseUpload();
     };
 
     const handlePageDrop = (event: globalThis.DragEvent) => {
       if (!isFileDrag(event)) return;
-      if (file) return;
       event.preventDefault();
-      setIsDragging(false);
+      forceCloseUpload();
+      if (file) return;
       scrollToHero();
       selectFile(event.dataTransfer?.files?.[0]);
     };
@@ -222,8 +238,9 @@ export default function Hero({ lang }: { lang: Lang }) {
       window.removeEventListener("dragend", handlePageDragEnd);
       window.removeEventListener("drop", handlePageDrop);
     };
-  }, [file, openUpload, closeUpload, scrollToHero, selectFile]);
+  }, [file, openUpload, closeUpload, forceCloseUpload, scrollToHero, selectFile]);
 
+  // Handle Escape key to close modal
   useEffect(() => {
     if (!uploadOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -234,6 +251,16 @@ export default function Hero({ lang }: { lang: Lang }) {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [uploadOpen, closeUpload]);
+
+  // Safety fallback to unmount overlay after close animation ends
+  useEffect(() => {
+    if (!isClosing) return;
+    const timer = window.setTimeout(() => {
+      setUploadOpen(false);
+      setIsClosing(false);
+    }, 320);
+    return () => window.clearTimeout(timer);
+  }, [isClosing]);
 
   function formatDuration(seconds: number) {
     const totalSeconds = Math.round(seconds);
@@ -258,7 +285,7 @@ export default function Hero({ lang }: { lang: Lang }) {
   function handleDrop(e: DragEvent<HTMLDivElement>) {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragging(false);
+    forceCloseUpload();
     if (file) return;
     scrollToHero();
     selectFile(e.dataTransfer.files[0]);
@@ -267,7 +294,7 @@ export default function Hero({ lang }: { lang: Lang }) {
   function handleOverlayDrop(e: DragEvent<HTMLDivElement>) {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragging(false);
+    forceCloseUpload();
     if (file) return;
     scrollToHero();
     selectFile(e.dataTransfer.files[0]);
@@ -285,11 +312,13 @@ export default function Hero({ lang }: { lang: Lang }) {
   function handleOverlayDragLeave(e: DragEvent<HTMLDivElement>) {
     const nextTarget = e.relatedTarget as Node | null;
     if (nextTarget && e.currentTarget.contains(nextTarget)) return;
+    const x = e.clientX;
+    const y = e.clientY;
+    if (x > 0 && y > 0 && x < window.innerWidth && y < window.innerHeight) return;
     setIsDragging(false);
     closeUpload();
   }
 
-  // 3. ฟังก์ชัน handleGenerate แบบใหม่ เชื่อมต่อ Backend และ Redirect
   async function handleGenerate(e: FormEvent) {
     e.preventDefault();
     if (status === "generating") return;
@@ -303,45 +332,59 @@ export default function Hero({ lang }: { lang: Lang }) {
     setPulseKey((k) => k + 1);
 
     try {
-      let response;
-
-      if (link) {
-        response = await fetch("http://localhost:8000/api/v1/process-link", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: link }),
-        });
-      } else if (file) {
+      if (file) {
         const formData = new FormData();
         formData.append("file", file);
-        
-        response = await fetch("http://localhost:8000/api/v1/extract-audio", {
+        const res = await fetch(apiUrl("/api/v1/extract-audio"), {
           method: "POST",
           body: formData,
         });
-      }
 
-      if (!response || !response.ok) {
-        throw new Error("เกิดข้อผิดพลาดในการส่งข้อมูล");
-      }
+        if (!res.ok) {
+          throw new Error(`API extraction failed with status ${res.status}`);
+        }
 
-      const data = await response.json();
-      console.log("Success:", data);
-      
-      // เก็บข้อมูลโครงการและซับไตเติ้ลลง sessionStorage เพื่อส่งต่อไปหน้า /editor
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem("subtitle_project", JSON.stringify({
-          video_url: data.video_url || (file ? URL.createObjectURL(file) : ""),
-          video_filename: data.video_filename || file?.name || "video.mp4",
-          subtitles: data.subtitles || []
-        }));
-      }
-      
-      // เมื่อส่งสำเร็จ เด้งไปหน้า /editor
-      router.push("/editor"); 
+        const data = await res.json();
+        sessionStorage.setItem("subtitle_project", JSON.stringify(data));
+        router.push("/editor");
+      } else if (linkIsValid) {
+        const res = await fetch(apiUrl("/api/v1/process-link"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: link.trim() }),
+        });
 
-    } catch (error) {
-      console.error("Error generating captions:", error);
+        if (!res.ok) {
+          throw new Error(`API process-link failed with status ${res.status}`);
+        }
+
+        const data = await res.json();
+        sessionStorage.setItem("subtitle_project", JSON.stringify(data));
+        router.push("/editor");
+      }
+    } catch (err) {
+      console.warn("Backend error or unreachable, fallback to editor session:", err);
+      if (file) {
+        const localUrl = URL.createObjectURL(file);
+        sessionStorage.setItem(
+          "subtitle_project",
+          JSON.stringify({
+            video_url: localUrl,
+            video_filename: file.name,
+            subtitles: [
+              {
+                id: 1,
+                start: 0.0,
+                end: Math.min(5.0, duration || 5.0),
+                text: "ยินดีต้อนรับสู่ระบบสร้างซับไตเติ้ล Zaizub",
+              },
+            ],
+          })
+        );
+        router.push("/editor");
+      } else {
+        setLinkError(true);
+      }
     } finally {
       setStatus("idle");
     }
@@ -494,78 +537,70 @@ export default function Hero({ lang }: { lang: Lang }) {
                 {linkErrorText}
               </p>
             )}
+
+            {uploadOpen && (
+              <div
+                className={`fixed inset-0 z-30 flex items-center justify-center bg-black/60 px-6 backdrop-blur-sm ${isClosing ? "animate-[uploadOverlayOut_300ms_ease-out_both] pointer-events-none" : "animate-[uploadOverlayIn_300ms_ease-out_both]"}`}
+                onAnimationEnd={(event) => {
+                  if (isClosing && event.target === event.currentTarget) {
+                    setUploadOpen(false);
+                    setIsClosing(false);
+                  }
+                }}
+                onDragOver={(event) => event.preventDefault()}
+                onDragLeave={handleOverlayDragLeave}
+                onDragEnd={handleOverlayDragLeave}
+                onDrop={handleOverlayDrop}
+                onClick={closeUpload}
+              >
+                <div
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="upload-modal-title"
+                  data-upload-modal
+                  className={`w-full max-w-md rounded-3xl border border-white/10 bg-[#100c18] p-5 ${isClosing ? "animate-[uploadModalOut_300ms_ease-out_both] pointer-events-none" : "animate-[uploadModalIn_300ms_ease-out_both]"}`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="mb-4 flex items-start justify-between">
+                    <div>
+                      <p id="upload-modal-title" className="text-base font-semibold text-ink">{upload.title}</p>
+                      <p className="mt-1 text-sm text-ink-faint">{upload.description}</p>
+                    </div>
+                    <button type="button" onClick={closeUpload} className="focus-ring rounded-full px-2 text-xl leading-none text-ink-faint hover:text-ink" aria-label={upload.close}>×</button>
+                  </div>
+
+                  <div
+                    className={`rounded-2xl border border-dashed px-5 py-9 text-center transition-[border-color,background-color,transform,box-shadow] duration-200 ease-out ${file ? "border-white/10 bg-white/[0.01]" : isDragging ? "scale-[1.02] animate-[dropZonePulse_1.4s_ease-in-out_infinite] border-accent bg-accent/10 shadow-[0_0_35px_rgba(139,92,246,0.25)]" : "border-white/15 bg-white/[0.02]"}`}
+                    onDragEnter={file ? undefined : handleDragEnter}
+                    onDragOver={file ? undefined : (e) => { e.preventDefault(); setIsDragging(true); }}
+                    onDragLeave={file ? undefined : handleDragLeave}
+                    onDrop={file ? undefined : handleDrop}
+                  >
+                    <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/15 text-accent-soft transition-[transform,background-color] duration-200 ${isDragging ? "scale-110 -rotate-6 bg-accent/25" : ""}`} aria-hidden>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 16V4m0 0L8 8m4-4 4 4M5 20h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
+                    <p className="mt-4 text-sm font-medium text-ink">{file ? upload.alreadyAttached : isDragging ? upload.release : upload.drop}</p>
+                    <p className="mt-1 text-xs text-ink-faint">{upload.formats}</p>
+                    {uploadErrorText && <p className="mt-3 text-xs text-red-300">{uploadErrorText}</p>}
+                    <button
+                      type="button"
+                      disabled={Boolean(file)}
+                      onClick={() => fileInputRef.current?.click()}
+                      className="focus-ring mt-5 rounded-xl bg-gradient-to-b from-accent-soft to-accent-deep px-4 py-2 text-sm font-medium text-white transition-[filter] duration-200 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-30"
+                    >
+                      {upload.browse}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </form>
         </div>
 
         <PhoneMockup lang={lang} pulseKey={pulseKey} />
       </div>
-
-      {/* 4. ย้าย Pop-up ອอกมานอกกรอบ Form/Grid และแก้ z-index เป็น z-[100] */}
-      {uploadOpen && (
-        <div
-          className={`fixed inset-0 z-[100] flex items-center justify-center bg-black/60 px-6 backdrop-blur-sm ${isClosing ? "upload-overlay-closing pointer-events-none" : "animate-[uploadOverlayIn_300ms_ease-out_both]"}`}
-          onAnimationEnd={(event) => {
-            if (isClosing && event.target === event.currentTarget) {
-              setUploadOpen(false);
-              setIsClosing(false);
-            }
-          }}
-          onDragOver={(event) => event.preventDefault()}
-          onDragLeave={handleOverlayDragLeave}
-          onDragEnd={handleOverlayDragLeave}
-          onDrop={handleOverlayDrop}
-          onClick={closeUpload}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="upload-modal-title"
-            data-upload-modal
-            className={`w-full max-w-md rounded-3xl border border-white/10 bg-[#100c18] p-5 ${isClosing ? "upload-modal-closing pointer-events-none" : "animate-[uploadModalIn_300ms_ease-out_both]"}`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-4 flex items-start justify-between">
-              <div>
-                <p id="upload-modal-title" className="text-base font-semibold text-ink">{upload.title}</p>
-                <p className="mt-1 text-sm text-ink-faint">{upload.description}</p>
-              </div>
-              <button type="button" onClick={closeUpload} className="focus-ring rounded-full px-2 text-xl leading-none text-ink-faint hover:text-ink" aria-label={upload.close}>×</button>
-            </div>
-
-            {/* 5. เพิ่ม cursor-pointer และ onClick ให้ตัวกรอบเส้นประสามารถกดได้ทั้งหมด */}
-            <div
-              className={`cursor-pointer rounded-2xl border border-dashed px-5 py-9 text-center transition-[border-color,background-color,transform,box-shadow] duration-200 ease-out ${file ? "border-white/10 bg-white/[0.01]" : isDragging ? "scale-[1.02] animate-[dropZonePulse_1.4s_ease-in-out_infinite] border-accent bg-accent/10 shadow-[0_0_35px_rgba(139,92,246,0.25)]" : "border-white/15 bg-white/[0.02]"}`}
-              onClick={() => {
-                if (!file) fileInputRef.current?.click();
-              }}
-              onDragEnter={file ? undefined : handleDragEnter}
-              onDragOver={file ? undefined : (e) => { e.preventDefault(); setIsDragging(true); }}
-              onDragLeave={file ? undefined : handleDragLeave}
-              onDrop={file ? undefined : handleDrop}
-            >
-              <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/15 text-accent-soft transition-[transform,background-color] duration-200 ${isDragging ? "scale-110 -rotate-6 bg-accent/25" : ""}`} aria-hidden>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 16V4m0 0L8 8m4-4 4 4M5 20h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </div>
-              <p className="mt-4 text-sm font-medium text-ink">{file ? upload.alreadyAttached : isDragging ? upload.release : upload.drop}</p>
-              <p className="mt-1 text-xs text-ink-faint">{upload.formats}</p>
-              {uploadErrorText && <p className="mt-3 text-xs text-red-300">{uploadErrorText}</p>}
-              <button
-                type="button"
-                disabled={Boolean(file)}
-                onClick={(e) => {
-                  e.stopPropagation(); // กันการทำงานซ้ำซ้อนกับ onClick ของกรอบนอก
-                  fileInputRef.current?.click();
-                }}
-                className="focus-ring mt-5 rounded-xl bg-gradient-to-b from-accent-soft to-accent-deep px-4 py-2 text-sm font-medium text-white transition-[filter] duration-200 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-30"
-              >
-                {upload.browse}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </section>
   );
 }

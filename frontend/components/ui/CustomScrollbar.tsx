@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
-import { useLenis } from "./SmoothScroll";
+import { useEffect, useRef, useState, useCallback, type RefObject } from "react";
+import { useLenis } from "@/components/providers/SmoothScroll";
 
-export default function CustomScrollbar() {
+type CustomScrollbarProps = {
+  scrollRef?: RefObject<HTMLElement | null>;
+};
+
+export default function CustomScrollbar({ scrollRef }: CustomScrollbarProps) {
   const { lenis } = useLenis();
   const [thumb, setThumb] = useState({ height: 0, top: 0 });
-  const [maxThumbTop, setMaxThumbTop] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
 
   const thumbRef = useRef<HTMLDivElement>(null);
@@ -17,13 +20,13 @@ export default function CustomScrollbar() {
   const updateGeometry = useCallback(() => {
     if (typeof window === "undefined") return;
 
-    const docHeight = document.documentElement.scrollHeight;
-    const viewportHeight = window.innerHeight;
+    const scrollElement = scrollRef?.current;
+    const docHeight = scrollElement?.scrollHeight ?? document.documentElement.scrollHeight;
+    const viewportHeight = scrollElement?.clientHeight ?? window.innerHeight;
     const maxScroll = Math.max(docHeight - viewportHeight, 0);
 
     if (maxScroll <= 0) {
       setThumb({ height: 0, top: 0 });
-      setMaxThumbTop(0);
       thumbStateRef.current = { height: 0, top: 0, maxScroll: 0, maxThumbTop: 0 };
       return;
     }
@@ -34,14 +37,13 @@ export default function CustomScrollbar() {
       56
     );
     const maxThumbTop = Math.max(trackHeight - height, 0);
-    const currentScrollY = window.scrollY;
+    const currentScrollY = scrollElement?.scrollTop ?? window.scrollY;
     const progress = Math.min(Math.max(currentScrollY / maxScroll, 0), 1);
     const top = progress * maxThumbTop;
 
     thumbStateRef.current = { height, top, maxScroll, maxThumbTop };
     setThumb({ height, top });
-    setMaxThumbTop(maxThumbTop);
-  }, []);
+  }, [scrollRef]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -49,9 +51,11 @@ export default function CustomScrollbar() {
       updateGeometry();
     };
 
-    const initialUpdateFrame = window.requestAnimationFrame(updateGeometry);
+    const initialUpdate = window.requestAnimationFrame(updateGeometry);
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
+    const scrollElement = scrollRef?.current;
+    if (scrollElement) scrollElement.addEventListener("scroll", handleScroll, { passive: true });
+    else window.addEventListener("scroll", handleScroll, { passive: true });
     window.addEventListener("resize", updateGeometry);
 
     let lenisUnsubscribe: (() => void) | undefined;
@@ -63,15 +67,17 @@ export default function CustomScrollbar() {
     const observer = new ResizeObserver(updateGeometry);
     observer.observe(document.documentElement);
     observer.observe(document.body);
+    if (scrollElement) observer.observe(scrollElement);
 
     return () => {
-      window.cancelAnimationFrame(initialUpdateFrame);
-      window.removeEventListener("scroll", handleScroll);
+      window.cancelAnimationFrame(initialUpdate);
+      if (scrollElement) scrollElement.removeEventListener("scroll", handleScroll);
+      else window.removeEventListener("scroll", handleScroll);
       window.removeEventListener("resize", updateGeometry);
       lenisUnsubscribe?.();
       observer.disconnect();
     };
-  }, [updateGeometry, lenis]);
+  }, [updateGeometry, lenis, scrollRef]);
 
   // Handle thumb dragging
   const handleThumbPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -100,7 +106,10 @@ export default function CustomScrollbar() {
       setThumb((prev) => ({ ...prev, top: targetTop }));
       thumbStateRef.current.top = targetTop;
 
-      if (lenis) {
+      const scrollElement = scrollRef?.current;
+      if (scrollElement) {
+        scrollElement.scrollTop = targetScrollY;
+      } else if (lenis) {
         lenis.scrollTo(targetScrollY, { immediate: true });
       } else {
         window.scrollTo(0, targetScrollY);
@@ -125,7 +134,7 @@ export default function CustomScrollbar() {
     window.addEventListener("pointercancel", handlePointerUp);
   };
 
-  // Handle clicking on track to smooth scroll to position
+  // Handle clicking on track to scroll to position
   const handleTrackClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === thumbRef.current) return;
     const { maxThumbTop, maxScroll, height } = thumbStateRef.current;
@@ -137,7 +146,10 @@ export default function CustomScrollbar() {
     const progress = Math.max(0, Math.min(1, targetThumbTop / maxThumbTop));
     const targetScrollY = progress * maxScroll;
 
-    if (lenis) {
+    const scrollElement = scrollRef?.current;
+    if (scrollElement) {
+      scrollElement.scrollTop = targetScrollY;
+    } else if (lenis) {
       lenis.scrollTo(targetScrollY, { duration: 1.2 });
     } else {
       window.scrollTo({ top: targetScrollY, behavior: "smooth" });
@@ -153,10 +165,9 @@ export default function CustomScrollbar() {
       aria-controls="main-content"
       aria-valuenow={Math.round(thumb.top)}
       aria-valuemin={0}
-      aria-valuemax={maxThumbTop}
       aria-orientation="vertical"
       onClick={handleTrackClick}
-      className="fixed inset-y-0 right-0 z-50 flex w-3 select-none justify-end cursor-pointer"
+      className={`${scrollRef ? "absolute inset-y-0 right-0 z-20" : "fixed inset-y-0 right-0 z-50"} flex w-3 select-none justify-end cursor-pointer`}
     >
       {/* Draggable Minimal Thumb */}
       <div
@@ -168,8 +179,8 @@ export default function CustomScrollbar() {
         }}
         className={`relative w-[3px] rounded-full touch-none cursor-grab active:cursor-grabbing will-change-transform ${
           isDragging
-            ? "bg-[#6b6779]"
-            : "bg-[#34333a] hover:bg-[#504c5c] transition-transform duration-100 ease-out"
+            ? "bg-[#949494]"
+            : "bg-[#525252] hover:bg-[#737373] transition-transform duration-100 ease-out"
         }`}
       >
         {/* Invisible wider hit area for easy mouse grabbing right at screen edge */}

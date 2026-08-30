@@ -7,7 +7,7 @@ import HowItWorks from "@/components/landing/HowItWorks";
 import Features from "@/components/landing/Features";
 import Pricing from "@/components/landing/Pricing";
 import Footer from "@/components/landing/Footer";
-import CustomScrollbar from "@/components/landing/CustomScrollbar";
+import CustomScrollbar from "@/components/ui/CustomScrollbar";
 import type { Lang } from "@/components/landing/copy";
 
 export default function Home() {

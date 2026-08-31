@@ -58,6 +58,8 @@ __pycache__/
 .pytest_cache/
 .coverage
 htmlcov/
+package.json
+package-lock.json
 
 # ==============================================================================
 # 8. Media, Uploads & Temporary Storage

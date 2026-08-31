@@ -8,7 +8,7 @@ from typing import List, Optional, Union, Dict, Any
 from pydantic import BaseModel
 from fastapi import APIRouter, UploadFile, File, Form, Request, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
-from app.services.ai_services import transcribe_audio_groq
+from app.services.ai_services import transcribe_audio_whisperx
 from app.utils.ass_generator import generate_ass_content
 import yt_dlp
 
@@ -68,7 +68,7 @@ async def extract_audio(
     Endpoint 1:
     - Saves uploaded video to temp_storage.
     - Extracts audio using FFmpeg.
-    - Transcribes audio using Groq Whisper.
+    - Transcribes audio using WhisperX.
     - Returns video_url and structured subtitles JSON array.
     """
     job_id = int(time.time() * 1000)
@@ -96,8 +96,8 @@ async def extract_audio(
         ]
         subprocess.run(extract_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-        # 3. Transcribe audio using Groq Whisper
-        subtitles = transcribe_audio_groq(temp_audio)
+        # 3. Transcribe audio using WhisperX
+        subtitles = transcribe_audio_whisperx(temp_audio)
 
         # Queue audio cleanup
         background_tasks.add_task(cleanup_files, temp_audio)
@@ -188,7 +188,6 @@ async def render_video(
             f.write(ass_content)
 
         # 2. Run FFmpeg with libass filter
-        # Note: relative path with forward slashes is standard and safe for FFmpeg on Windows
         burn_cmd = [
             'ffmpeg', '-y',
             '-i', input_video_path,
@@ -235,7 +234,7 @@ async def process_video(background_tasks: BackgroundTasks, file: UploadFile = Fi
             shutil.copyfileobj(file.file, buffer)
 
         subprocess.run(['ffmpeg', '-y', '-i', input_video, '-vn', '-c:a', 'aac', '-b:a', '64k', temp_audio], check=True)
-        transcribe_audio_groq(temp_audio, srt_file)
+        transcribe_audio_whisperx(temp_audio, srt_file)
         safe_srt_path = srt_file.replace('\\', '/')
         subprocess.run(['ffmpeg', '-y', '-i', input_video, '-vf', f"subtitles='{safe_srt_path}'", output_video], check=True)
 
@@ -245,6 +244,8 @@ async def process_video(background_tasks: BackgroundTasks, file: UploadFile = Fi
     except Exception as e:
         cleanup_files(input_video, temp_audio, srt_file, output_video)
         return {"error": str(e)}
+
+
 class LinkRequest(BaseModel):
     url: str
 
@@ -257,7 +258,7 @@ async def process_link(
     Endpoint 3:
     - Accepts JSON with a video URL.
     - Downloads the video using yt-dlp to temp_storage.
-    - Extracts audio and calls Groq Whisper.
+    - Extracts audio and calls WhisperX.
     - Returns video_url and subtitles (same format as /extract-audio).
     """
     job_id = int(time.time() * 1000)
@@ -265,7 +266,7 @@ async def process_link(
     temp_audio = os.path.join(TEMP_DIR, f"aud_{job_id}.m4a").replace("\\", "/")
 
     try:
-        # 1. โหลดวิดีโอจากลิงก์ด้วย yt-dlp (ตั้งค่าให้โหลด mp4)
+        # 1. โหลดวิดีโอจากลิงก์ด้วย yt-dlp
         ydl_opts = {
             'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4',
             'outtmpl': input_video,
@@ -286,8 +287,8 @@ async def process_link(
         ]
         subprocess.run(extract_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-        # 3. ถอดเสียงด้วย Groq AI
-        subtitles = transcribe_audio_groq(temp_audio)
+        # 3. ถอดเสียงด้วย WhisperX
+        subtitles = transcribe_audio_whisperx(temp_audio)
 
         # ลบไฟล์เสียงชั่วคราวทิ้ง
         background_tasks.add_task(cleanup_files, temp_audio)

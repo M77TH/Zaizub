@@ -1,49 +1,86 @@
-# Created by venv; see https://docs.python.org/3/library/venv.html
+# ==============================================================================
+# 1. Virtual Environments & Python Packages
+# ==============================================================================
+venv/
+env/
+ENV/
+.venv/
 
-# =========================
-# 1. โฟลเดอร์สภาพแวดล้อมจำลอง (Virtual Environment)
-# =========================
-# โฟลเดอร์ venv มีขนาดใหญ่และมีไลบรารีที่โหลดใหม่ได้เสมอ ห้ามเอาขึ้น Git
-# venv/
-# env/
-# .env
+# ==============================================================================
+# 2. Node Modules
+# ==============================================================================
+node_modules/
+*/node_modules/
 
-# =========================
-# 2. กุญแจและข้อมูลความลับ (Keys & Secrets)
-# =========================
-# ป้องกันโฟลเดอร์ key ที่อาจมีไฟล์ .json (เช่น Service Account ของ Firebase) หรือ API Key
+# ==============================================================================
+# 3. Environment Variables & Secrets
+# ==============================================================================
+.env
+.env*.local
+.env.development
+.env.production
 key/
 *.pem
 *.key
 
-# =========================
-# 3. ข้อมูลไฟล์วิดีโอและเสียง (Data & Media Files)
-# =========================
-# ไฟล์วิดีโอมีขนาดใหญ่มาก จะทำให้ GitHub เต็มและดันโค้ดไม่ขึ้น (Limit ที่ 100MB/ไฟล์)
-# เราจะ Ignore ไฟล์ข้างใน แต่มีทริคคือเราสามารถเก็บ "โครงสร้างโฟลเดอร์เปล่า" ไว้บน Git ได้
-backend/data/input_videos/*
-backend/data/output_mp3/*
-backend/data/output_subtitles/*
+# ==============================================================================
+# 4. Next.js / Frontend Build Outputs & Cache
+# ==============================================================================
+.next/
+*/.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+frontend/next-env.d.ts
 
-# (ตัวเลือกเสริม) อนุญาตให้เอาไฟล์ .gitkeep ขึ้นไปได้ เพื่อให้โฟลเดอร์ยังคงอยู่บน GitHub
-!backend/data/input_videos/.gitkeep
-!backend/data/output_mp3/.gitkeep
-!backend/data/output_subtitles/.gitkeep
+# ==============================================================================
+# 5. Next.js Auto-Generated Agent Files (re-created by next dev, do not commit)
+# ==============================================================================
+frontend/AGENTS.md
+frontend/CLAUDE.md
+
+# ==============================================================================
+# 6. Frontend .gitignore (Next.js scaffolds its own, don't need to track it)
+# ==============================================================================
+frontend/.gitignore
+
+# ==============================================================================
+# 7. Backend / Python Cache & Artifacts
+# ==============================================================================
+__pycache__/
+*/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ==============================================================================
+# 8. Media, Uploads & Temporary Storage
+# ==============================================================================
 backend/temp_storage/*
+!backend/temp_storage/.gitkeep
+temp_storage/*
+!temp_storage/.gitkeep
 
-# =========================
-# 4. ไฟล์ขยะที่เกิดจากระบบปฏิบัติการ (OS-specific files)
-# =========================
+backend/data/input_videos/*
+!backend/data/input_videos/.gitkeep
+backend/data/output_mp3/*
+!backend/data/output_mp3/.gitkeep
+backend/data/output_subtitles/*
+!backend/data/output_subtitles/.gitkeep
+
+# ==============================================================================
+# 9. IDE, Editors & OS Files
+# ==============================================================================
 .DS_Store
 Thumbs.db
 ehthumbs.db
-
-# =========================
-# 5. ไฟล์แคชของ Python (Python Cache)
-# =========================
-# ไฟล์ที่ Python สร้างขึ้นมาตอนรันโค้ด ไม่จำเป็นต้องเอาขึ้น Git
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.pytest_cache/
+.idea/
+.vscode/
+*.swp
+*.swo

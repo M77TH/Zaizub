@@ -70,7 +70,7 @@ const config: Config = {
       },
       backgroundImage: {
         "hero-glow":
-          "radial-gradient(60% 50% at 12% 8%, rgba(109,40,217,0.35) 0%, rgba(109,40,217,0) 60%), radial-gradient(45% 40% at 88% 30%, rgba(233,78,161,0.18) 0%, rgba(233,78,161,0) 60%)",
+          "radial-gradient(60% 50% at 12% 8%, rgba(109,40,217,0.28) 0%, rgba(109,40,217,0) 60%), radial-gradient(40% 35% at 85% 25%, rgba(139,92,246,0.10) 0%, rgba(139,92,246,0) 55%)",
       },
       boxShadow: {
         glow: "0 0 0 1px rgba(139,92,246,0.25), 0 8px 40px -8px rgba(139,92,246,0.45)",
@@ -166,6 +166,28 @@ const config: Config = {
               "translate3d(var(--tw-translate-x), calc(var(--tw-translate-y) - 10px), 0) rotate(calc(var(--tw-rotate) + 1deg)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))",
           },
         },
+        phoneIdleFront: {
+          "0%, 100%": {
+            transform: "translate3d(0px, 0px, 0px) rotate(-8deg)",
+          },
+          "33%": {
+            transform: "translate3d(5px, -18px, 0px) rotate(-6.8deg)",
+          },
+          "66%": {
+            transform: "translate3d(-5px, -10px, 0px) rotate(-9.2deg)",
+          },
+        },
+        phoneIdleBack: {
+          "0%, 100%": {
+            transform: "translate3d(0px, 0px, 0px) rotate(6deg)",
+          },
+          "33%": {
+            transform: "translate3d(-6px, 16px, 0px) rotate(7.2deg)",
+          },
+          "66%": {
+            transform: "translate3d(4px, 8px, 0px) rotate(4.8deg)",
+          },
+        },
         blobDrift: {
           "0%, 100%": { transform: "translate(0,0) scale(1)" },
           "50%": { transform: "translate(20px,-15px) scale(1.06)" },
@@ -190,6 +212,8 @@ const config: Config = {
         eq2: "eqBar2 0.65s ease-in-out infinite",
         eq3: "eqBar3 0.75s ease-in-out infinite",
         floatSlow: "floatSlow 6s ease-in-out infinite",
+        phoneIdleFront: "phoneIdleFront 8s ease-in-out infinite",
+        phoneIdleBack: "phoneIdleBack 9.5s ease-in-out infinite",
         blobDrift: "blobDrift 14s ease-in-out infinite",
       },
     },

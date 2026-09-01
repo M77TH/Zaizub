@@ -23,12 +23,12 @@ export default function Pricing({ lang = "en" }: { lang?: Lang }) {
               key={tier.name}
               className={`relative flex flex-col justify-between rounded-3xl border p-8 transition-all duration-300 ${
                 tier.highlighted
-                  ? "border-accent/50 bg-gradient-to-b from-accent-deep/20 via-surface/80 to-surface shadow-[0_0_40px_rgba(139,92,246,0.18)] scale-[1.02] lg:-translate-y-1"
+                  ? "border-violet-500/40 bg-gradient-to-b from-violet-900/30 via-surface/80 to-surface shadow-[0_0_40px_rgba(109,40,217,0.22)] scale-[1.02] lg:-translate-y-1"
                   : "border-white/[0.06] bg-surface/40 hover:border-white/15"
               }`}
             >
               {tier.highlighted && (
-                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-accent-soft to-accent-deep px-3.5 py-1 text-xs font-semibold text-white shadow-lg">
+                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-violet-500 to-purple-700 px-3.5 py-1 text-xs font-semibold text-white shadow-lg shadow-purple-900/40">
                   {t.mostPopular}
                 </div>
               )}
@@ -64,7 +64,7 @@ export default function Pricing({ lang = "en" }: { lang?: Lang }) {
                   href="#top"
                   className={`focus-ring block w-full rounded-xl py-3 text-center text-sm font-medium transition-all ${
                     tier.highlighted
-                      ? "bg-gradient-to-b from-accent-soft to-accent-deep text-white shadow-[0_0_20px_rgba(130,80,255,0.3)] hover:brightness-110 hover:scale-[1.02]"
+                      ? "bg-gradient-to-b from-violet-500 to-purple-700 text-white shadow-[0_0_20px_rgba(109,40,217,0.45)] hover:brightness-110 hover:scale-[1.02]"
                       : "border border-white/10 bg-white/[0.03] text-ink hover:bg-white/10 hover:border-white/20"
                   }`}
                 >

@@ -108,7 +108,7 @@ export async function register(
   redirect('/dashboard')
 }
 
-export async function logout() {
+export async function logout(): Promise<never> {
   const supabase = await createClient()
   await supabase.auth.signOut()
   redirect('/login')

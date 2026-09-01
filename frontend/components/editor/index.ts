@@ -1,0 +1,1 @@
+export { VideoEditorPage as default, VideoEditorPage as EditorWorkspace } from './EditorWorkspace';

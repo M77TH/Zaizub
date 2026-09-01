@@ -2,12 +2,15 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import type { ChangeEvent, DragEvent, FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { heroCopy } from "./copy";
 import type { Lang } from "./copy";
 import PhoneMockup from "./PhoneMockup";
 import InteractiveDots from "./InteractiveDots";
+import { apiUrl } from "@/lib/api";
 
 export default function Hero({ lang }: { lang: Lang }) {
+  const router = useRouter();
   const t = heroCopy[lang];
   const upload = lang === "en"
     ? {
@@ -86,7 +89,16 @@ export default function Hero({ lang }: { lang: Lang }) {
 
   const closeUpload = useCallback(() => {
     setIsDragging(false);
-    setIsClosing(true);
+    setUploadOpen((open) => {
+      if (open) setIsClosing(true);
+      return open;
+    });
+  }, []);
+
+  const forceCloseUpload = useCallback(() => {
+    setIsDragging(false);
+    setIsClosing(false);
+    setUploadOpen(false);
   }, []);
 
   const clearUploadTimer = useCallback(() => {
@@ -96,16 +108,22 @@ export default function Hero({ lang }: { lang: Lang }) {
     }
   }, []);
 
+  const isVideoFile = (checkFile: File) => {
+    if (checkFile.type && checkFile.type.startsWith("video/")) return true;
+    return /\.(mp4|mov|webm|m4v|mkv|avi|wmv|flv)$/i.test(checkFile.name);
+  };
+
   const selectFile = useCallback((nextFile: File | undefined) => {
+    forceCloseUpload();
     if (file) return;
     clearUploadTimer();
 
-    if (!nextFile || !nextFile.type.startsWith("video/") || nextFile.size > 50 * 1024 * 1024) {
+    if (!nextFile || !isVideoFile(nextFile) || nextFile.size > 50 * 1024 * 1024) {
       setFile(null);
       setDuration(null);
       setUploadProgress(0);
       setUploadStage("error");
-      setUploadError(!nextFile || !nextFile.type.startsWith("video/") ? "type" : "size");
+      setUploadError(!nextFile || !isVideoFile(nextFile) ? "type" : "size");
       return;
     }
 
@@ -147,8 +165,7 @@ export default function Hero({ lang }: { lang: Lang }) {
       revokeUrl();
     };
     video.src = objectUrl;
-    closeUpload();
-  }, [file, clearUploadTimer, closeUpload]);
+  }, [file, clearUploadTimer, forceCloseUpload]);
 
   // Clean up timers on unmount
   useEffect(() => {
@@ -180,28 +197,30 @@ export default function Hero({ lang }: { lang: Lang }) {
       if (isHeaderDrag(event)) return;
       event.preventDefault();
       if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
-      openUpload();
       setIsDragging(true);
     };
 
     const handlePageDragLeave = (event: globalThis.DragEvent) => {
+      if (file) return;
+      const x = event.clientX;
+      const y = event.clientY;
       const leftDocument = !event.relatedTarget || !document.documentElement.contains(event.relatedTarget as Node);
-      if (!leftDocument || file) return;
-      setIsDragging(false);
-      closeUpload();
+      const isOutOfBounds = x <= 0 || y <= 0 || x >= window.innerWidth || y >= window.innerHeight;
+      if (leftDocument || isOutOfBounds) {
+        setIsDragging(false);
+        closeUpload();
+      }
     };
 
     const handlePageDragEnd = () => {
-      if (file) return;
-      setIsDragging(false);
-      closeUpload();
+      forceCloseUpload();
     };
 
     const handlePageDrop = (event: globalThis.DragEvent) => {
       if (!isFileDrag(event)) return;
-      if (file) return;
       event.preventDefault();
-      setIsDragging(false);
+      forceCloseUpload();
+      if (file) return;
       scrollToHero();
       selectFile(event.dataTransfer?.files?.[0]);
     };
@@ -219,7 +238,7 @@ export default function Hero({ lang }: { lang: Lang }) {
       window.removeEventListener("dragend", handlePageDragEnd);
       window.removeEventListener("drop", handlePageDrop);
     };
-  }, [file, openUpload, closeUpload, scrollToHero, selectFile]);
+  }, [file, openUpload, closeUpload, forceCloseUpload, scrollToHero, selectFile]);
 
   // Handle Escape key to close modal
   useEffect(() => {
@@ -232,6 +251,16 @@ export default function Hero({ lang }: { lang: Lang }) {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [uploadOpen, closeUpload]);
+
+  // Safety fallback to unmount overlay after close animation ends
+  useEffect(() => {
+    if (!isClosing) return;
+    const timer = window.setTimeout(() => {
+      setUploadOpen(false);
+      setIsClosing(false);
+    }, 320);
+    return () => window.clearTimeout(timer);
+  }, [isClosing]);
 
   function formatDuration(seconds: number) {
     const totalSeconds = Math.round(seconds);
@@ -256,7 +285,7 @@ export default function Hero({ lang }: { lang: Lang }) {
   function handleDrop(e: DragEvent<HTMLDivElement>) {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragging(false);
+    forceCloseUpload();
     if (file) return;
     scrollToHero();
     selectFile(e.dataTransfer.files[0]);
@@ -265,7 +294,7 @@ export default function Hero({ lang }: { lang: Lang }) {
   function handleOverlayDrop(e: DragEvent<HTMLDivElement>) {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragging(false);
+    forceCloseUpload();
     if (file) return;
     scrollToHero();
     selectFile(e.dataTransfer.files[0]);
@@ -283,11 +312,14 @@ export default function Hero({ lang }: { lang: Lang }) {
   function handleOverlayDragLeave(e: DragEvent<HTMLDivElement>) {
     const nextTarget = e.relatedTarget as Node | null;
     if (nextTarget && e.currentTarget.contains(nextTarget)) return;
+    const x = e.clientX;
+    const y = e.clientY;
+    if (x > 0 && y > 0 && x < window.innerWidth && y < window.innerHeight) return;
     setIsDragging(false);
     closeUpload();
   }
 
-  function handleGenerate(e: FormEvent) {
+  async function handleGenerate(e: FormEvent) {
     e.preventDefault();
     if (status === "generating") return;
     if (!file && !linkIsValid) {
@@ -299,13 +331,63 @@ export default function Hero({ lang }: { lang: Lang }) {
     setStatus("generating");
     setPulseKey((k) => k + 1);
 
-    if (statusTimerRef.current !== null) {
-      window.clearTimeout(statusTimerRef.current);
-    }
-    statusTimerRef.current = window.setTimeout(() => {
+    try {
+      if (file) {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch(apiUrl("/api/v1/extract-audio"), {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!res.ok) {
+          throw new Error(`API extraction failed with status ${res.status}`);
+        }
+
+        const data = await res.json();
+        sessionStorage.setItem("subtitle_project", JSON.stringify(data));
+        router.push("/editor");
+      } else if (linkIsValid) {
+        const res = await fetch(apiUrl("/api/v1/process-link"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: link.trim() }),
+        });
+
+        if (!res.ok) {
+          throw new Error(`API process-link failed with status ${res.status}`);
+        }
+
+        const data = await res.json();
+        sessionStorage.setItem("subtitle_project", JSON.stringify(data));
+        router.push("/editor");
+      }
+    } catch (err) {
+      console.warn("Backend error or unreachable, fallback to editor session:", err);
+      if (file) {
+        const localUrl = URL.createObjectURL(file);
+        sessionStorage.setItem(
+          "subtitle_project",
+          JSON.stringify({
+            video_url: localUrl,
+            video_filename: file.name,
+            subtitles: [
+              {
+                id: 1,
+                start: 0.0,
+                end: Math.min(5.0, duration || 5.0),
+                text: "ยินดีต้อนรับสู่ระบบสร้างซับไตเติ้ล Zaizub",
+              },
+            ],
+          })
+        );
+        router.push("/editor");
+      } else {
+        setLinkError(true);
+      }
+    } finally {
       setStatus("idle");
-      statusTimerRef.current = null;
-    }, 1600);
+    }
   }
 
   const handleResetFile = () => {
@@ -458,7 +540,7 @@ export default function Hero({ lang }: { lang: Lang }) {
 
             {uploadOpen && (
               <div
-                className={`fixed inset-0 z-30 flex items-center justify-center bg-black/60 px-6 backdrop-blur-sm ${isClosing ? "upload-overlay-closing pointer-events-none" : "animate-[uploadOverlayIn_300ms_ease-out_both]"}`}
+                className={`fixed inset-0 z-30 flex items-center justify-center bg-black/60 px-6 backdrop-blur-sm ${isClosing ? "animate-[uploadOverlayOut_300ms_ease-out_both] pointer-events-none" : "animate-[uploadOverlayIn_300ms_ease-out_both]"}`}
                 onAnimationEnd={(event) => {
                   if (isClosing && event.target === event.currentTarget) {
                     setUploadOpen(false);
@@ -476,7 +558,7 @@ export default function Hero({ lang }: { lang: Lang }) {
                   aria-modal="true"
                   aria-labelledby="upload-modal-title"
                   data-upload-modal
-                  className={`w-full max-w-md rounded-3xl border border-white/10 bg-[#100c18] p-5 ${isClosing ? "upload-modal-closing pointer-events-none" : "animate-[uploadModalIn_300ms_ease-out_both]"}`}
+                  className={`w-full max-w-md rounded-3xl border border-white/10 bg-[#100c18] p-5 ${isClosing ? "animate-[uploadModalOut_300ms_ease-out_both] pointer-events-none" : "animate-[uploadModalIn_300ms_ease-out_both]"}`}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="mb-4 flex items-start justify-between">

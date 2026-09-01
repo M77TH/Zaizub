@@ -23,7 +23,9 @@ export default function RegisterForm() {
       })
       if (error) throw error
     } catch (error: unknown) {
-      console.error('Google login error:', (error as Error).message)
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('Google login error:', error instanceof Error ? error.message : error)
+      }
     }
   }
 

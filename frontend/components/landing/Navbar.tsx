@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useLenis } from "./SmoothScroll";
+import { useLenis } from "@/components/providers/SmoothScroll";
 import type { Lang } from "./copy";
 
 export default function Navbar({

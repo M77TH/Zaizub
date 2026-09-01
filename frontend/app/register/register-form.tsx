@@ -17,8 +17,7 @@ export default function RegisterForm() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          // ตั้งค่าให้เด้งไปหน้า generator หลังจากล็อกอินสำเร็จ
-          redirectTo: `${window.location.origin}/dashboard`,
+          redirectTo: `${window.location.origin}/auth/callback`,
         },
       })
       if (error) throw error

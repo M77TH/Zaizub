@@ -56,22 +56,7 @@ export const DEFAULT_STYLES: SubtitleStyle = {
   animation: 'none',
 };
 
-export const DEFAULT_SUBTITLES: SubtitleSegment[] = [
-  {
-    id: 1,
-    start: 0.0,
-    end: 9.1,
-    text: 'จะไม่ซื้อก็เพราะเอามาเป็นพรีเซนเตอร์นี่แหละ\nจอมลวงโลก',
-    isEdited: true,
-  },
-  {
-    id: 2,
-    start: 9.5,
-    end: 14.0,
-    text: 'ยินดีต้อนรับสู่ระบบสร้างซับไตเติ้ลอัตโนมัติ Zaizub',
-    isEdited: false,
-  },
-];
+export const DEFAULT_SUBTITLES: SubtitleSegment[] = [];
 
 export function normaliseSubtitles(value: unknown): SubtitleSegment[] {
   if (!Array.isArray(value)) return [];

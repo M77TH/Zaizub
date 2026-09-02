@@ -360,7 +360,7 @@ function VideoPlayer({
   }, [aspectRatio, parentDimensions]);
 
   return (
-    <div ref={wrapperRef} className="relative flex flex-1 items-center justify-center p-4 sm:p-6 overflow-hidden select-none">
+    <div ref={wrapperRef} className="relative flex flex-1 items-center justify-center p-2 sm:p-6 overflow-hidden select-none">
       <div
         ref={containerRef}
         style={containerDimensions}

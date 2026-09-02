@@ -179,8 +179,8 @@ export default function CustomScrollbar({ scrollRef }: CustomScrollbarProps) {
         }}
         className={`relative w-[3px] rounded-full touch-none cursor-grab active:cursor-grabbing will-change-transform ${
           isDragging
-            ? "bg-[#949494]"
-            : "bg-[#525252] hover:bg-[#737373] transition-transform duration-100 ease-out"
+            ? "bg-[#949494] transition-none"
+            : "bg-[#525252] hover:bg-[#737373]"
         }`}
       >
         {/* Invisible wider hit area for easy mouse grabbing right at screen edge */}

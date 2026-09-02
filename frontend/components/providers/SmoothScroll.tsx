@@ -68,9 +68,19 @@ export function useSmoothScrollElement<T extends HTMLElement>() {
       }
     };
 
+    const onScroll = () => {
+      // If no RAF animation is actively driving the scroll, sync target to actual scrollTop
+      // This completely eliminates rubber-banding / fighting when user drags the scrollbar thumb!
+      if (rafId === null) {
+        target = el.scrollTop;
+      }
+    };
+
     el.addEventListener('wheel', onWheel, { passive: false });
+    el.addEventListener('scroll', onScroll, { passive: true });
     return () => {
       el.removeEventListener('wheel', onWheel);
+      el.removeEventListener('scroll', onScroll);
       if (rafId !== null) cancelAnimationFrame(rafId);
     };
   }, []);

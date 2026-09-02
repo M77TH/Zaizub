@@ -308,17 +308,63 @@ function VideoPlayer({
 
   const isSelected = selectedSubtitleId === null || (activeSubtitle && selectedSubtitleId === activeSubtitle.id);
 
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const [parentDimensions, setParentDimensions] = useState<{ width: number; height: number }>({ width: 800, height: 600 });
+
+  // Dynamically measure player stage container
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        if (width > 0 && height > 0) {
+          setParentDimensions({ width, height });
+        }
+      }
+    });
+
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Compute exact animated target dimensions in pixel values:
+  // Browsers cannot smoothly animate between 'auto' and '100%'.
+  // Providing explicit pixel width & height enables 60fps buttery-smooth interpolation in all directions!
+  const containerDimensions = useMemo(() => {
+    const padX = 32;
+    const padY = 32;
+    const availW = Math.max(200, parentDimensions.width - padX);
+    const availH = Math.max(200, parentDimensions.height - padY);
+
+    let targetRatio = 16 / 9;
+    if (aspectRatio === '9:16') {
+      targetRatio = 9 / 16;
+    } else if (aspectRatio === '1:1') {
+      targetRatio = 1;
+    }
+
+    let computedW = availW;
+    let computedH = computedW / targetRatio;
+
+    if (computedH > availH) {
+      computedH = availH;
+      computedW = computedH * targetRatio;
+    }
+
+    return {
+      width: `${Math.round(computedW)}px`,
+      height: `${Math.round(computedH)}px`,
+    };
+  }, [aspectRatio, parentDimensions]);
+
   return (
-    <div className="relative flex flex-1 items-center justify-center p-4">
+    <div ref={wrapperRef} className="relative flex flex-1 items-center justify-center p-4 sm:p-6 overflow-hidden select-none">
       <div
         ref={containerRef}
-        className={`relative overflow-hidden rounded-2xl bg-black shadow-2xl border border-[#1a1a1a] transition-all duration-300 ${
-          aspectRatio === '16:9'
-            ? 'aspect-video w-full max-w-4xl max-h-[70vh]'
-            : aspectRatio === '9:16'
-            ? 'aspect-[9/16] h-full max-h-[70vh]'
-            : 'aspect-square h-full max-h-[70vh]'
-        }`}
+        style={containerDimensions}
+        className="relative overflow-hidden rounded-2xl bg-black shadow-[0_25px_70px_rgba(0,0,0,0.85)] border border-[#221f33] transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] flex items-center justify-center will-change-[width,height]"
       >
         {/* Video Element */}
         {videoUrl ? (
@@ -328,7 +374,7 @@ function VideoPlayer({
             onTimeUpdate={handleTimeUpdate}
             onLoadedMetadata={handleLoadedMetadata}
             onClick={togglePlay}
-            className="h-full w-full object-contain cursor-pointer"
+            className="h-full w-full object-contain cursor-pointer transition-transform duration-300"
             playsInline
           />
         ) : (

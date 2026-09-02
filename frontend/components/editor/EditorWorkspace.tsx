@@ -30,6 +30,41 @@ export function VideoEditorPage() {
   const [videoUrl, setVideoUrl] = useState<string>('');
   const [videoFilename, setVideoFilename] = useState<string>('sample_video.mp4');
   const [subtitles, setSubtitles] = useState<SubtitleSegment[]>(DEFAULT_SUBTITLES);
+  const [history, setHistory] = useState<SubtitleSegment[][]>([DEFAULT_SUBTITLES]);
+  const [historyIndex, setHistoryIndex] = useState<number>(0);
+  const isUndoRedoAction = useRef<boolean>(false);
+
+  const pushHistory = useCallback((newSubs: SubtitleSegment[]) => {
+    if (isUndoRedoAction.current) return;
+    setHistory((prev) => {
+      const trimmed = prev.slice(0, historyIndex + 1);
+      return [...trimmed, newSubs];
+    });
+    setHistoryIndex((prev) => prev + 1);
+  }, [historyIndex]);
+
+  const handleUndo = useCallback(() => {
+    if (historyIndex > 0) {
+      isUndoRedoAction.current = true;
+      const prevSubs = history[historyIndex - 1];
+      setSubtitles(prevSubs);
+      setHistoryIndex((prev) => prev - 1);
+      setHasChanges(true);
+      setTimeout(() => { isUndoRedoAction.current = false; }, 50);
+    }
+  }, [historyIndex, history]);
+
+  const handleRedo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      isUndoRedoAction.current = true;
+      const nextSubs = history[historyIndex + 1];
+      setSubtitles(nextSubs);
+      setHistoryIndex((prev) => prev + 1);
+      setHasChanges(true);
+      setTimeout(() => { isUndoRedoAction.current = false; }, 50);
+    }
+  }, [historyIndex, history]);
+
   const [globalStyles, setGlobalStyles] = useState<SubtitleStyle>(DEFAULT_STYLES);
   const [selectedSubtitleId, setSelectedSubtitleId] = useState<number | string | null>(null);
 
@@ -276,6 +311,23 @@ export function VideoEditorPage() {
     if (videoRef.current) {
       const vidDuration = videoRef.current.duration;
       if (!isNaN(vidDuration) && vidDuration > 0) setDuration(vidDuration);
+
+      const vidWidth = videoRef.current.videoWidth;
+      const vidHeight = videoRef.current.videoHeight;
+      if (vidWidth > 0 && vidHeight > 0) {
+        const ratio = vidWidth / vidHeight;
+        // Determine closest ratio:
+        // Square: ~0.95 to ~1.05
+        // Vertical (9:16): ratio < 0.85
+        // Landscape (16:9): ratio >= 1.2
+        if (Math.abs(ratio - 1) < 0.12) {
+          setAspectRatio('1:1');
+        } else if (ratio < 0.9) {
+          setAspectRatio('9:16');
+        } else {
+          setAspectRatio('16:9');
+        }
+      }
     }
   }, []);
 
@@ -290,6 +342,16 @@ export function VideoEditorPage() {
     }
   }, []);
 
+  const toggleMute = useCallback(() => {
+    setIsMuted((prev) => {
+      const next = !prev;
+      if (videoRef.current) {
+        videoRef.current.muted = next;
+      }
+      return next;
+    });
+  }, []);
+
   const seekVideo = useCallback((time: number) => {
     if (videoRef.current) {
       const targetTime = Math.max(0, Math.min(time, duration));
@@ -297,6 +359,125 @@ export function VideoEditorPage() {
       setCurrentTime(targetTime);
     }
   }, [duration]);
+
+  // Global Player Keyboard Controls:
+  // - Space: play/pause
+  // - 'm' / 'M': toggle mute
+  // - ArrowLeft / ArrowUp: jump to previous subtitle card
+  // - ArrowRight / ArrowDown: jump to next subtitle card
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't hijack keystrokes if the user is typing in an input, textarea, or contentEditable element
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        togglePlay();
+      } else if (e.key === 'm' || e.key === 'M') {
+        e.preventDefault();
+        toggleMute();
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (subtitles.length === 0) return;
+
+        const currentT = videoRef.current ? videoRef.current.currentTime : currentTime;
+        
+        // 1. Determine starting index from selected card or playback time
+        let currentIndex = -1;
+        if (selectedSubtitleId !== null) {
+          currentIndex = subtitles.findIndex((s) => s.id === selectedSubtitleId);
+        }
+
+        // If no selected card, find matching or previous card
+        if (currentIndex === -1) {
+          currentIndex = subtitles.findIndex((s) => currentT >= s.start && currentT < s.end);
+        }
+
+        // If playhead is in a gap, find the card that immediately preceded current time
+        if (currentIndex === -1) {
+          for (let i = subtitles.length - 1; i >= 0; i--) {
+            if (subtitles[i].start <= currentT) {
+              currentIndex = i;
+              break;
+            }
+          }
+        }
+
+        // If playhead is before first card
+        if (currentIndex === -1) {
+          currentIndex = 0;
+        }
+
+        // If the video is well past the card start (> 0.4s into this card), jump back to start of current card first;
+        // otherwise jump to the previous card.
+        const currentSub = subtitles[currentIndex];
+        let targetIndex: number;
+        if (currentSub && currentT - currentSub.start > 0.5) {
+          targetIndex = currentIndex;
+        } else {
+          targetIndex = Math.max(0, currentIndex - 1);
+        }
+
+        const targetSub = subtitles[targetIndex];
+        if (targetSub) {
+          setSelectedSubtitleId(targetSub.id);
+          seekVideo(targetSub.start);
+        }
+      } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (subtitles.length === 0) return;
+
+        const currentT = videoRef.current ? videoRef.current.currentTime : currentTime;
+
+        // 1. Determine starting index from selected card or playback time
+        let currentIndex = -1;
+        if (selectedSubtitleId !== null) {
+          currentIndex = subtitles.findIndex((s) => s.id === selectedSubtitleId);
+        }
+
+        // If no selected card, find card containing currentT
+        if (currentIndex === -1) {
+          currentIndex = subtitles.findIndex((s) => currentT >= s.start && currentT < s.end);
+        }
+
+        // If playhead is in a gap or at the end edge of a card, find the card that just finished or is next
+        if (currentIndex === -1) {
+          for (let i = 0; i < subtitles.length; i++) {
+            if (subtitles[i].start > currentT) {
+              currentIndex = i - 1;
+              break;
+            }
+          }
+        }
+
+        // If currentT is past the last card
+        if (currentIndex === -1) {
+          currentIndex = subtitles.length - 1;
+        }
+
+        // Advance to next card
+        const targetIndex = Math.min(subtitles.length - 1, currentIndex + 1);
+        const targetSub = subtitles[targetIndex];
+        if (targetSub) {
+          setSelectedSubtitleId(targetSub.id);
+          seekVideo(targetSub.start);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [togglePlay, toggleMute, seekVideo, currentTime, subtitles, selectedSubtitleId]);
 
   // Active subtitle for current playback time
   const activeSubtitle = useMemo(() => {
@@ -309,18 +490,24 @@ export function VideoEditorPage() {
 
   // Subtitle actions
   const handleTextChange = useCallback((id: number, newText: string) => {
-    setSubtitles((prev) =>
-      prev.map((sub) => (sub.id === id ? { ...sub, text: newText, isEdited: true } : sub))
-    );
+    setSubtitles((prev) => {
+      const next = prev.map((sub) => (sub.id === id ? { ...sub, text: newText, isEdited: true } : sub));
+      pushHistory(next);
+      return next;
+    });
     setHasChanges(true);
-  }, []);
+  }, [pushHistory]);
 
   const handleDeleteSegment = useCallback((id: number) => {
-    setSubtitles((prev) => prev.filter((sub) => sub.id !== id));
+    setSubtitles((prev) => {
+      const next = prev.filter((sub) => sub.id !== id);
+      pushHistory(next);
+      return next;
+    });
     setSelectedSubtitleId((current) => (current === id ? null : current));
     setHasChanges(true);
     showToast('ลบส่วนซับไตเติ้ลเรียบร้อย');
-  }, [showToast]);
+  }, [pushHistory, showToast]);
 
   const handleSplitSegment = useCallback((id: number) => {
     const segment = subtitles.find((s) => s.id === id);
@@ -340,12 +527,14 @@ export function VideoEditorPage() {
       isEdited: true,
     };
 
-    setSubtitles((prev) =>
-      prev.map((s) => (s.id === id ? firstHalf : s)).concat(secondHalf).sort((a, b) => a.start - b.start)
-    );
+    setSubtitles((prev) => {
+      const next = prev.map((s) => (s.id === id ? firstHalf : s)).concat(secondHalf).sort((a, b) => a.start - b.start);
+      pushHistory(next);
+      return next;
+    });
     setHasChanges(true);
     showToast('ตัดแบ่งเซกเมนต์เรียบร้อย');
-  }, [subtitles, currentTime, showToast]);
+  }, [subtitles, currentTime, pushHistory, showToast]);
 
   // Video upload
   const handleDirectUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -498,13 +687,6 @@ export function VideoEditorPage() {
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#0a090f] text-gray-200 select-none font-sans">
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed top-16 left-1/2 z-50 -translate-x-1/2 rounded-full bg-[#1b1926] border border-purple-500/40 px-4 py-2 text-xs font-semibold text-purple-200 shadow-[0_0_25px_rgba(139,92,246,0.35)] backdrop-blur-md transition-all">
-          {toastMessage}
-        </div>
-      )}
-
       {/* Render Progress Modal */}
       {isRendering && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/85 backdrop-blur-md">
@@ -533,6 +715,10 @@ export function VideoEditorPage() {
         onRenderVideo={handleRenderVideo}
         isRendering={isRendering}
         showToast={showToast}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        canUndo={historyIndex > 0}
+        canRedo={historyIndex < history.length - 1}
       />
 
       {/* 2. MAIN 3-COLUMN WORKSPACE WITH DRAGGABLE RESIZABLE PANELS */}

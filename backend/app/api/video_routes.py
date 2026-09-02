@@ -8,7 +8,7 @@ from typing import List, Optional, Union, Dict, Any
 from pydantic import BaseModel
 from fastapi import APIRouter, UploadFile, File, Form, Request, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
-from app.services.ai_services import transcribe_audio_whisperx
+from app.services.ai_services import transcribe_audio, transcribe_audio_whisperx
 from app.utils.ass_generator import generate_ass_content
 import yt_dlp
 
@@ -62,13 +62,14 @@ class RenderRequest(BaseModel):
 async def extract_audio(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    language: Optional[str] = Form(None)
+    language: Optional[str] = Form(None),
+    engine: Optional[str] = Form(None)
 ):
     """
     Endpoint 1:
     - Saves uploaded video to temp_storage.
     - Extracts audio using FFmpeg.
-    - Transcribes audio using WhisperX.
+    - Transcribes audio using Groq API or WhisperX.
     - Returns video_url and structured subtitles JSON array.
     """
     job_id = int(time.time() * 1000)
@@ -96,8 +97,8 @@ async def extract_audio(
         ]
         subprocess.run(extract_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-        # 3. Transcribe audio using WhisperX
-        subtitles = transcribe_audio_whisperx(temp_audio)
+        # 3. Transcribe audio using selected engine (groq or whisperx)
+        subtitles = transcribe_audio(temp_audio, engine=engine)
 
         # Queue audio cleanup
         background_tasks.add_task(cleanup_files, temp_audio)
@@ -221,7 +222,11 @@ async def render_video(
 
 
 @router.post("/process-video")
-async def process_video(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
+async def process_video(
+    background_tasks: BackgroundTasks, 
+    file: UploadFile = File(...),
+    engine: Optional[str] = Form(None)
+):
     """Legacy one-step endpoint for backward compatibility."""
     job_id = int(time.time())
     input_video = f"{TEMP_DIR}/in_{job_id}.mp4"
@@ -234,7 +239,7 @@ async def process_video(background_tasks: BackgroundTasks, file: UploadFile = Fi
             shutil.copyfileobj(file.file, buffer)
 
         subprocess.run(['ffmpeg', '-y', '-i', input_video, '-vn', '-c:a', 'aac', '-b:a', '64k', temp_audio], check=True)
-        transcribe_audio_whisperx(temp_audio, srt_file)
+        transcribe_audio(temp_audio, srt_file, engine=engine)
         safe_srt_path = srt_file.replace('\\', '/')
         subprocess.run(['ffmpeg', '-y', '-i', input_video, '-vf', f"subtitles='{safe_srt_path}'", output_video], check=True)
 
@@ -248,6 +253,7 @@ async def process_video(background_tasks: BackgroundTasks, file: UploadFile = Fi
 
 class LinkRequest(BaseModel):
     url: str
+    engine: Optional[str] = None
 
 @router.post("/process-link")
 async def process_link(
@@ -258,7 +264,7 @@ async def process_link(
     Endpoint 3:
     - Accepts JSON with a video URL.
     - Downloads the video using yt-dlp to temp_storage.
-    - Extracts audio and calls WhisperX.
+    - Extracts audio and calls transcribe_audio.
     - Returns video_url and subtitles (same format as /extract-audio).
     """
     job_id = int(time.time() * 1000)
@@ -287,8 +293,8 @@ async def process_link(
         ]
         subprocess.run(extract_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-        # 3. ถอดเสียงด้วย WhisperX
-        subtitles = transcribe_audio_whisperx(temp_audio)
+        # 3. ถอดเสียงด้วย transcribe_audio (groq หรือ whisperx)
+        subtitles = transcribe_audio(temp_audio, engine=request.engine)
 
         # ลบไฟล์เสียงชั่วคราวทิ้ง
         background_tasks.add_task(cleanup_files, temp_audio)
@@ -313,3 +319,4 @@ async def process_link(
         cleanup_files(input_video, temp_audio)
         logger.error(f"Download/Process link error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to process video link: {str(e)}")
+

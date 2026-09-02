@@ -33,6 +33,92 @@ def is_valid_num(val: Any) -> bool:
     except (ValueError, TypeError):
         return False
 
+def transcribe_audio_groq(
+    audio_path: str,
+    srt_path: str = None
+) -> List[Dict[str, Any]]:
+    """
+    Fast cloud transcription using Groq API (whisper-large-v3).
+    Segments are processed with Thai word tokenization and natural subtitle grouping.
+    """
+    subtitles: List[Dict[str, Any]] = []
+    
+    if not settings.GROQ_API_KEY:
+        logger.error("GROQ_API_KEY is not set in environment or .env file.")
+        return [{"id": 1, "start": 0.0, "end": 2.0, "text": "กรุณาตั้งค่า GROQ_API_KEY ในไฟล์ .env"}]
+
+    try:
+        from groq import Groq
+        client = Groq(api_key=settings.GROQ_API_KEY)
+
+        logger.info("Transcribing audio with Groq API (whisper-large-v3)...")
+        with open(audio_path, "rb") as file:
+            transcription = client.audio.transcriptions.create(
+                file=(os.path.basename(audio_path), file.read()),
+                model="whisper-large-v3",
+                response_format="verbose_json",
+                language="th",
+                temperature=0.0
+            )
+
+        raw_segments = getattr(transcription, "segments", None) or []
+        subtitle_id = 1
+
+        for seg in raw_segments:
+            seg_dict = seg if isinstance(seg, dict) else seg.__dict__
+            text = (seg_dict.get("text") or "").strip()
+            if not text:
+                continue
+
+            seg_start = float(seg_dict.get("start", 0.0))
+            seg_end = float(seg_dict.get("end", seg_start + 1.5))
+            seg_duration = max(0.2, seg_end - seg_start)
+
+            # Tokenize Thai words if pythainlp is available
+            if word_tokenize:
+                words = [w.strip() for w in word_tokenize(text, engine="newmm") if w.strip()]
+            else:
+                words = [w for w in text.split(" ") if w]
+
+            if not words:
+                continue
+
+            # Group words into clean short subtitle chunks (3-5 words per subtitle or ~1.5 - 2.5s)
+            chunk_size = 4 if len(words) > 5 else len(words)
+            total_chunks = (len(words) + chunk_size - 1) // chunk_size
+            chunk_time = seg_duration / total_chunks
+
+            for idx, i in enumerate(range(0, len(words), chunk_size)):
+                chunk = words[i:i + chunk_size]
+                chunk_text = "".join(chunk) if word_tokenize else " ".join(chunk)
+                c_start = seg_start + (idx * chunk_time)
+                c_end = min(seg_end, c_start + chunk_time)
+
+                subtitles.append({
+                    "id": subtitle_id,
+                    "start": round(float(c_start), 2),
+                    "end": round(float(c_end), 2),
+                    "text": chunk_text
+                })
+                subtitle_id += 1
+
+    except Exception as e:
+        logger.exception(f"Error in Groq transcription: {e}")
+        subtitles = [{"id": 1, "start": 0.0, "end": 2.0, "text": f"Groq Error: {str(e)}"}]
+
+    if not subtitles:
+        subtitles = [{"id": 1, "start": 0.0, "end": 2.0, "text": "ไม่พบเสียงพูดในคลิป"}]
+
+    if srt_path:
+        with open(srt_path, "w", encoding="utf-8") as f:
+            for sub in subtitles:
+                start_ts = format_timestamp(sub["start"])
+                end_ts = format_timestamp(sub["end"])
+                f.write(f"{sub['id']}\n{start_ts} --> {end_ts}\n{sub['text']}\n\n")
+
+    return subtitles
+
+
 def transcribe_audio_whisperx(
     audio_path: str, 
     srt_path: str = None, 
@@ -94,10 +180,10 @@ def transcribe_audio_whisperx(
         )
         aligned_segments = aligned_result.get("segments", [])
 
-        # 4. จัดกลุ่มคำลงกรอบเวลา (ปรับให้ตัดคำถี่ขึ้น)
+        # 4. จัดกลุ่มคำลงกรอบเวลา
         subtitle_id = 1
-        max_words_per_sub = 2      # ปรับจาก 4 เป็น 2 เพื่อให้ซับเด้งถี่ขึ้น ดูตรงปากมากขึ้น
-        max_duration_per_sub = 1.0 # เพิ่มเงื่อนไข: บังคับตัดซับใหม่หากเวลาเกิน 1 วินาที กันซับค้างบนจอนานไป
+        max_words_per_sub = 2
+        max_duration_per_sub = 1.0
 
         for seg in aligned_segments:
             seg_start = float(seg.get("start", 0.0))
@@ -116,7 +202,6 @@ def transcribe_audio_whisperx(
                     subtitle_id += 1
                 continue
 
-            # ถมเวลาคำที่ตกหล่น (Interpolation)
             for i, w in enumerate(words):
                 if not is_valid_num(w.get("start")):
                     w["start"] = words[i-1]["end"] if (i > 0 and is_valid_num(words[i-1].get("end"))) else seg_start
@@ -138,7 +223,6 @@ def transcribe_audio_whisperx(
                 current_end = w.get("end", seg_end)
                 current_duration = float(current_end) - float(current_start)
 
-                # ตัดรอบเมื่อจำนวนคำครบ หรือเวลาเกินระยะที่กำหนด
                 if len(current_chunk) >= max_words_per_sub or current_duration >= max_duration_per_sub:
                     subtitles.append({
                         "id": subtitle_id,
@@ -150,7 +234,6 @@ def transcribe_audio_whisperx(
                     current_chunk = []
                     current_start = None
 
-            # เก็บตกคำที่เหลือใน chunk สุดท้ายของ segment
             if current_chunk:
                 c_start = current_start if current_start is not None else seg_start
                 c_end = words[-1].get("end", seg_end)
@@ -176,3 +259,24 @@ def transcribe_audio_whisperx(
                 f.write(f"{sub['id']}\n{start_ts} --> {end_ts}\n{sub['text']}\n\n")
 
     return subtitles
+
+
+def transcribe_audio(
+    audio_path: str,
+    srt_path: str = None,
+    engine: str = None
+) -> List[Dict[str, Any]]:
+    """
+    Unified transcription dispatcher.
+    Selects between 'whisperx' and 'groq' based on argument or MODEL setting.
+    """
+    selected_engine = (engine or settings.MODEL or "groq").lower().strip()
+
+    if selected_engine == "whisperx":
+        logger.info("Using WhisperX transcription engine.")
+        return transcribe_audio_whisperx(audio_path, srt_path)
+    else:
+        logger.info("Using Groq API transcription engine.")
+        return transcribe_audio_groq(audio_path, srt_path)
+
+

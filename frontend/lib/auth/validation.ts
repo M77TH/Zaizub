@@ -46,7 +46,7 @@ export function validateDisplayName(
 }
 
 /** Only allow same-origin relative paths (block open redirects). */
-export function safeNextPath(next: unknown, fallback = '/dashboard'): string {
+export function safeNextPath(next: unknown, fallback = '/my-video'): string {
   if (typeof next !== 'string' || !next.startsWith('/') || next.startsWith('//')) {
     return fallback
   }

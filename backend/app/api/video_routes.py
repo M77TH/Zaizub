@@ -58,6 +58,27 @@ class RenderRequest(BaseModel):
     styles: Optional[StyleConfig] = None
 
 
+def create_web_preview(input_path: str, preview_path: str):
+    """
+    Transcodes or normalizes video to standard H.264 / AAC MP4 with YUV420p and faststart
+    so it plays flawlessly across all web browsers without black screen or codec errors.
+    """
+    cmd = [
+        'ffmpeg', '-y',
+        '-i', input_path,
+        '-vf', "scale='min(1080,iw)':-2",
+        '-c:v', 'libx264',
+        '-pix_fmt', 'yuv420p',
+        '-preset', 'veryfast',
+        '-crf', '23',
+        '-c:a', 'aac',
+        '-b:a', '128k',
+        '-movflags', '+faststart',
+        preview_path
+    ]
+    subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+
 @router.post("/extract-audio")
 async def extract_audio(
     background_tasks: BackgroundTasks,
@@ -68,9 +89,9 @@ async def extract_audio(
     """
     Endpoint 1:
     - Saves uploaded video to temp_storage.
-    - Extracts audio using FFmpeg.
+    - Extracts audio using FFmpeg and creates web-compatible preview video.
     - Transcribes audio using Groq API or WhisperX.
-    - Returns video_url and structured subtitles JSON array.
+    - Returns video_url (browser-compatible H.264) and structured subtitles JSON array.
     """
     job_id = int(time.time() * 1000)
     original_name = file.filename or "video.mp4"
@@ -79,6 +100,7 @@ async def extract_audio(
         ext = ".mp4"
 
     input_video = os.path.join(TEMP_DIR, f"in_{job_id}{ext}").replace("\\", "/")
+    preview_video = os.path.join(TEMP_DIR, f"prev_{job_id}.mp4").replace("\\", "/")
     temp_audio = os.path.join(TEMP_DIR, f"aud_{job_id}.m4a").replace("\\", "/")
 
     try:
@@ -97,14 +119,22 @@ async def extract_audio(
         ]
         subprocess.run(extract_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-        # 3. Transcribe audio using selected engine (groq or whisperx)
+        # 3. Generate browser-compatible H.264 preview video
+        try:
+            create_web_preview(input_video, preview_video)
+            preview_filename = os.path.basename(preview_video)
+        except Exception as pe:
+            logger.warning(f"Preview transcoding warning: {pe}, using original file")
+            preview_filename = os.path.basename(input_video)
+
+        # 4. Transcribe audio using selected engine (groq or whisperx)
         subtitles = transcribe_audio(temp_audio, engine=engine)
 
         # Queue audio cleanup
         background_tasks.add_task(cleanup_files, temp_audio)
 
         filename_only = os.path.basename(input_video)
-        video_url = f"/temp_storage/{filename_only}"
+        video_url = f"/temp_storage/{preview_filename}"
 
         return {
             "success": True,
@@ -115,11 +145,11 @@ async def extract_audio(
         }
 
     except subprocess.CalledProcessError as e:
-        cleanup_files(input_video, temp_audio)
+        cleanup_files(input_video, temp_audio, preview_video)
         logger.error(f"FFmpeg audio extraction error: {e.stderr.decode('utf-8', errors='ignore') if e.stderr else str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to extract audio from video: {str(e)}")
     except Exception as e:
-        cleanup_files(input_video, temp_audio)
+        cleanup_files(input_video, temp_audio, preview_video)
         logger.error(f"Extract audio error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -173,7 +203,19 @@ async def render_video(
         if os.path.exists(video_filename):
             input_video_path = video_filename.replace("\\", "/")
         else:
-            raise HTTPException(status_code=404, detail=f"Input video '{clean_filename}' not found on server.")
+            # Look for alternative matching in_* or prev_* in temp_storage
+            stem = clean_filename.replace("in_", "").replace("prev_", "").split(".")[0]
+            candidate = None
+            if os.path.exists(TEMP_DIR):
+                for fname in os.listdir(TEMP_DIR):
+                    if stem in fname and (fname.startswith("in_") or fname.startswith("prev_")):
+                        candidate = os.path.join(TEMP_DIR, fname).replace("\\", "/")
+                        if fname.startswith("in_"):  # prefer original full-res
+                            break
+            if candidate and os.path.exists(candidate):
+                input_video_path = candidate
+            else:
+                raise HTTPException(status_code=404, detail=f"Input video '{clean_filename}' not found on server.")
 
     job_id = int(time.time() * 1000)
     ass_file_path = os.path.join(TEMP_DIR, f"sub_{job_id}.ass").replace("\\", "/")
@@ -293,14 +335,23 @@ async def process_link(
         ]
         subprocess.run(extract_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-        # 3. ถอดเสียงด้วย transcribe_audio (groq หรือ whisperx)
+        # 3. Generate browser-compatible H.264 preview video
+        preview_video = os.path.join(TEMP_DIR, f"prev_{job_id}.mp4").replace("\\", "/")
+        try:
+            create_web_preview(input_video, preview_video)
+            preview_filename = os.path.basename(preview_video)
+        except Exception as pe:
+            logger.warning(f"Preview transcoding warning: {pe}, using original file")
+            preview_filename = os.path.basename(input_video)
+
+        # 4. ถอดเสียงด้วย transcribe_audio (groq หรือ whisperx)
         subtitles = transcribe_audio(temp_audio, engine=request.engine)
 
         # ลบไฟล์เสียงชั่วคราวทิ้ง
         background_tasks.add_task(cleanup_files, temp_audio)
 
         filename_only = os.path.basename(input_video)
-        video_url = f"/temp_storage/{filename_only}"
+        video_url = f"/temp_storage/{preview_filename}"
 
         return {
             "success": True,

@@ -46,8 +46,8 @@ function StylePanel({
 
   return (
     <div
-      style={width ? { width: `${width}px` } : undefined}
-      className={`relative flex flex-col min-h-0 flex-shrink-0 overflow-hidden select-none bg-[#13121b] ${width ? '' : 'w-80'}`}
+      className="relative flex flex-col min-h-0 flex-1 md:flex-shrink-0 overflow-hidden select-none bg-[#13121b] w-full md:w-auto"
+      style={typeof window !== 'undefined' && window.innerWidth >= 768 && width ? { width: `${width}px` } : undefined}
     >
       {/* 1. Header Bar with Panel Name & Compact Mode Switcher */}
       <div className="flex h-12 flex-shrink-0 items-center justify-between border-b border-[#1c1a28] bg-[#13121b] pl-3.5 pr-2 select-none">

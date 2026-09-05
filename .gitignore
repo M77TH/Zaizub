@@ -5,6 +5,7 @@ venv/
 env/
 ENV/
 .venv/
+backend/.env
 
 # ==============================================================================
 # 2. Node Modules
@@ -16,9 +17,15 @@ node_modules/
 # 3. Environment Variables & Secrets
 # ==============================================================================
 .env
+.env.*
 .env*.local
 .env.development
 .env.production
+*.env
+**/.env
+**/.env.*
+backend/.env
+frontend/.env
 key/
 *.pem
 *.key

@@ -105,7 +105,7 @@ export async function register(
     }
   }
 
-  redirect('/dashboard')
+  redirect('/my-video')
 }
 
 export async function logout(): Promise<never> {

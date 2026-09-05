@@ -14,6 +14,8 @@ import {
   DEFAULT_STYLES,
   DEFAULT_SUBTITLES,
   normaliseSubtitles,
+  CaptionLengthMode,
+  regroupSubtitles,
 } from './types';
 import { apiUrl, API_BASE_URL } from '@/lib/api';
 
@@ -121,6 +123,9 @@ export function VideoEditorPage() {
 
   const [globalStyles, setGlobalStyles] = useState<SubtitleStyle>(DEFAULT_STYLES);
   const [selectedSubtitleId, setSelectedSubtitleId] = useState<number | string | null>(null);
+  const [isSyncOn, setIsSyncOn] = useState<boolean>(true);
+  const [captionLengthMode, setCaptionLengthMode] = useState<CaptionLengthMode>('custom');
+  const [customWordCount, setCustomWordCount] = useState<number>(4);
 
   const [projectName, setProjectName] = useState<string>('โปรเจกต์ 28/8/2569');
   const [hasChanges, setHasChanges] = useState<boolean>(true);
@@ -484,11 +489,12 @@ export function VideoEditorPage() {
       if (e.code === 'Space') {
         e.preventDefault();
         togglePlay();
-      } else if (e.key === 'm' || e.key === 'M') {
+      } else if ((e.code === 'KeyM' || e.key.toLowerCase() === 'm') && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault();
         toggleMute();
       } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
         e.preventDefault();
+        setIsSyncOn(false);
         if (subtitles.length === 0) return;
 
         const currentT = videoRef.current ? videoRef.current.currentTime : currentTime;
@@ -519,11 +525,10 @@ export function VideoEditorPage() {
           currentIndex = 0;
         }
 
-        // If the video is well past the card start (> 0.4s into this card), jump back to start of current card first;
-        // otherwise jump to the previous card.
+        // ArrowLeft can rewind to start of current card if > 0.5s into it; ArrowUp always goes directly to previous card
         const currentSub = subtitles[currentIndex];
         let targetIndex: number;
-        if (currentSub && currentT - currentSub.start > 0.5) {
+        if (e.key === 'ArrowLeft' && currentSub && currentT - currentSub.start > 0.5) {
           targetIndex = currentIndex;
         } else {
           targetIndex = Math.max(0, currentIndex - 1);
@@ -533,9 +538,16 @@ export function VideoEditorPage() {
         if (targetSub) {
           setSelectedSubtitleId(targetSub.id);
           seekVideo(targetSub.start);
+          requestAnimationFrame(() => {
+            const cardEl = document.querySelector(`[data-subtitle-id="${targetSub.id}"]`) as HTMLElement | null;
+            if (cardEl && (!document.activeElement || document.activeElement === document.body || document.activeElement.hasAttribute('data-subtitle-id'))) {
+              cardEl.focus({ preventScroll: true });
+            }
+          });
         }
       } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
         e.preventDefault();
+        setIsSyncOn(false);
         if (subtitles.length === 0) return;
 
         const currentT = videoRef.current ? videoRef.current.currentTime : currentTime;
@@ -572,8 +584,14 @@ export function VideoEditorPage() {
         if (targetSub) {
           setSelectedSubtitleId(targetSub.id);
           seekVideo(targetSub.start);
+          requestAnimationFrame(() => {
+            const cardEl = document.querySelector(`[data-subtitle-id="${targetSub.id}"]`) as HTMLElement | null;
+            if (cardEl && (!document.activeElement || document.activeElement === document.body || document.activeElement.hasAttribute('data-subtitle-id'))) {
+              cardEl.focus({ preventScroll: true });
+            }
+          });
         }
-      } else if (e.key === 'c' || e.key === 'C') {
+      } else if ((e.code === 'KeyC' || e.key.toLowerCase() === 'c') && !e.ctrlKey && !e.metaKey && !e.altKey) {
         // C key -> Split active card at video playhead
         e.preventDefault();
         const activeCard = subtitles.find(
@@ -582,14 +600,22 @@ export function VideoEditorPage() {
         if (activeCard) {
           handleSplitSegment(activeCard.id);
         }
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+      } else if ((e.code === 'KeyL' || e.key.toLowerCase() === 'l' || e.key === 'ส' || e.key === 'ศ') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        // L key -> Toggle Lock / Auto-Scroll Follow Playhead Sync
+        e.preventDefault();
+        setIsSyncOn((prev) => {
+          const next = !prev;
+          showToast(next ? 'เปิดซิงค์เลื่อนตามวิดีโอ (Lock Sync ON) [L]' : 'ปลดล็อกการซิงค์ (Lock Sync OFF) [L]');
+          return next;
+        });
+      } else if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyZ' || e.key.toLowerCase() === 'z')) {
         e.preventDefault();
         if (e.shiftKey) {
           handleRedo();
         } else {
           handleUndo();
         }
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+      } else if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyY' || e.key.toLowerCase() === 'y')) {
         e.preventDefault();
         handleRedo();
       }
@@ -599,7 +625,7 @@ export function VideoEditorPage() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [togglePlay, toggleMute, seekVideo, currentTime, subtitles, selectedSubtitleId]);
+  }, [togglePlay, toggleMute, seekVideo, currentTime, subtitles, selectedSubtitleId, showToast]);
 
   // Active subtitle for current playback time
   const activeSubtitle = useMemo(() => {
@@ -609,6 +635,14 @@ export function VideoEditorPage() {
         (index === subtitles.length - 1 ? currentTime <= sub.end : currentTime < sub.end)
     );
   }, [subtitles, currentTime]);
+
+  // When clip is running (playing) with Auto-Scroll / Lock Sync ON,
+  // sync the selected caption to the active running caption
+  useEffect(() => {
+    if (isPlaying && isSyncOn && activeSubtitle?.id !== undefined) {
+      setSelectedSubtitleId(activeSubtitle.id);
+    }
+  }, [isPlaying, isSyncOn, activeSubtitle?.id]);
 
   // Subtitle actions (Debounces text typing into smart batches, while cuts/splits/deletes push instantly)
   const handleTextChange = useCallback((id: number, newText: string) => {
@@ -836,6 +870,26 @@ export function VideoEditorPage() {
     setHasChanges(true);
   }, [duration, pushHistory, seekVideo]);
 
+  // Dynamic Caption Length regrouping (Normal full sentences, short 3-words, or custom X words)
+  const handleRegroupSubtitles = useCallback((mode: CaptionLengthMode, wordCount?: number) => {
+    const targetCount = wordCount ?? customWordCount;
+    setCaptionLengthMode(mode);
+    if (wordCount !== undefined) {
+      setCustomWordCount(wordCount);
+    }
+    setSubtitles((prev) => {
+      const next = regroupSubtitles(prev, mode, targetCount);
+      if (next.length > 0) {
+        pushHistory(next);
+        const label = mode === 'normal' ? 'ประโยคปกติ' : mode === 'short' ? 'คำสั้น (3 คำ)' : `${targetCount} คำต่อการ์ด`;
+        showToast(`จัดความยาวแคปชันเป็น "${label}" แล้ว`);
+        return next;
+      }
+      return prev;
+    });
+    setHasChanges(true);
+  }, [customWordCount, pushHistory, showToast]);
+
   // Video upload
   const handleDirectUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -855,6 +909,17 @@ export function VideoEditorPage() {
       });
       if (!res.ok) throw new Error('API request failed');
       const data = await res.json();
+      if (data.video_url) {
+        const isFullUrl =
+          data.video_url.startsWith('http://') ||
+          data.video_url.startsWith('https://') ||
+          data.video_url.startsWith('blob:') ||
+          data.video_url.startsWith('data:');
+        const finalUrl = isFullUrl
+          ? data.video_url
+          : `${API_BASE_URL}${data.video_url.startsWith('/') ? '' : '/'}${data.video_url}`;
+        setVideoUrl(finalUrl);
+      }
       if (data.video_filename) setVideoFilename(data.video_filename);
       const extracted = normaliseSubtitles(data.subtitles ?? data.segments ?? data.captions);
       if (extracted.length > 0) {
@@ -1076,6 +1141,9 @@ export function VideoEditorPage() {
         onRedo={handleRedo}
         canUndo={historyIndex > 0}
         canRedo={historyIndex < history.length - 1}
+        captionLengthMode={captionLengthMode}
+        customWordCount={customWordCount}
+        onRegroupSubtitles={handleRegroupSubtitles}
       />
 
       {/* 2. MAIN WORKSPACE WITH DESKTOP 3-COLUMN OR PHONE ADAPTIVE VIEW */}
@@ -1098,6 +1166,8 @@ export function VideoEditorPage() {
             currentTime={currentTime}
             duration={duration}
             isPlaying={isPlaying}
+            isSyncOn={isSyncOn}
+            setIsSyncOn={setIsSyncOn}
             seekVideo={seekVideo}
             onTextChange={handleTextChange}
             onDeleteSegment={handleDeleteSegment}
@@ -1140,6 +1210,7 @@ export function VideoEditorPage() {
             globalStyles={globalStyles}
             setStyles={setStyles}
             subtitles={subtitles}
+            isPlaying={isPlaying}
           />
           <TransportControls
             currentTime={currentTime}

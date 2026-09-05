@@ -19,6 +19,7 @@ interface VideoPlayerProps {
   globalStyles: SubtitleStyle;
   setStyles?: (styles: SubtitleStyle) => void;
   subtitles?: SubtitleSegment[];
+  isPlaying?: boolean;
 }
 
 function VideoPlayer({
@@ -37,6 +38,7 @@ function VideoPlayer({
   globalStyles,
   setStyles,
   subtitles,
+  isPlaying = false,
 }: VideoPlayerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isDragging, setIsDragging] = useState<boolean>(false);
@@ -53,14 +55,20 @@ function VideoPlayer({
     }
   }, [activeSubtitle]);
 
-  // Priority: 1. activeSubtitle (currently playing) -> 2. last active (hold during gaps) -> 3. selectedSubtitle -> 4. first subtitle (preview)
+  // Priority:
+  // 1. When video is playing:
+  //    - If current time hits a caption, display activeSubtitle.
+  //    - If between captions (gap), display undefined (no subtitle overlay) so it doesn't show old/selected caption.
+  // 2. When paused / stationary:
+  //    - If playhead is over a subtitle, display activeSubtitle.
+  //    - Otherwise display selectedSubtitle (for editing/styling) or first subtitle preview.
   const displaySubtitle = useMemo(() => {
+    if (isPlaying) {
+      return activeSubtitle;
+    }
     if (activeSubtitle) return activeSubtitle;
-    // During a gap between segments, keep showing the last active subtitle briefly
-    // instead of falling back to selectedSubtitle/subtitles[0] which causes flicker
-    if (lastActiveRef.current) return lastActiveRef.current;
     return selectedSubtitle || (subtitles && subtitles.length > 0 ? subtitles[0] : undefined);
-  }, [activeSubtitle, selectedSubtitle, subtitles]);
+  }, [isPlaying, activeSubtitle, selectedSubtitle, subtitles]);
 
   // Unique key for each caption to trigger clean CSS animation re-play
   const captionKey = displaySubtitle ? `caption-${displaySubtitle.id}-${displaySubtitle.text}` : '';

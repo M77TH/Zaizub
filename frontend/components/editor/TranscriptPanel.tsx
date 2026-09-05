@@ -17,6 +17,8 @@ interface TranscriptPanelProps {
   currentTime?: number;
   duration?: number;
   isPlaying?: boolean;
+  isSyncOn?: boolean;
+  setIsSyncOn?: React.Dispatch<React.SetStateAction<boolean>>;
   seekVideo: (time: number) => void;
   onTextChange: (id: number, text: string) => void;
   onDeleteSegment: (id: number) => void;
@@ -39,6 +41,8 @@ function TranscriptPanel({
   currentTime = 0,
   duration = 0,
   isPlaying = false,
+  isSyncOn: propIsSyncOn,
+  setIsSyncOn: propSetIsSyncOn,
   seekVideo,
   onTextChange,
   onDeleteSegment,
@@ -51,7 +55,9 @@ function TranscriptPanel({
   // Hook handles: wheel smooth scroll, stopPropagation (blocks Lenis), scrollTo imperative handle
   const { ref: transcriptScrollRef, scrollTo: smoothScrollTo } = useSmoothScrollElement<HTMLDivElement>();
 
-  const [isSyncOn, setIsSyncOn] = useState<boolean>(true);
+  const [internalIsSyncOn, setInternalIsSyncOn] = useState<boolean>(true);
+  const isSyncOn = propIsSyncOn !== undefined ? propIsSyncOn : internalIsSyncOn;
+  const setIsSyncOn = propSetIsSyncOn !== undefined ? propSetIsSyncOn : setInternalIsSyncOn;
   const isSyncOnRef = useRef<boolean>(true);          // mirrors state, always fresh in listeners
   const syncBtnClickingRef = useRef<boolean>(false);  // blocks wheel listener during button click
   const isProgrammaticScrollRef = useRef<boolean>(false); // blocks wheel listener during our own scroll
@@ -74,11 +80,9 @@ function TranscriptPanel({
 
   /** Turn sync OFF — idempotent */
   const turnSyncOff = useCallback(() => {
-    if (isSyncOnRef.current) {
-      isSyncOnRef.current = false;
-      setIsSyncOn(false);
-    }
-  }, []);
+    isSyncOnRef.current = false;
+    setIsSyncOn(false);
+  }, [setIsSyncOn]);
 
   // Extra wheel listener purely for sync-off detection.
   // The hook already handles stopPropagation + smooth scroll — we just piggyback for intent detection.
@@ -157,7 +161,7 @@ function TranscriptPanel({
     window.addEventListener('pointercancel', onPointerUp);
   }, [seekVideo, setSelectedSubtitleId]);
 
-  /** Scroll the active card to the top of the panel with smooth ease gliding. */
+  /** Scroll the target card to the top of the panel with smooth ease gliding. */
   const scrollToActive = useCallback((targetSpecificId?: number | string | null, smooth: boolean = true) => {
     const targetId = targetSpecificId ?? activeSubtitle?.id ?? selectedSubtitleId;
     if (targetId === null || targetId === undefined || !transcriptScrollRef.current) return;
@@ -166,23 +170,108 @@ function TranscriptPanel({
     const el = container.querySelector(`[data-subtitle-id="${targetId}"]`) as HTMLElement | null;
     if (!el) return;
 
+    // Exact viewport delta calculation between card top and container top
     const containerRect = container.getBoundingClientRect();
     const elRect = el.getBoundingClientRect();
-    // Offset by 48px from the top so the previous card's timeline pill remains peekable and clickable above it!
-    const targetTop = elRect.top - containerRect.top + container.scrollTop - 48;
+    const topOffset = 10; // matches p-2.5 padding of scroll container
+    const targetTop = container.scrollTop + (elRect.top - containerRect.top) - topOffset;
 
     isProgrammaticScrollRef.current = true;
     smoothScrollTo.current(Math.max(0, targetTop), smooth);
     setTimeout(() => { isProgrammaticScrollRef.current = false; }, smooth ? 350 : 50);
   }, [activeSubtitle?.id, selectedSubtitleId, smoothScrollTo]);
 
-  // Auto-scroll ONLY when active card ID changes DURING active video playback with sync ON.
-  // When paused, user clicking cards or timeline stays pinned in position without jumping up/down!
+  /**
+   * Ensure a target subtitle card is within the visible frame of the transcript scroll area.
+   * If the card is already comfortably in view, do nothing.
+   * If it is below or cut off at the bottom, scroll down to bring it into view (with padding).
+   * If it is above or cut off at the top, scroll up to bring it into view (with padding).
+   */
+  const scrollCardIntoView = useCallback((targetSpecificId?: number | string | null, smooth: boolean = true) => {
+    const targetId = targetSpecificId ?? selectedSubtitleId ?? activeSubtitle?.id;
+    if (targetId === null || targetId === undefined || !transcriptScrollRef.current) return;
+
+    const container = transcriptScrollRef.current;
+    const el = container.querySelector(`[data-subtitle-id="${targetId}"]`) as HTMLElement | null;
+    if (!el) return;
+
+    const topPadding = 48; // padding from top so header/prev card has room
+    const bottomPadding = 48; // padding from bottom so next card has room
+
+    const containerRect = container.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    const cardTop = container.scrollTop + (elRect.top - containerRect.top);
+    const cardHeight = el.offsetHeight;
+    const cardBottom = cardTop + cardHeight;
+
+    const viewTop = container.scrollTop + topPadding;
+    const viewBottom = container.scrollTop + container.clientHeight - bottomPadding;
+
+    // Check if card is cut off or outside the visible window
+    const isAbove = cardTop < viewTop;
+    const isBelow = cardBottom > viewBottom;
+
+    if (!isAbove && !isBelow) {
+      // The card is already comfortably inside the frame! No scroll needed.
+      return;
+    }
+
+    let targetTop: number;
+    if (isAbove || cardHeight > (container.clientHeight - topPadding - bottomPadding)) {
+      // Bring card top into view, offset by topPadding
+      targetTop = Math.max(0, cardTop - topPadding);
+    } else {
+      // Bring card bottom into view, offset by bottomPadding
+      targetTop = Math.max(0, cardBottom - container.clientHeight + bottomPadding);
+    }
+
+    isProgrammaticScrollRef.current = true;
+    smoothScrollTo.current(targetTop, smooth);
+    setTimeout(() => { isProgrammaticScrollRef.current = false; }, smooth ? 350 : 50);
+  }, [selectedSubtitleId, activeSubtitle?.id, smoothScrollTo]);
+
+  // Keep selected card in frame / locked to top whenever selectedSubtitleId changes
   useEffect(() => {
-    if (isSyncOn && isPlaying && activeSubtitle?.id !== undefined) {
+    if (selectedSubtitleId !== null && selectedSubtitleId !== undefined) {
+      const raf = requestAnimationFrame(() => {
+        if (isSyncOn) {
+          scrollToActive(selectedSubtitleId, true);
+        } else {
+          scrollCardIntoView(selectedSubtitleId, true);
+        }
+      });
+      return () => cancelAnimationFrame(raf);
+    }
+  }, [selectedSubtitleId, isSyncOn, scrollToActive, scrollCardIntoView]);
+
+  // When sync is turned back ON (e.g. via 'L' shortcut or clicking the lock button),
+  // smoothly scroll the current playing/active or selected card to the top
+  const prevIsSyncOnRef = useRef<boolean>(isSyncOn);
+  useEffect(() => {
+    if (isSyncOn && !prevIsSyncOnRef.current) {
+      let targetId = activeSubtitle?.id ?? selectedSubtitleId;
+      if (!targetId && subtitles.length > 0) {
+        const currentSegment = subtitles.find(s => currentTime >= s.start && currentTime <= s.end)
+          || subtitles.find(s => s.start >= currentTime)
+          || subtitles[subtitles.length - 1];
+        targetId = currentSegment?.id;
+      }
+      if (targetId) {
+        requestAnimationFrame(() => {
+          scrollToActive(targetId, true);
+        });
+      }
+    }
+    prevIsSyncOnRef.current = isSyncOn;
+  }, [isSyncOn, activeSubtitle?.id, selectedSubtitleId, subtitles, currentTime, scrollToActive]);
+
+  // When Lock Sync is ON, whenever active card changes (playback or scrubbing timeline),
+  // automatically glide the active card to the top of the transcript list
+  useEffect(() => {
+    if (isSyncOn && activeSubtitle?.id !== undefined) {
       scrollToActive(activeSubtitle.id, true);
     }
-  }, [activeSubtitle?.id, isSyncOn, isPlaying, scrollToActive]);
+  }, [activeSubtitle?.id, isSyncOn, scrollToActive]);
 
   const navigatePrev = useCallback(() => {
     if (filteredSubtitles.length === 0) return;
@@ -263,7 +352,7 @@ function TranscriptPanel({
                 ? 'bg-[#2d2250] text-[#c4b5fd] font-bold shadow-sm'
                 : 'text-gray-400 hover:bg-[#1a1827] hover:text-gray-200'
             }`}
-            title={isSyncOn ? 'ซิงค์เลื่อนตามวิดีโอ (Sync ON - เลื่อนเพื่อปิดอัตโนมัติ)' : 'ปิดการซิงค์ (Sync OFF - คลิกเพื่อเปิดและเลื่อนกลับมาที่ท่อนปัจจุบัน)'}
+            title={isSyncOn ? 'ซิงค์เลื่อนตามวิดีโอ (Lock Sync ON) [กด L เพื่อเปิด/ปิด]' : 'ปิดการซิงค์ (Lock Sync OFF) [กด L เพื่อเปิด/ปิด]'}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="8" />
@@ -453,6 +542,8 @@ function TranscriptPanel({
                     if (textarea) {
                       textarea.focus({ preventScroll: true });
                     }
+                  } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                    turnSyncOff();
                   }
                 }}
                 onClick={(e) => {
@@ -465,8 +556,10 @@ function TranscriptPanel({
                     return;
                   }
 
+                  setSelectedSubtitleId(sub.id);
+                  seekVideo(sub.start);
+
                   if (!isSelected) {
-                    setSelectedSubtitleId(sub.id);
                     // Automatically place blinking cursor into textarea if clicked outside without triggering browser layout jump
                     const textarea = e.currentTarget.querySelector('textarea');
                     if (textarea && document.activeElement !== textarea) {
@@ -504,6 +597,24 @@ function TranscriptPanel({
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {/* Word Count Indicator */}
+                    {(() => {
+                      const trimmed = (sub.text || '').trim();
+                      const count = trimmed ? trimmed.split(/\s+/).filter(Boolean).length : 0;
+                      return (
+                        <span
+                          className={`text-[10px] tabular-nums font-mono px-1.5 py-0.2 rounded transition-colors ${
+                            isSelected || isPlayingThis
+                              ? 'bg-purple-500/25 text-purple-200 border border-purple-400/30'
+                              : 'bg-white/[0.04] text-gray-400 border border-white/[0.05]'
+                          }`}
+                          title={`${count} คำในการ์ดนี้`}
+                        >
+                          {count} คำ
+                        </span>
+                      );
+                    })()}
+
                     {/* Subtle Edited Indicator */}
                     {(sub.isEdited || sub.style) && (
                       <span className={`text-[10px] font-semibold ${isSelected || isPlayingThis ? 'text-white/90' : 'text-[#c4b5fd]/80'}`} title="แก้ไขแล้ว">
@@ -536,6 +647,7 @@ function TranscriptPanel({
                     value={sub.text}
                     onFocus={() => {
                       setSelectedSubtitleId(sub.id);
+                      seekVideo(sub.start);
                     }}
                     onChange={(e) => onTextChange(sub.id, e.target.value)}
                     onKeyDown={(e) => {
@@ -556,7 +668,59 @@ function TranscriptPanel({
                           onMergeWithPrevious?.(sub.id);
                         }
                       }
-                      // 3. Escape key inside textarea -> Unselect card and exit editing
+                      // 3. ArrowDown on last line -> Move to next card
+                      else if (e.key === 'ArrowDown') {
+                        const target = e.currentTarget;
+                        const val = target.value;
+                        const isLastLine = !val.slice(target.selectionEnd).includes('\n');
+                        if (isLastLine) {
+                          turnSyncOff();
+                          const currentIdx = filteredSubtitles.findIndex((s) => s.id === sub.id);
+                          if (currentIdx !== -1 && currentIdx < filteredSubtitles.length - 1) {
+                            e.preventDefault();
+                            const nextSub = filteredSubtitles[currentIdx + 1];
+                            setSelectedSubtitleId(nextSub.id);
+                            seekVideo(nextSub.start);
+                            requestAnimationFrame(() => {
+                              const nextTextarea = transcriptScrollRef.current?.querySelector(
+                                `[data-subtitle-id="${nextSub.id}"] textarea`
+                              ) as HTMLTextAreaElement | null;
+                              if (nextTextarea) {
+                                nextTextarea.focus({ preventScroll: true });
+                                const len = nextTextarea.value.length;
+                                nextTextarea.setSelectionRange(len, len);
+                              }
+                            });
+                          }
+                        }
+                      }
+                      // 4. ArrowUp on first line -> Move to previous card
+                      else if (e.key === 'ArrowUp') {
+                        const target = e.currentTarget;
+                        const val = target.value;
+                        const isFirstLine = !val.slice(0, target.selectionStart).includes('\n');
+                        if (isFirstLine) {
+                          turnSyncOff();
+                          const currentIdx = filteredSubtitles.findIndex((s) => s.id === sub.id);
+                          if (currentIdx > 0) {
+                            e.preventDefault();
+                            const prevSub = filteredSubtitles[currentIdx - 1];
+                            setSelectedSubtitleId(prevSub.id);
+                            seekVideo(prevSub.start);
+                            requestAnimationFrame(() => {
+                              const prevTextarea = transcriptScrollRef.current?.querySelector(
+                                `[data-subtitle-id="${prevSub.id}"] textarea`
+                              ) as HTMLTextAreaElement | null;
+                              if (prevTextarea) {
+                                prevTextarea.focus({ preventScroll: true });
+                                const len = prevTextarea.value.length;
+                                prevTextarea.setSelectionRange(len, len);
+                              }
+                            });
+                          }
+                        }
+                      }
+                      // 5. Escape key inside textarea -> Unselect card and exit editing
                       else if (e.key === 'Escape') {
                         e.preventDefault();
                         setSelectedSubtitleId(null);

@@ -51,11 +51,11 @@ def transcribe_audio_groq(
         from groq import Groq
         client = Groq(api_key=settings.GROQ_API_KEY)
 
-        logger.info("Transcribing audio with Groq API (whisper-large-v3)...")
+        logger.info("Transcribing audio with Groq API (whisper-large-v3-turbo)...")
         with open(audio_path, "rb") as file:
             transcription = client.audio.transcriptions.create(
                 file=(os.path.basename(audio_path), file.read()),
-                model="whisper-large-v3",
+                model="whisper-large-v3-turbo",
                 response_format="verbose_json",
                 language="th",
                 temperature=0.0
@@ -83,6 +83,18 @@ def transcribe_audio_groq(
             if not words:
                 continue
 
+            # Calculate word-level timestamps
+            word_time = seg_duration / len(words)
+            words_data = []
+            for w_idx, w in enumerate(words):
+                w_start = seg_start + (w_idx * word_time)
+                w_end = min(seg_end, w_start + word_time)
+                words_data.append({
+                    "word": w,
+                    "start": round(float(w_start), 2),
+                    "end": round(float(w_end), 2)
+                })
+
             # Group words into clean short subtitle chunks (3-5 words per subtitle or ~1.5 - 2.5s)
             chunk_size = 4 if len(words) > 5 else len(words)
             total_chunks = (len(words) + chunk_size - 1) // chunk_size
@@ -90,15 +102,17 @@ def transcribe_audio_groq(
 
             for idx, i in enumerate(range(0, len(words), chunk_size)):
                 chunk = words[i:i + chunk_size]
+                chunk_words_data = words_data[i:i + chunk_size]
                 chunk_text = "".join(chunk) if word_tokenize else " ".join(chunk)
-                c_start = seg_start + (idx * chunk_time)
-                c_end = min(seg_end, c_start + chunk_time)
+                c_start = chunk_words_data[0]["start"] if chunk_words_data else (seg_start + (idx * chunk_time))
+                c_end = chunk_words_data[-1]["end"] if chunk_words_data else min(seg_end, c_start + chunk_time)
 
                 subtitles.append({
                     "id": subtitle_id,
                     "start": round(float(c_start), 2),
                     "end": round(float(c_end), 2),
-                    "text": chunk_text
+                    "text": chunk_text,
+                    "words": chunk_words_data
                 })
                 subtitle_id += 1
 
@@ -122,12 +136,14 @@ def transcribe_audio_groq(
 def transcribe_audio_whisperx(
     audio_path: str, 
     srt_path: str = None, 
-    model_name: str = "large-v3", 
+    model_name: str = None, 
     batch_size: int = 8
 ) -> List[Dict[str, Any]]:
     subtitles: List[Dict[str, Any]] = []
     device = "cuda" if torch.cuda.is_available() else "cpu"
     compute_type = "float16" if device == "cuda" else "int8"
+    if model_name is None:
+        model_name = "large-v3" if device == "cuda" else "base"
 
     try:
         if WhisperModel is None:
@@ -209,6 +225,7 @@ def transcribe_audio_whisperx(
                     w["end"] = words[i+1]["start"] if (i + 1 < len(words) and is_valid_num(words[i+1].get("start"))) else seg_end
 
             current_chunk = []
+            current_words_data = []
             current_start = None
 
             for w in words:
@@ -216,11 +233,19 @@ def transcribe_audio_whisperx(
                 if not word_text:
                     continue
 
+                w_start = float(w.get("start", seg_start))
+                w_end = float(w.get("end", seg_end))
+
                 if current_start is None:
-                    current_start = w.get("start", seg_start)
+                    current_start = w_start
 
                 current_chunk.append(word_text)
-                current_end = w.get("end", seg_end)
+                current_words_data.append({
+                    "word": word_text,
+                    "start": round(w_start, 2),
+                    "end": round(w_end, 2)
+                })
+                current_end = w_end
                 current_duration = float(current_end) - float(current_start)
 
                 if len(current_chunk) >= max_words_per_sub or current_duration >= max_duration_per_sub:
@@ -228,10 +253,12 @@ def transcribe_audio_whisperx(
                         "id": subtitle_id,
                         "start": round(float(current_start), 2),
                         "end": round(float(current_end), 2),
-                        "text": "".join(current_chunk)
+                        "text": "".join(current_chunk),
+                        "words": current_words_data
                     })
                     subtitle_id += 1
                     current_chunk = []
+                    current_words_data = []
                     current_start = None
 
             if current_chunk:
@@ -241,7 +268,8 @@ def transcribe_audio_whisperx(
                     "id": subtitle_id,
                     "start": round(float(c_start), 2),
                     "end": round(float(c_end if is_valid_num(c_end) else seg_end), 2),
-                    "text": "".join(current_chunk)
+                    "text": "".join(current_chunk),
+                    "words": current_words_data
                 })
                 subtitle_id += 1
 

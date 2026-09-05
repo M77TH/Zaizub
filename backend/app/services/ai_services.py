@@ -51,11 +51,11 @@ def transcribe_audio_groq(
         from groq import Groq
         client = Groq(api_key=settings.GROQ_API_KEY)
 
-        logger.info("Transcribing audio with Groq API (whisper-large-v3-turbo)...")
+        logger.info("Transcribing audio with Groq API (whisper-large-v3)...")
         with open(audio_path, "rb") as file:
             transcription = client.audio.transcriptions.create(
                 file=(os.path.basename(audio_path), file.read()),
-                model="whisper-large-v3-turbo",
+                model="whisper-large-v3",
                 response_format="verbose_json",
                 language="th",
                 temperature=0.0

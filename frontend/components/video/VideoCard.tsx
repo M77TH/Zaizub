@@ -53,7 +53,7 @@ export default function VideoCard({
 
   const statusConfig = {
     done: {
-      label: 'พร้อมใช้งาน',
+      label: 'สำเร็จ',
       badge: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
       dot: 'bg-emerald-400',
     },

@@ -70,7 +70,7 @@ export default async function MyVideoPage() {
             <span className="text-white text-base font-bold tracking-tight font-display">Zaizub</span>
           </Link>
 
-          {/* Profile Section Widget (Hidden for now) */}
+          {/* Profile Section Widget (Hidden) */}
           {/* <Link
             href="/profile"
             className="group flex items-center gap-3 px-3.5 py-1.5 rounded-2xl bg-[#151322] border border-white/[0.08] hover:border-white/20 transition-all shadow-sm"
@@ -94,7 +94,7 @@ export default async function MyVideoPage() {
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
             </svg>
           </Link> */}
         </div>

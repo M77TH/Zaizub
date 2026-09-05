@@ -9,14 +9,12 @@ const initialState: AuthActionState = null
 
 export default function LoginForm() {
   const searchParams = useSearchParams()
-  const next = searchParams.get('next') ?? '/dashboard'
+  const next = searchParams.get('next') ?? '/my-video'
   const callbackError = searchParams.get('error')
   const [state, formAction, pending] = useActionState(login, initialState)
 
   return (
-    <div className="min-h-screen bg-[#050505] flex items-center justify-center p-4 selection:bg-purple-500/30">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg h-[500px] bg-purple-900/20 blur-[120px] rounded-full pointer-events-none -z-0" />
-
+    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4 selection:bg-purple-500/30">
       <div className="w-full max-w-md bg-white/5 border border-white/10 backdrop-blur-md rounded-2xl p-8 relative z-10 shadow-2xl">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">

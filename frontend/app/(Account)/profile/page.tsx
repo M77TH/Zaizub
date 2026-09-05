@@ -21,9 +21,7 @@ export default async function ProfilePage() {
     .maybeSingle()
 
   return (
-    <main className="min-h-screen bg-[#050505] text-gray-200">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-[400px] bg-purple-900/20 blur-[120px] rounded-full pointer-events-none" />
-
+    <main className="min-h-screen bg-[#0a0a0a] text-gray-200">
       <div className="relative z-10 max-w-3xl mx-auto px-6 py-16">
         <div className="flex items-center justify-between gap-4 mb-10">
           <div>
@@ -35,10 +33,10 @@ export default async function ProfilePage() {
           </div>
           <div className="flex items-center gap-3">
             <Link
-              href="/dashboard"
+              href="/my-video"
               className="px-4 py-2 text-sm font-medium text-white bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
             >
-              Dashboard
+              My Videos
             </Link>
             <form action={logout}>
               <button

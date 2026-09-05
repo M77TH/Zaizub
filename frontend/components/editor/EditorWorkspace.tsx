@@ -18,6 +18,7 @@ import {
   regroupSubtitles,
 } from './types';
 import { apiUrl, API_BASE_URL } from '@/lib/api';
+import { saveProjectAction } from '@/app/actions/project';
 
 /** Pure utility function for formatting time codes */
 export function formatTime(timeInSeconds: number): string {
@@ -27,12 +28,21 @@ export function formatTime(timeInSeconds: number): string {
   return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
 }
 
-export function VideoEditorPage() {
+interface VideoEditorPageProps {
+  initialProject?: any;
+}
+
+export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
   // State
-  const [videoUrl, setVideoUrl] = useState<string>('');
-  const [videoFilename, setVideoFilename] = useState<string>('sample_video.mp4');
-  const [subtitles, setSubtitles] = useState<SubtitleSegment[]>(DEFAULT_SUBTITLES);
-  const [history, setHistory] = useState<SubtitleSegment[][]>([DEFAULT_SUBTITLES]);
+  const [projectId, setProjectId] = useState<string | null>(initialProject?.id || null);
+  const [videoUrl, setVideoUrl] = useState<string>(initialProject?.video_url || '');
+  const [videoFilename, setVideoFilename] = useState<string>(initialProject?.video_filename || 'sample_video.mp4');
+  const [subtitles, setSubtitles] = useState<SubtitleSegment[]>(
+    initialProject?.subtitles?.length ? normaliseSubtitles(initialProject.subtitles) : DEFAULT_SUBTITLES
+  );
+  const [history, setHistory] = useState<SubtitleSegment[][]>([
+    initialProject?.subtitles?.length ? normaliseSubtitles(initialProject.subtitles) : DEFAULT_SUBTITLES
+  ]);
   const [historyIndex, setHistoryIndex] = useState<number>(0);
 
   // Keep references to history state for instant, synchronous access
@@ -121,14 +131,18 @@ export function VideoEditorPage() {
     }
   }, []);
 
-  const [globalStyles, setGlobalStyles] = useState<SubtitleStyle>(DEFAULT_STYLES);
+  const [globalStyles, setGlobalStyles] = useState<SubtitleStyle>(
+    initialProject?.styles && Object.keys(initialProject.styles).length ? initialProject.styles : DEFAULT_STYLES
+  );
   const [selectedSubtitleId, setSelectedSubtitleId] = useState<number | string | null>(null);
   const [isSyncOn, setIsSyncOn] = useState<boolean>(true);
   const [captionLengthMode, setCaptionLengthMode] = useState<CaptionLengthMode>('custom');
   const [customWordCount, setCustomWordCount] = useState<number>(4);
 
-  const [projectName, setProjectName] = useState<string>('โปรเจกต์ 28/8/2569');
-  const [hasChanges, setHasChanges] = useState<boolean>(true);
+  const [projectName, setProjectName] = useState<string>(
+    initialProject?.title || `โปรเจกต์ ${new Date().toLocaleDateString('th-TH')}`
+  );
+  const [hasChanges, setHasChanges] = useState<boolean>(!initialProject);
   const [aspectRatio, setAspectRatio] = useState<'16:9' | '9:16' | '1:1'>('9:16');
   const [speed, setSpeed] = useState<number>(1);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -202,6 +216,29 @@ export function VideoEditorPage() {
       }
     } catch {}
   }, [getDefaultPanelWidths]);
+
+  // Auto-save draft on exit / navigation
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // Sync to sessionStorage immediately
+      try {
+        sessionStorage.setItem(
+          'subtitle_project',
+          JSON.stringify({
+            video_url: videoUrl,
+            video_filename: videoFilename,
+            subtitles,
+            globalStyles,
+          })
+        );
+      } catch {}
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [videoUrl, videoFilename, subtitles, globalStyles]);
 
   const handleLeftResizeStart = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
@@ -323,8 +360,9 @@ export function VideoEditorPage() {
     setHasChanges(true);
   }, [selectedSubtitleId, showToast]);
 
-  // Read initial data from sessionStorage on mount
+  // Read initial data from sessionStorage on mount (if not opened via project id)
   useEffect(() => {
+    if (initialProject) return; // Already initialized from Supabase
     const stored = sessionStorage.getItem('subtitle_project');
     if (stored) {
       try {
@@ -965,8 +1003,9 @@ export function VideoEditorPage() {
     showToast('ส่งออกไฟล์ .SRT สำเร็จ');
   }, [subtitles, projectName, showToast]);
 
-  // Save project
-  const handleSave = useCallback(() => {
+  // Save project to Supabase & sessionStorage
+  const handleSave = useCallback(async () => {
+    // 1. Keep in sessionStorage for immediate local offline backup
     sessionStorage.setItem(
       'subtitle_project',
       JSON.stringify({
@@ -976,9 +1015,34 @@ export function VideoEditorPage() {
         globalStyles,
       })
     );
-    setHasChanges(false);
-    showToast('บันทึกโปรเจกต์เรียบร้อย');
-  }, [videoUrl, videoFilename, subtitles, globalStyles, showToast]);
+
+    // 2. Persist to Supabase Database
+    showToast('กำลังบันทึกโปรเจกต์...');
+    const result = await saveProjectAction({
+      id: projectId || undefined,
+      title: projectName,
+      status: 'draft',
+      duration: duration ? formatTime(duration) : undefined,
+      video_url: videoUrl,
+      video_filename: videoFilename,
+      subtitles: subtitles,
+      styles: globalStyles,
+    });
+
+    if (result.success && result.projectId) {
+      setProjectId(result.projectId);
+      setHasChanges(false);
+      showToast('บันทึกโปรเจกต์ลงคลาวด์เรียบร้อยแล้ว');
+      // Update browser URL without reloading so subsequent saves update the same project
+      if (typeof window !== 'undefined' && !window.location.search.includes(result.projectId)) {
+        window.history.replaceState(null, '', `/editor?id=${result.projectId}`);
+      }
+    } else {
+      // If error or unauthenticated, local save was still performed
+      setHasChanges(false);
+      showToast(result.error || 'บันทึกฉบับร่างไว้ในเบราว์เซอร์แล้ว');
+    }
+  }, [projectId, projectName, duration, videoUrl, videoFilename, subtitles, globalStyles, showToast]);
 
   // Render Video
   const handleRenderVideo = useCallback(async () => {
@@ -1024,6 +1088,22 @@ export function VideoEditorPage() {
 
       showToast('เรนเดอร์วิดีโอสำเร็จและเริ่มดาวน์โหลดแล้ว!');
       setHasChanges(false);
+
+      // Mark status as 'done' in Supabase
+      saveProjectAction({
+        id: projectId || undefined,
+        title: projectName,
+        status: 'done',
+        duration: duration ? formatTime(duration) : undefined,
+        video_url: videoUrl,
+        video_filename: videoFilename,
+        subtitles: subtitles,
+        styles: globalStyles,
+      }).then((res) => {
+        if (res?.success && res.projectId) {
+          setProjectId(res.projectId);
+        }
+      });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       console.error('Render error:', err);
@@ -1032,7 +1112,7 @@ export function VideoEditorPage() {
       setIsRendering(false);
       setRenderProgress('');
     }
-  }, [videoFilename, subtitles, globalStyles, showToast]);
+  }, [projectId, projectName, duration, videoUrl, videoFilename, subtitles, globalStyles, showToast]);
 
   // Open confirmation modal when Reset is clicked
   const handleResetClick = useCallback(() => {

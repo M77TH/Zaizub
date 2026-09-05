@@ -90,9 +90,9 @@ function EditorHeader({
       {/* Left: Back arrow, Project Name, Status badge */}
       <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0 min-w-0">
         <Link
-          href="/"
+          href="/my-video"
           className="flex h-8 w-8 items-center justify-center rounded-xl text-gray-400 hover:bg-[#1c1a29] hover:text-white transition-all active:scale-95 flex-shrink-0"
-          title="กลับสู่หน้าหลัก"
+          title="กลับสู่หน้าวิดีโอของฉัน"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M19 12H5M12 19l-7-7 7-7" />

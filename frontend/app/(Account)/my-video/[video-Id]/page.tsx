@@ -8,7 +8,7 @@ export default async function MyVideoPage() {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    redirect('/login?next=/dashboard')
+    redirect('/login?next=/my-video')
   }
 
   return (

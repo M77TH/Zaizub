@@ -160,3 +160,26 @@ body::-webkit-scrollbar {
   border-radius: 50%;
   background: #ffffff;
 }
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+  -ms-overflow-style: none !important;  /* IE and Edge */
+  scrollbar-width: none !important;  /* Firefox */
+}
+
+/* Prevent native white browser scrollbars across all header and toolbar elements */
+header, header * {
+  scrollbar-width: none !important;
+}
+header::-webkit-scrollbar, header *::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}

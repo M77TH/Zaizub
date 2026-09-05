@@ -1,10 +1,10 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
 
-const protectedPaths = ['/dashboard', '/profile']
+const protectedPaths = ['/profile', '/my-video', '/editor']
 const authPaths = ['/login', '/register', '/signup']
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { user, supabaseResponse } = await updateSession(request)
   const { pathname } = request.nextUrl
 
@@ -23,10 +23,10 @@ export async function middleware(request: NextRequest) {
   }
 
   if (isAuthPage && user) {
-    const dashboardUrl = request.nextUrl.clone()
-    dashboardUrl.pathname = '/dashboard'
-    dashboardUrl.search = ''
-    return NextResponse.redirect(dashboardUrl)
+    const myVideoUrl = request.nextUrl.clone()
+    myVideoUrl.pathname = '/my-video'
+    myVideoUrl.search = ''
+    return NextResponse.redirect(myVideoUrl)
   }
 
   return supabaseResponse
@@ -34,8 +34,9 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/dashboard/:path*',
     '/profile/:path*',
+    '/my-video/:path*',
+    '/editor/:path*',
     '/login',
     '/register',
     '/signup',

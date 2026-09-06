@@ -79,6 +79,32 @@ def create_web_preview(input_path: str, preview_path: str):
     subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 
+def create_thumbnail(input_path: str, thumbnail_path: str):
+    """
+    Generates a high-quality JPG poster thumbnail frame at 1 second (or frame 0).
+    """
+    cmd = [
+        'ffmpeg', '-y',
+        '-ss', '00:00:01',
+        '-i', input_path,
+        '-vframes', '1',
+        '-q:v', '2',
+        thumbnail_path
+    ]
+    try:
+        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    except Exception as e:
+        # Fallback to seeking frame 0 if video is shorter than 1 second
+        cmd_fallback = [
+            'ffmpeg', '-y',
+            '-i', input_path,
+            '-vframes', '1',
+            '-q:v', '2',
+            thumbnail_path
+        ]
+        subprocess.run(cmd_fallback, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+
 @router.post("/extract-audio")
 async def extract_audio(
     background_tasks: BackgroundTasks,
@@ -101,6 +127,7 @@ async def extract_audio(
 
     input_video = os.path.join(TEMP_DIR, f"in_{job_id}{ext}").replace("\\", "/")
     preview_video = os.path.join(TEMP_DIR, f"prev_{job_id}.mp4").replace("\\", "/")
+    thumbnail_file = os.path.join(TEMP_DIR, f"thumb_{job_id}.jpg").replace("\\", "/")
     temp_audio = os.path.join(TEMP_DIR, f"aud_{job_id}.m4a").replace("\\", "/")
 
     try:
@@ -119,13 +146,20 @@ async def extract_audio(
         ]
         subprocess.run(extract_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-        # 3. Generate browser-compatible H.264 preview video
+        # 3. Generate browser-compatible H.264 preview video and thumbnail poster
         try:
             create_web_preview(input_video, preview_video)
             preview_filename = os.path.basename(preview_video)
         except Exception as pe:
             logger.warning(f"Preview transcoding warning: {pe}, using original file")
             preview_filename = os.path.basename(input_video)
+
+        thumbnail_filename = ""
+        try:
+            create_thumbnail(preview_video if os.path.exists(preview_video) else input_video, thumbnail_file)
+            thumbnail_filename = os.path.basename(thumbnail_file)
+        except Exception as te:
+            logger.warning(f"Thumbnail generation warning: {te}")
 
         # 4. Transcribe audio using selected engine (groq or whisperx)
         subtitles = transcribe_audio(temp_audio, engine=engine)
@@ -135,11 +169,13 @@ async def extract_audio(
 
         filename_only = os.path.basename(input_video)
         video_url = f"/temp_storage/{preview_filename}"
+        thumbnail_url = f"/temp_storage/{thumbnail_filename}" if thumbnail_filename else ""
 
         return {
             "success": True,
             "job_id": job_id,
             "video_url": video_url,
+            "thumbnail_url": thumbnail_url,
             "video_filename": filename_only,
             "subtitles": subtitles
         }
@@ -169,10 +205,12 @@ async def render_video(
     content_type = request.headers.get("content-type", "")
 
     # Parse request payload (supports JSON body or FormData)
+    video_url = ""
     if "application/json" in content_type:
         try:
             body = await request.json()
             video_filename = body.get("video_filename", "")
+            video_url = body.get("video_url", "")
             subtitles_raw = body.get("subtitles", [])
             styles_raw = body.get("styles", {})
         except Exception as e:
@@ -180,6 +218,7 @@ async def render_video(
     else:
         form = await request.form()
         video_filename = form.get("video_filename") or form.get("file_name") or ""
+        video_url = form.get("video_url") or ""
         subtitles_str = form.get("subtitles", "[]")
         styles_str = form.get("styles", "{}")
         try:
@@ -191,15 +230,31 @@ async def render_video(
         except Exception:
             styles_raw = {}
 
-    if not video_filename:
-        raise HTTPException(status_code=400, detail="video_filename is required")
+    # Extract target filename from either video_filename or video_url
+    clean_filename = ""
+    if video_filename and video_filename != "sample_video.mp4":
+        clean_filename = os.path.basename(video_filename)
+    elif video_url:
+        clean_filename = os.path.basename(video_url.split("?")[0])
+
+    if not clean_filename or clean_filename == "sample_video.mp4":
+        # Check if there is any recent in_*.mp4 or prev_*.mp4 in temp_storage
+        if os.path.exists(TEMP_DIR):
+            existing_vids = [
+                f for f in os.listdir(TEMP_DIR)
+                if (f.startswith("in_") or f.startswith("prev_")) and f.endswith(".mp4")
+            ]
+            if existing_vids:
+                existing_vids.sort(key=lambda x: os.path.getmtime(os.path.join(TEMP_DIR, x)), reverse=True)
+                clean_filename = existing_vids[0]
+
+    if not clean_filename:
+        raise HTTPException(status_code=400, detail="video_filename or video_url is required")
 
     # Resolve video path
-    clean_filename = os.path.basename(video_filename)
     input_video_path = os.path.join(TEMP_DIR, clean_filename).replace("\\", "/")
 
     if not os.path.exists(input_video_path):
-        # Also check if it's already an absolute or direct path
         if os.path.exists(video_filename):
             input_video_path = video_filename.replace("\\", "/")
         else:
@@ -208,7 +263,7 @@ async def render_video(
             candidate = None
             if os.path.exists(TEMP_DIR):
                 for fname in os.listdir(TEMP_DIR):
-                    if stem in fname and (fname.startswith("in_") or fname.startswith("prev_")):
+                    if stem and stem in fname and (fname.startswith("in_") or fname.startswith("prev_")):
                         candidate = os.path.join(TEMP_DIR, fname).replace("\\", "/")
                         if fname.startswith("in_"):  # prefer original full-res
                             break
@@ -230,11 +285,12 @@ async def render_video(
         with open(ass_file_path, "w", encoding="utf-8") as f:
             f.write(ass_content)
 
-        # 2. Run FFmpeg with libass filter
+        # 2. Run FFmpeg with libass filter (properly quoted for Windows path support)
+        safe_ass_path = ass_file_path.replace("\\", "/")
         burn_cmd = [
             'ffmpeg', '-y',
             '-i', input_video_path,
-            '-vf', f"ass={ass_file_path}",
+            '-vf', f"ass='{safe_ass_path}'",
             '-c:v', 'libx264',
             '-preset', 'fast',
             '-crf', '22',
@@ -314,7 +370,8 @@ async def process_link(
     temp_audio = os.path.join(TEMP_DIR, f"aud_{job_id}.m4a").replace("\\", "/")
 
     try:
-        # 1. โหลดวิดีโอจากลิงก์ด้วย yt-dlp
+        # 1. โหลดวิดีโอจากลิงก์ด้วย yt-dlp และดึงชื่อคลิปต้นทางจริง
+        video_title = ""
         ydl_opts = {
             'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4',
             'outtmpl': input_video,
@@ -322,7 +379,9 @@ async def process_link(
             'no_warnings': True,
         }
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([request.url])
+            info = ydl.extract_info(request.url, download=True)
+            if info:
+                video_title = info.get('title') or ""
 
         # 2. แยกเสียงออกมาเป็นไฟล์ .m4a ด้วย FFmpeg
         extract_cmd = [
@@ -335,7 +394,7 @@ async def process_link(
         ]
         subprocess.run(extract_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-        # 3. Generate browser-compatible H.264 preview video
+        # 3. Generate browser-compatible H.264 preview video and thumbnail poster
         preview_video = os.path.join(TEMP_DIR, f"prev_{job_id}.mp4").replace("\\", "/")
         try:
             create_web_preview(input_video, preview_video)
@@ -343,6 +402,14 @@ async def process_link(
         except Exception as pe:
             logger.warning(f"Preview transcoding warning: {pe}, using original file")
             preview_filename = os.path.basename(input_video)
+
+        thumbnail_file = os.path.join(TEMP_DIR, f"thumb_{job_id}.jpg").replace("\\", "/")
+        thumbnail_filename = ""
+        try:
+            create_thumbnail(preview_video if os.path.exists(preview_video) else input_video, thumbnail_file)
+            thumbnail_filename = os.path.basename(thumbnail_file)
+        except Exception as te:
+            logger.warning(f"Thumbnail generation warning: {te}")
 
         # 4. ถอดเสียงด้วย transcribe_audio (groq หรือ whisperx)
         subtitles = transcribe_audio(temp_audio, engine=request.engine)
@@ -352,11 +419,14 @@ async def process_link(
 
         filename_only = os.path.basename(input_video)
         video_url = f"/temp_storage/{preview_filename}"
+        thumbnail_url = f"/temp_storage/{thumbnail_filename}" if thumbnail_filename else ""
 
         return {
             "success": True,
             "job_id": job_id,
+            "title": video_title,
             "video_url": video_url,
+            "thumbnail_url": thumbnail_url,
             "video_filename": filename_only,
             "subtitles": subtitles
         }

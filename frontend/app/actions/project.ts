@@ -29,22 +29,40 @@ export async function saveProjectAction(payload: SaveProjectPayload) {
   }
 
   try {
+    // Note: Table 'videos' contains: id, user_id, title, status, video_url, thumbnail_url, duration, subtitles, created_at, updated_at
+    // If styles are provided, we bundle them into the subtitles JSONB or omit them so Supabase doesn't reject with 42703 (column does not exist)
+    let subtitlesPayload = payload.subtitles ?? [];
+    if (payload.styles && Object.keys(payload.styles).length > 0) {
+      if (Array.isArray(subtitlesPayload)) {
+        subtitlesPayload = {
+          items: subtitlesPayload,
+          styles: payload.styles,
+          video_filename: payload.video_filename,
+        } as any;
+      }
+    }
+
     const projectData: any = {
       user_id: user.id,
       title: payload.title || 'โปรเจกต์ไม่มีชื่อ',
       status: payload.status || 'draft',
       video_url: payload.video_url,
-      video_filename: payload.video_filename,
-      thumbnail_url: payload.thumbnail_url,
-      subtitles: payload.subtitles ?? [],
-      styles: payload.styles ?? {},
+      thumbnail_url: payload.thumbnail_url || null,
+      subtitles: subtitlesPayload,
       updated_at: new Date().toISOString(),
     };
 
     if (payload.duration) {
-      const numDur = parseFloat(payload.duration);
-      if (!isNaN(numDur)) {
-        projectData.duration = numDur;
+      if (typeof payload.duration === 'string' && payload.duration.includes(':')) {
+        const parts = payload.duration.split(':');
+        const mins = parseFloat(parts[0]) || 0;
+        const secs = parseFloat(parts[1]) || 0;
+        projectData.duration = mins * 60 + secs;
+      } else {
+        const numDur = parseFloat(payload.duration as string);
+        if (!isNaN(numDur)) {
+          projectData.duration = numDur;
+        }
       }
     }
 

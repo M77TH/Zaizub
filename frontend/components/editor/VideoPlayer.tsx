@@ -6,12 +6,12 @@ import { SubtitleSegment, SubtitleStyle } from './types';
 interface VideoPlayerProps {
   videoUrl: string;
   videoRef: React.RefObject<HTMLVideoElement | null>;
-  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  fileInputRef?: React.RefObject<HTMLInputElement | null>;
   aspectRatio: '16:9' | '9:16' | '1:1';
   togglePlay: () => void;
   handleTimeUpdate: () => void;
   handleLoadedMetadata: () => void;
-  handleDirectUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleDirectUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   activeSubtitle?: SubtitleSegment;
   selectedSubtitle?: SubtitleSegment;
   selectedSubtitleId: number | string | null;
@@ -25,12 +25,10 @@ interface VideoPlayerProps {
 function VideoPlayer({
   videoUrl,
   videoRef,
-  fileInputRef,
   aspectRatio,
   togglePlay,
   handleTimeUpdate,
   handleLoadedMetadata,
-  handleDirectUpload,
   activeSubtitle,
   selectedSubtitle,
   selectedSubtitleId,
@@ -44,6 +42,12 @@ function VideoPlayer({
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [isResizing, setIsResizing] = useState<boolean>(false);
   const [showCenterGuide, setShowCenterGuide] = useState<boolean>(false);
+  const [isDragOver, setIsDragOver] = useState<boolean>(false);
+  const [videoError, setVideoError] = useState<boolean>(false);
+
+  useEffect(() => {
+    setVideoError(false);
+  }, [videoUrl]);
 
   // Track last active subtitle to prevent flicker during gaps between segments
   const lastActiveRef = useRef<SubtitleSegment | undefined>(undefined);
@@ -375,34 +379,51 @@ function VideoPlayer({
         className="relative overflow-hidden rounded-2xl bg-black shadow-[0_25px_70px_rgba(0,0,0,0.85)] border border-[#221f33] transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] flex items-center justify-center will-change-[width,height]"
       >
         {/* Video Element */}
-        {videoUrl ? (
+        {videoUrl && !videoError ? (
           <video
             ref={videoRef}
             src={videoUrl}
             onTimeUpdate={handleTimeUpdate}
             onLoadedMetadata={handleLoadedMetadata}
             onClick={togglePlay}
+            onError={(e) => {
+              console.warn('Video source error:', videoUrl, e);
+              setVideoError(true);
+            }}
             className="h-full w-full object-contain cursor-pointer transition-transform duration-300"
             playsInline
+            preload="metadata"
           />
         ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-3 p-6 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/5 text-gray-400">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <polygon points="23 7 16 12 23 17 23 7" />
-                <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-              </svg>
+          <div className="relative flex h-full w-full flex-col items-center justify-center p-6 sm:p-8 text-center overflow-hidden">
+            {/* Ambient Background Glow */}
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <div className="h-64 w-64 rounded-full bg-gradient-to-tr from-purple-600/10 via-indigo-600/5 to-transparent blur-3xl opacity-60" />
             </div>
-            <div>
-              <p className="text-sm font-medium text-gray-300">ยังไม่มีวิดีโอที่โหลดอยู่</p>
-              <p className="text-xs text-gray-500">อัปโหลดไฟล์วิดีโอ MP4 หรือ MOV เพื่อเริ่มต้น</p>
+
+            <div className="relative z-10 flex flex-col items-center max-w-xs px-2">
+              <div className="relative mb-4">
+                <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-[#13111f]/90 text-zinc-400 shadow-xl backdrop-blur-md">
+                  <svg
+                    className="w-7 h-7 text-purple-400/80"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth="1.75"
+                  >
+                    <polygon points="23 7 16 12 23 17 23 7" />
+                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                  </svg>
+                </div>
+              </div>
+
+              <h3 className="text-base font-semibold text-white tracking-tight mb-1">
+                ยังไม่มีวิดีโอที่โหลดอยู่
+              </h3>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                โปรดเลือกหรือสร้างโปรเจกต์ใหม่จากหน้า &quot;วิดีโอของฉัน&quot;
+              </p>
             </div>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="mt-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 px-4 py-2 text-xs font-bold text-white transition-all shadow-[0_0_20px_rgba(139,92,246,0.35)]"
-            >
-              เลือกไฟล์วิดีโอ
-            </button>
           </div>
         )}
 
@@ -502,14 +523,6 @@ function VideoPlayer({
             </div>
           </div>
         )}
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="video/*"
-          onChange={handleDirectUpload}
-          className="hidden"
-        />
       </div>
     </div>
   );

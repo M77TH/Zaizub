@@ -60,7 +60,7 @@ export default async function MyVideoPage() {
       style={{ backgroundImage: "url('/page-bg.png')" }}
     >
       <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-[#0c0b11]/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-10">
+        <div className="w-full flex items-center justify-between px-4 sm:px-8 md:px-12 py-3.5">
           {/* Official Zaizub Logo */}
           <Link
             href="/my-video"
@@ -70,8 +70,8 @@ export default async function MyVideoPage() {
             <span className="text-white text-base font-bold tracking-tight font-display">Zaizub</span>
           </Link>
 
-          {/* Profile Section Widget (Hidden) */}
-          {/* <Link
+          {/* Profile Section Widget */}
+          <Link
             href="/profile"
             className="group flex items-center gap-3 px-3.5 py-1.5 rounded-2xl bg-[#151322] border border-white/[0.08] hover:border-white/20 transition-all shadow-sm"
           >
@@ -96,7 +96,7 @@ export default async function MyVideoPage() {
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
             </svg>
-          </Link> */}
+          </Link>
         </div>
       </header>
       <main className="flex-1">

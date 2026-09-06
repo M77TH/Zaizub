@@ -8,6 +8,7 @@ interface EditorHeaderProps {
   setProjectName: (name: string) => void;
   hasChanges: boolean;
   setHasChanges: (val: boolean) => void;
+  saveStatus?: 'saved' | 'saving' | 'unsaved';
   aspectRatio: '16:9' | '9:16' | '1:1';
   setAspectRatio: (val: '16:9' | '9:16' | '1:1') => void;
   speed: number;
@@ -15,7 +16,7 @@ interface EditorHeaderProps {
   selectedSubtitleId: number | string | null;
   onResetStyles: () => void;
   onExportSRT: () => void;
-  onSave: () => void;
+  onSave?: () => void;
   onRenderVideo: () => void;
   isRendering: boolean;
   showToast: (msg: string) => void;
@@ -33,6 +34,7 @@ function EditorHeader({
   setProjectName,
   hasChanges,
   setHasChanges,
+  saveStatus = 'saved',
   aspectRatio,
   setAspectRatio,
   speed,
@@ -68,14 +70,15 @@ function EditorHeader({
 
   // Close dropdowns on outside click (supports both mouse and touch taps)
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent | TouchEvent | PointerEvent) => {
-      if (ratioDropdownRef.current && !ratioDropdownRef.current.contains(event.target as Node)) {
+    const handleClickOutside = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (ratioDropdownRef.current && !ratioDropdownRef.current.contains(target)) {
         setIsRatioOpen(false);
       }
-      if (speedDropdownRef.current && !speedDropdownRef.current.contains(event.target as Node)) {
+      if (speedDropdownRef.current && !speedDropdownRef.current.contains(target)) {
         setIsSpeedOpen(false);
       }
-      if (captionLengthDropdownRef.current && !captionLengthDropdownRef.current.contains(event.target as Node)) {
+      if (captionLengthDropdownRef.current && !captionLengthDropdownRef.current.contains(target)) {
         setIsCaptionLengthOpen(false);
       }
     };
@@ -108,13 +111,28 @@ function EditorHeader({
           className="bg-transparent font-medium text-xs sm:text-sm text-gray-200 hover:text-white focus:text-white focus:outline-none focus:ring-1 focus:ring-purple-500/40 rounded px-1.5 py-0.5 w-[85px] sm:w-[150px] md:w-[200px] transition-colors truncate"
         />
         <span
-          className={`hidden md:inline-flex rounded-full px-2 py-0.5 text-[9px] font-medium tracking-wide transition-colors ${
-            hasChanges
+          className={`hidden md:inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[9px] font-medium tracking-wide transition-colors ${
+            saveStatus === 'saving'
+              ? 'bg-purple-500/10 text-purple-300 border border-purple-500/30 animate-pulse'
+              : hasChanges || saveStatus === 'unsaved'
               ? 'bg-amber-500/10 text-amber-300 border border-amber-500/25'
               : 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/25'
           }`}
         >
-          {hasChanges ? 'ยังไม่บันทึก' : 'บันทึกแล้ว'}
+          <span
+            className={`w-1.5 h-1.5 rounded-full ${
+              saveStatus === 'saving'
+                ? 'bg-purple-400 animate-ping'
+                : hasChanges || saveStatus === 'unsaved'
+                ? 'bg-amber-400'
+                : 'bg-emerald-400'
+            }`}
+          />
+          {saveStatus === 'saving'
+            ? 'กำลังบันทึก...'
+            : hasChanges || saveStatus === 'unsaved'
+            ? 'ยังไม่บันทึก'
+            : 'บันทึกอัตโนมัติแล้ว'}
         </span>
       </div>
 
@@ -541,7 +559,7 @@ function EditorHeader({
         </button>
       </div>
 
-      {/* Right: Export SRT, Save, Render Button */}
+      {/* Right: Export SRT, Render Button */}
       <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
         <button
           onClick={onExportSRT}
@@ -554,19 +572,6 @@ function EditorHeader({
             <line x1="12" y1="15" x2="12" y2="3" />
           </svg>
           <span className="font-medium hidden md:inline">ส่งออก SRT</span>
-        </button>
-
-        <button
-          onClick={onSave}
-          className="flex h-8 items-center gap-1.5 rounded-xl bg-[#151322] hover:bg-[#1f1c32] border border-[#262238] px-2.5 sm:px-3 text-xs font-medium text-gray-300 hover:text-white transition-all active:scale-95 shadow-sm"
-          title="บันทึกโปรเจกต์"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-purple-400">
-            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-            <polyline points="17 21 17 13 7 13 7 21" />
-            <polyline points="7 3 7 8 15 8" />
-          </svg>
-          <span className="hidden sm:inline">บันทึก</span>
         </button>
 
         <button

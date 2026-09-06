@@ -599,8 +599,37 @@ function TranscriptPanel({
                   <div className="flex items-center gap-2">
                     {/* Word Count Indicator */}
                     {(() => {
+                      if (sub.words && sub.words.length > 0) {
+                        return (
+                          <span
+                            className={`text-[10px] tabular-nums font-mono px-1.5 py-0.2 rounded transition-colors ${
+                              isSelected || isPlayingThis
+                                ? 'bg-purple-500/25 text-purple-200 border border-purple-400/30'
+                                : 'bg-white/[0.04] text-gray-400 border border-white/[0.05]'
+                            }`}
+                            title={`${sub.words.length} คำในการ์ดนี้`}
+                          >
+                            {sub.words.length} คำ
+                          </span>
+                        );
+                      }
                       const trimmed = (sub.text || '').trim();
-                      const count = trimmed ? trimmed.split(/\s+/).filter(Boolean).length : 0;
+                      let count = 0;
+                      if (trimmed) {
+                        if (trimmed.includes(' ')) {
+                          count = trimmed.split(/\s+/).filter(Boolean).length;
+                        } else if (typeof Intl !== 'undefined' && (Intl as any).Segmenter) {
+                          try {
+                            const segmenter = new (Intl as any).Segmenter('th', { granularity: 'word' });
+                            count = (Array.from(segmenter.segment(trimmed)) as any[])
+                              .filter((s) => s.isWordLike && s.segment.trim().length > 0).length;
+                          } catch {
+                            count = 1;
+                          }
+                        } else {
+                          count = 1;
+                        }
+                      }
                       return (
                         <span
                           className={`text-[10px] tabular-nums font-mono px-1.5 py-0.2 rounded transition-colors ${

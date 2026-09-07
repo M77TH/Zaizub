@@ -3,11 +3,11 @@ from typing import Literal
 
 class Settings(BaseSettings):
     GROQ_API_KEY: str = ""
-    MODEL: str = "groq"  # "groq" or "whisperx"
+    MODEL: str = "whisperx"  # "whisperx" or "groq"
 
-    # ตั้งค่าให้ไปดึงข้อมูลมาจากไฟล์ .env (ทั้ง root และ backend)
+    # ตั้งค่าให้ไปดึงข้อมูลมาจากไฟล์ .env
     model_config = SettingsConfigDict(
-        env_file=(".env", "../.env"),
+        env_file=("backend/.env", ".env", "../.env"),
         env_file_encoding="utf-8", 
         extra="ignore"
     )

@@ -192,15 +192,6 @@ export default function VideoCard({
             {/* Dropdown Menu */}
             {menuOpen && (
               <div className="absolute right-0 bottom-full mb-1 w-44 rounded-xl border border-white/10 bg-[#191629] p-1.5 shadow-2xl z-30 animate-in fade-in zoom-in-95 duration-100">
-                <Link
-                  href={`/editor?id=${video.id}`}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-gray-200 rounded-lg hover:bg-white/10 hover:text-white transition-colors"
-                >
-                  <svg className="w-3.5 h-3.5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                  </svg>
-                  เปิดใน Editor
-                </Link>
                 <button
                   type="button"
                   onClick={() => {
@@ -214,21 +205,6 @@ export default function VideoCard({
                   </svg>
                   เปลี่ยนชื่อ
                 </button>
-                {onDuplicate && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onDuplicate(video.id);
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-gray-200 rounded-lg hover:bg-white/10 hover:text-white transition-colors text-left"
-                  >
-                    <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                    ทำสำเนา (Duplicate)
-                  </button>
-                )}
                 <div className="my-1 border-t border-white/[0.08]" />
                 {onDelete && (
                   <button

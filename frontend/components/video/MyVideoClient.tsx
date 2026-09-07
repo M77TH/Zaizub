@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import VideoCard, { VideoProject } from './VideoCard';
 import UploadVideoModal from './UploadVideoModal';
+import DeleteConfirmModal from './DeleteConfirmModal';
 import {
   deleteProjectAction,
   renameProjectAction,
@@ -23,6 +24,8 @@ export default function MyVideoClient({
   const [activeTab, setActiveTab] = useState<'all' | 'done' | 'draft'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [videoToDelete, setVideoToDelete] = useState<VideoProject | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Sync state if initialVideos changes
   useEffect(() => {
@@ -56,11 +59,26 @@ export default function MyVideoClient({
     };
   }, [videos]);
 
-  const handleDelete = async (id: string) => {
-    if (confirm('คุณแน่ใจหรือไม่ว่าต้องการลบวิดีโอนี้?')) {
+  const handleDeletePrompt = (id: string) => {
+    const target = videos.find((v) => v.id === id);
+    if (target) {
+      setVideoToDelete(target);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!videoToDelete) return;
+    const targetId = videoToDelete.id;
+    try {
+      setIsDeleting(true);
       // Optimistic update
-      setVideos((prev) => prev.filter((v) => v.id !== id));
-      await deleteProjectAction(id);
+      setVideos((prev) => prev.filter((v) => v.id !== targetId));
+      await deleteProjectAction(targetId);
+    } catch (err) {
+      console.error('Failed to delete project:', err);
+    } finally {
+      setIsDeleting(false);
+      setVideoToDelete(null);
     }
   };
 
@@ -214,7 +232,7 @@ export default function MyVideoClient({
               <VideoCard
                 key={video.id}
                 video={video}
-                onDelete={handleDelete}
+                onDelete={handleDeletePrompt}
                 onRename={handleRename}
                 onDuplicate={handleDuplicate}
               />
@@ -262,6 +280,17 @@ export default function MyVideoClient({
       <UploadVideoModal
         isOpen={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
+      />
+
+      {/* Custom Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={!!videoToDelete}
+        title={videoToDelete?.title}
+        isDeleting={isDeleting}
+        onClose={() => {
+          if (!isDeleting) setVideoToDelete(null);
+        }}
+        onConfirm={handleConfirmDelete}
       />
     </div>
   );

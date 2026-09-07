@@ -95,8 +95,8 @@ def transcribe_audio_groq(
                     "end": round(float(w_end), 2)
                 })
 
-            # Group words into clean short subtitle chunks (3-5 words per subtitle or ~1.5 - 2.5s)
-            chunk_size = 4 if len(words) > 5 else len(words)
+            # Group words into natural sentence subtitle chunks (~8-10 words per subtitle or ~3s)
+            chunk_size = 8 if len(words) > 10 else len(words)
             total_chunks = (len(words) + chunk_size - 1) // chunk_size
             chunk_time = seg_duration / total_chunks
 
@@ -141,7 +141,20 @@ def transcribe_audio_whisperx(
 ) -> List[Dict[str, Any]]:
     subtitles: List[Dict[str, Any]] = []
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    compute_type = "float16" if device == "cuda" else "int8"
+    if device == "cuda":
+        import ctranslate2
+        supported = ctranslate2.get_supported_compute_types("cuda")
+        if "float16" in supported:
+            compute_type = "float16"
+        elif "int8_float32" in supported:
+            compute_type = "int8_float32"
+        elif "int8" in supported:
+            compute_type = "int8"
+        else:
+            compute_type = "float32"
+    else:
+        compute_type = "int8"
+
     if model_name is None:
         model_name = "large-v3" if device == "cuda" else "base"
 
@@ -149,19 +162,22 @@ def transcribe_audio_whisperx(
         if WhisperModel is None:
             raise ImportError("faster_whisper is not installed in the environment.")
 
-        # 1. ถอดเสียงด้วย Faster-Whisper พร้อมบังคับบริบทและลดการเดาสุ่ม
+        # 1. ถอดเสียงด้วย Faster-Whisper พร้อมบังคับภาษาไทยและป้องกัน hallucination loop
         logger.info(f"Transcribing full audio with Faster-Whisper '{model_name}'...")
         fw_model = WhisperModel(model_name, device=device, compute_type=compute_type)
         segments_raw, _ = fw_model.transcribe(
-            audio_path, 
+            audio_path,
+            language="th",
             vad_filter=True,
             vad_parameters=dict(
-                min_silence_duration_ms=4000, 
-                speech_pad_ms=400             
+                min_silence_duration_ms=1000,
+                speech_pad_ms=300
             ),
             beam_size=5,
-            temperature=[0.0, 0.2, 0.4],
-            condition_on_previous_text=True
+            temperature=0.0,
+            repetition_penalty=1.2,
+            no_repeat_ngram_size=3,
+            condition_on_previous_text=False
         )
 
         # 2. แปลงผลลัพธ์ให้อยู่ในรูปแบบ Segment Dict พร้อมตัดคำไทย
@@ -196,10 +212,10 @@ def transcribe_audio_whisperx(
         )
         aligned_segments = aligned_result.get("segments", [])
 
-        # 4. จัดกลุ่มคำลงกรอบเวลา
+        # 4. จัดกลุ่มคำลงกรอบเวลา (Sentence-level subtitle chunks)
         subtitle_id = 1
-        max_words_per_sub = 2
-        max_duration_per_sub = 1.0
+        max_words_per_sub = 8
+        max_duration_per_sub = 3.5
 
         for seg in aligned_segments:
             seg_start = float(seg.get("start", 0.0))
@@ -275,9 +291,10 @@ def transcribe_audio_whisperx(
 
     except Exception as e:
         logger.exception(f"Error executing transcription pipeline: {e}")
+        subtitles = [{"id": 1, "start": 0.0, "end": 2.0, "text": f"Error: {str(e)}"}]
 
     if not subtitles:
-        subtitles = [{"id": 1, "start": 0.0, "end": 2.0, "text": "เกิดข้อผิดพลาดในการรันระบบ"}]
+        subtitles = [{"id": 1, "start": 0.0, "end": 2.0, "text": "ไม่พบเสียงพูดในคลิป"}]
 
     if srt_path:
         with open(srt_path, "w", encoding="utf-8") as f:

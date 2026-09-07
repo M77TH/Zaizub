@@ -29,6 +29,7 @@ export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalPr
   const [totalBytes, setTotalBytes] = useState<number>(0);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [transcribingSeconds, setTranscribingSeconds] = useState<number>(0);
+  const [stageMessage, setStageMessage] = useState<string>('');
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const resetState = useCallback(() => {
@@ -51,6 +52,7 @@ export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalPr
     setLoadedBytes(0);
     setTotalBytes(0);
     setErrorMessage('');
+    setStageMessage('');
     setTranscribingSeconds(0);
     setIsDragging(false);
   }, []);
@@ -73,9 +75,9 @@ export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalPr
     if (!isValidMime) {
       return 'รองรับเฉพาะไฟล์วิดีโอ (MP4, MOV, WebM) เท่านั้น';
     }
-    const maxSize = 100 * 1024 * 1024;
+    const maxSize = 50 * 1024 * 1024;
     if (file.size > maxSize) {
-      return 'ขนาดไฟล์เกินกำหนด (สูงสุดไม่เกิน 100 MB)';
+      return 'ขนาดไฟล์เกินกำหนด (สูงสุดไม่เกิน 50 MB สำหรับแผนฟรี)';
     }
     return null;
   };
@@ -101,64 +103,67 @@ export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalPr
 
   const startUpload = (file: File) => {
     setUploadState('uploading');
-    setUploadPercent(1); // Immediate visual feedback that upload started
+    setUploadPercent(0);
     setLoadedBytes(0);
     setTotalBytes(file.size);
     setErrorMessage('');
+    setStageMessage('กำลังอัปโหลดไฟล์วิดีโอ...');
 
     const xhr = new XMLHttpRequest();
     xhrRef.current = xhr;
 
-    // Animate progress smoothly towards target percentage
-    let currentAnimPercent = 0;
-    const animInterval = setInterval(() => {
-      // If we haven't reached 100%, increment smoothly
-      setUploadPercent((prev) => {
-        if (prev >= 100) {
-          clearInterval(animInterval);
-          return 100;
-        }
-        // If upload xhr is still going, smoothly creep up
-        return prev + 1;
-      });
-    }, 150);
-
-    // Track upload progress
+    // 1. Real Upload Progress (0% - 100% strictly matched to network bytes)
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable && e.total > 0) {
         const pct = Math.min(100, Math.round((e.loaded / e.total) * 100));
-        setUploadPercent((prev) => Math.max(prev, pct));
+        setUploadPercent(pct);
         setLoadedBytes(e.loaded);
         setTotalBytes(e.total);
 
-        // When bytes hit 100%, transition smoothly to server AI transcribing
+        // When bytes finish reaching server (100% uploaded)
         if (e.loaded >= e.total) {
-          clearInterval(animInterval);
           setUploadPercent(100);
           setTimeout(() => {
             setUploadState('transcribing');
             setTranscribingSeconds(0);
             setUploadPercent(0);
+            setStageMessage('เซิร์ฟเวอร์ได้รับไฟล์แล้ว กำลังประมวลผลเสียง...');
+
+            // Estimate duration: ~0.8s per MB, clamped between 5s and 35s
+            const estimatedSeconds = Math.max(6, Math.min(35, Math.round((file.size / (1024 * 1024)) * 0.8) + 4));
 
             if (timerRef.current) clearInterval(timerRef.current);
+            let elapsed = 0;
             timerRef.current = setInterval(() => {
-              setTranscribingSeconds((sec) => sec + 1);
+              elapsed += 1;
+              setTranscribingSeconds(elapsed);
+
+              if (elapsed < 3) {
+                setStageMessage('กำลังแยกแทร็กเสียงและสร้างภาพพรีวิว...');
+              } else if (elapsed < estimatedSeconds * 0.65) {
+                setStageMessage('WhisperX กำลังถอดเสียงและจัดคำบรรยาย...');
+              } else {
+                setStageMessage('กำลังตรวจสอบคำและความแม่นยำของไทม์โค้ด...');
+              }
+
+              // Smooth asymptotic progress that slows down naturally as it nears 95% without fake sudden stuck
               setUploadPercent((prev) => {
-                // Smooth progressive creep up to 98% until server responds
-                if (prev < 40) return prev + 3;
-                if (prev < 70) return prev + 2;
-                if (prev < 90) return prev + 1;
-                if (prev < 98) return prev + 0.5;
-                return 98;
+                const target = Math.min(95, Math.round((elapsed / estimatedSeconds) * 92));
+                if (prev < target) {
+                  return prev + Math.max(1, Math.round((target - prev) * 0.3));
+                }
+                if (prev < 95 && elapsed % 2 === 0) {
+                  return prev + 1;
+                }
+                return prev;
               });
-            }, 300);
-          }, 350);
+            }, 1000);
+          }, 300);
         }
       }
     };
 
     xhr.onload = async () => {
-      clearInterval(animInterval);
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
@@ -236,7 +241,6 @@ export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalPr
     };
 
     xhr.addEventListener('error', () => {
-      clearInterval(animInterval);
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
@@ -246,7 +250,6 @@ export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalPr
     });
 
     xhr.addEventListener('abort', () => {
-      clearInterval(animInterval);
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
@@ -280,19 +283,36 @@ export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalPr
     setUploadState('transcribing');
     setUploadPercent(0);
     setTranscribingSeconds(0);
+    setStageMessage('กำลังเชื่อมต่อและดาวน์โหลดวิดีโอจากลิงก์...');
 
     if (timerRef.current) clearInterval(timerRef.current);
+    let linkElapsed = 0;
     timerRef.current = setInterval(() => {
-      setTranscribingSeconds((sec) => sec + 1);
+      linkElapsed += 1;
+      setTranscribingSeconds(linkElapsed);
+
+      if (linkElapsed < 4) {
+        setStageMessage('กำลังดาวน์โหลดข้อมูลวิดีโอจากลิงก์...');
+      } else if (linkElapsed < 8) {
+        setStageMessage('กำลังแยกแทร็กเสียงและเตรียมประมวลผล...');
+      } else if (linkElapsed < 20) {
+        setStageMessage('WhisperX กำลังถอดเสียงและจัดคำบรรยาย...');
+      } else {
+        setStageMessage('กำลังปรับแต่งคำบรรยายและเวลาให้สมบูรณ์...');
+      }
+
+      // Smooth progression up to 95%
       setUploadPercent((prev) => {
-        // Fast start (download phase), then steady creep (transcribing phase) up to 98%
-        if (prev < 30) return prev + 4;
-        if (prev < 60) return prev + 2;
-        if (prev < 85) return prev + 1;
-        if (prev < 98) return prev + 0.4;
-        return 98;
+        const target = Math.min(95, Math.round((linkElapsed / 25) * 92));
+        if (prev < target) {
+          return prev + Math.max(1, Math.round((target - prev) * 0.3));
+        }
+        if (prev < 95 && linkElapsed % 2 === 0) {
+          return prev + 1;
+        }
+        return prev;
       });
-    }, 300);
+    }, 1000);
 
     const controller = new AbortController();
     abortControllerRef.current = controller;
@@ -526,7 +546,7 @@ export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalPr
                   ลากและวางไฟล์วิดีโอที่นี่ หรือ <span className="text-purple-400 underline underline-offset-2">เลือกไฟล์</span>
                 </p>
                 <p className="text-xs text-gray-400 mt-2">
-                  รองรับไฟล์ MP4, MOV, WebM ขนาดสูงสุดไม่เกิน 100 MB
+                  รองรับไฟล์ MP4, MOV, WebM ขนาดสูงสุดไม่เกิน 50 MB
                 </p>
               </div>
             ) : (
@@ -599,7 +619,7 @@ export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalPr
                     {uploadState === 'uploading'
                       ? `อัปโหลด ${formatFileSize(loadedBytes)} จาก ${formatFileSize(totalBytes)}`
                       : uploadState === 'transcribing'
-                      ? `AI กำลังถอดเสียงและสร้างซับไตเติ้ล (${transcribingSeconds} วิ)...`
+                      ? stageMessage || `AI กำลังถอดเสียงและสร้างซับไตเติ้ล (${transcribingSeconds} วิ)...`
                       : 'เตรียมเปิดพื้นที่ทำงานใน Editor...'}
                   </p>
                 </div>

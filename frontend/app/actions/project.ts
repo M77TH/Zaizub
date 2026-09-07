@@ -103,6 +103,41 @@ export async function deleteProjectAction(projectId: string) {
   }
 
   try {
+    // 1. First fetch the project to locate any files stored in Supabase Storage
+    const { data: project } = await supabase
+      .from('videos')
+      .select('video_url, thumbnail_url')
+      .eq('id', projectId)
+      .eq('user_id', user.id)
+      .single();
+
+    // 2. Remove files from Supabase Storage 'videos' bucket to reclaim free quota
+    if (project) {
+      const filesToRemove: string[] = [];
+
+      const extractStoragePath = (url?: string | null) => {
+        if (!url) return null;
+        // Match Supabase storage URL pattern: .../object/public/videos/<file_path>
+        const match = url.match(/\/object\/public\/videos\/(.+)$/);
+        return match ? decodeURIComponent(match[1]) : null;
+      };
+
+      const videoPath = extractStoragePath(project.video_url);
+      const thumbPath = extractStoragePath(project.thumbnail_url);
+
+      if (videoPath) filesToRemove.push(videoPath);
+      if (thumbPath) filesToRemove.push(thumbPath);
+
+      if (filesToRemove.length > 0) {
+        try {
+          await supabase.storage.from('videos').remove(filesToRemove);
+        } catch (storageErr) {
+          console.warn('Supabase storage file removal notice:', storageErr);
+        }
+      }
+    }
+
+    // 3. Delete database record
     const { error } = await supabase
       .from('videos')
       .delete()

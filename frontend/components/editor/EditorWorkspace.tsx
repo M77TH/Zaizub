@@ -561,6 +561,13 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
     }
   }, []);
 
+  useEffect(() => {
+    const vid = videoRef.current;
+    if (vid && vid.readyState >= 1) {
+      handleLoadedMetadata();
+    }
+  }, [videoUrl, handleLoadedMetadata]);
+
   const togglePlay = useCallback(() => {
     if (!videoRef.current || !videoUrl) return;
     if (videoRef.current.paused) {
@@ -1149,18 +1156,52 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
         }
       }
 
+      const vidEl = videoRef.current;
+      const vidW = vidEl ? vidEl.videoWidth : undefined;
+      const vidH = vidEl ? vidEl.videoHeight : undefined;
+
+      // Accurately measure the actual displayed video stage dimensions on the user's screen
+      let prevW: number | undefined = undefined;
+      let prevH: number | undefined = undefined;
+      if (vidEl) {
+        const stageEl = (document.querySelector('[data-canvas-stage]') || document.querySelector('[data-subtitle-overlay]')?.parentElement) as HTMLElement | null;
+        if (stageEl && stageEl.clientWidth > 0 && stageEl.clientHeight > 0) {
+          prevW = stageEl.clientWidth;
+          prevH = stageEl.clientHeight;
+        } else {
+          const rect = vidEl.getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) {
+            prevW = Math.round(rect.width);
+            prevH = Math.round(rect.height);
+          }
+        }
+      }
+
       const payload = {
         video_filename: effectiveFilename,
         video_url: videoUrl,
+        video_width: vidW,
+        video_height: vidH,
+        preview_width: prevW,
+        preview_height: prevH,
+        aspect_ratio: aspectRatio,
         subtitles: subtitles.map((s) => ({
           id: s.id,
           start: s.start,
           end: s.end,
           text: s.text,
-          style: s.style,
+          style: s.style ? {
+            ...s.style,
+            custom_x: s.style.custom_x ?? globalStyles.custom_x,
+            custom_y: s.style.custom_y ?? globalStyles.custom_y,
+            box_width: s.style.box_width ?? globalStyles.box_width,
+          } : undefined,
         })),
         styles: {
           ...globalStyles,
+          custom_x: globalStyles.custom_x ?? 50,
+          custom_y: globalStyles.custom_y ?? (globalStyles.position === 'center' ? 50 : globalStyles.position === 'custom' ? 12 : 82),
+          box_width: globalStyles.box_width ?? 86,
           position: globalStyles.position,
           animation: globalStyles.animation,
         },

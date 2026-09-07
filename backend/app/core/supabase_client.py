@@ -43,8 +43,12 @@ def delete_from_supabase_storage(paths: list[str], bucket_name: str = "videos"):
     Deletes files from Supabase Storage bucket to free up space.
     """
     if not supabase or not paths:
-        return
+        return []
     try:
-        supabase.storage.from_(bucket_name).remove(paths)
+        res = supabase.storage.from_(bucket_name).remove(paths)
+        print(f"[Supabase Storage] Removed {paths}: {res}")
+        return res
     except Exception as e:
         print(f"[Supabase Storage Remove Warning] {e}")
+        return []
+

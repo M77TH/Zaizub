@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from fastapi import APIRouter, UploadFile, File, Form, Request, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from app.utils.ass_generator import generate_ass_content, compute_canvas_dimensions
-from app.core.supabase_client import upload_to_supabase_storage
+from app.core.supabase_client import upload_to_supabase_storage, delete_from_supabase_storage
 import yt_dlp
 
 logger = logging.getLogger("video_routes")
@@ -90,6 +90,11 @@ class RenderRequest(BaseModel):
     styles: Optional[StyleConfig] = None
     video_width: Optional[int] = None
     video_height: Optional[int] = None
+
+class DeleteMediaRequest(BaseModel):
+    urls: Optional[List[str]] = []
+    paths: Optional[List[str]] = []
+
 
 
 def create_web_preview(input_path: str, preview_path: str):
@@ -655,4 +660,61 @@ async def process_link(
         cleanup_files(input_video, temp_audio)
         logger.error(f"Download/Process link error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to process video link: {str(e)}")
+
+
+@router.post("/delete-media")
+async def delete_media(payload: DeleteMediaRequest):
+    """
+    Purges preview video and thumbnail files from Supabase Storage bucket ('videos')
+    and any local copies in temp_storage.
+    """
+    to_delete_storage: List[str] = list(payload.paths or [])
+
+    def extract_filename(url: str) -> Optional[str]:
+        if not url:
+            return None
+        clean = url.split("?")[0].split("#")[0].strip()
+        import re
+        match = re.search(r"/videos/([^/?#]+)$", clean)
+        if match:
+            return match.group(1)
+        base = os.path.basename(clean)
+        if base.startswith(("prev_", "thumb_")):
+            return base
+        return None
+
+    for url in (payload.urls or []):
+        fn = extract_filename(url)
+        if fn:
+            to_delete_storage.append(fn)
+
+        # Also purge any local files residing in temp_storage
+        clean_url = url.split("?")[0].split("#")[0].strip()
+        if "/temp_storage/" in clean_url or clean_url.startswith("temp_storage/"):
+            local_name = os.path.basename(clean_url)
+            local_path = os.path.join(TEMP_DIR, local_name)
+            if os.path.exists(local_path):
+                try:
+                    os.remove(local_path)
+                    logger.info(f"Removed local temp_storage file: {local_path}")
+                except Exception as ex:
+                    logger.warning(f"Could not remove local file {local_path}: {ex}")
+
+    # Remove duplicates
+    unique_storage_files = list(dict.fromkeys(to_delete_storage))
+
+    removed_results = []
+    if unique_storage_files:
+        try:
+            removed_results = delete_from_supabase_storage(unique_storage_files, bucket_name="videos")
+            logger.info(f"Purged from Supabase Storage: {unique_storage_files} -> {removed_results}")
+        except Exception as e:
+            logger.error(f"Error purging from Supabase Storage: {e}")
+            raise HTTPException(status_code=500, detail=f"Storage delete failed: {str(e)}")
+
+    return {
+        "success": True,
+        "deleted_storage_files": unique_storage_files,
+        "details": removed_results
+    }
 

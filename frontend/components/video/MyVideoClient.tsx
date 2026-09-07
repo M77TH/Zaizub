@@ -68,19 +68,27 @@ export default function MyVideoClient({
 
   const handleConfirmDelete = async () => {
     if (!videoToDelete) return;
-    const targetId = videoToDelete.id;
+    const target = videoToDelete;
+    const targetId = target.id;
     try {
       setIsDeleting(true);
       // Optimistic update
       setVideos((prev) => prev.filter((v) => v.id !== targetId));
-      await deleteProjectAction(targetId);
+      const res = await deleteProjectAction(targetId);
+      if (res?.error) {
+        console.error('Failed to delete project:', res.error);
+        // Revert optimistic update
+        setVideos((prev) => [target, ...prev]);
+      }
     } catch (err) {
       console.error('Failed to delete project:', err);
+      setVideos((prev) => [target, ...prev]);
     } finally {
       setIsDeleting(false);
       setVideoToDelete(null);
     }
   };
+
 
   const handleRename = async (id: string, newTitle: string) => {
     // Optimistic update

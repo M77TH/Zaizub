@@ -63,7 +63,7 @@ export default async function MyVideoPage() {
         <div className="w-full flex items-center justify-between px-4 sm:px-8 md:px-12 py-3.5">
           {/* Official Zaizub Logo */}
           <Link
-            href="/my-video"
+            href="/"
             className="flex items-center gap-3 hover:opacity-90 transition-opacity"
           >
             <ZaiZubLogo />

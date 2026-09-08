@@ -91,25 +91,45 @@ export default function MyVideoClient({
 
 
   const handleRename = async (id: string, newTitle: string) => {
+    const previous = videos.find((v) => v.id === id);
     // Optimistic update
     setVideos((prev) =>
       prev.map((v) => (v.id === id ? { ...v, title: newTitle } : v))
     );
-    await renameProjectAction(id, newTitle);
+    const res = await renameProjectAction(id, newTitle);
+    if (res?.error && previous) {
+      console.error('Failed to rename project:', res.error);
+      setVideos((prev) =>
+        prev.map((v) => (v.id === id ? previous : v))
+      );
+    }
   };
 
   const handleDuplicate = async (id: string) => {
     const target = videos.find((v) => v.id === id);
     if (!target) return;
+    const tempId = `temp-${Date.now()}`;
     const duplicated: VideoProject = {
       ...target,
-      id: `vid-${Date.now()}`,
+      id: tempId,
       title: `${target.title} (สำเนา)`,
       status: 'draft',
       updated_at: 'เมื่อสักครู่',
     };
     setVideos((prev) => [duplicated, ...prev]);
-    await duplicateProjectAction(id);
+
+    const res = await duplicateProjectAction(id);
+    if (res?.success && res.project) {
+      setVideos((prev) =>
+        prev.map((v) => (v.id === tempId ? res.project! : v))
+      );
+    } else {
+      // Revert optimistic addition if failed
+      setVideos((prev) => prev.filter((v) => v.id !== tempId));
+      if (res?.error) {
+        console.error('Failed to duplicate project:', res.error);
+      }
+    }
   };
 
   return (
@@ -233,95 +253,6 @@ export default function MyVideoClient({
           </div>
         </div>
 
-        {/* 2. Control Toolbar: View/Filter Tabs + Search */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 mb-8">
-          {/* Status Tabs (View Filter) */}
-          <div className="inline-flex items-center p-1 rounded-xl border border-white/[0.07] bg-[#13111f]/90 backdrop-blur-md shadow-inner overflow-x-auto">
-            <button
-              type="button"
-              onClick={() => setActiveTab('all')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
-                activeTab === 'all'
-                  ? 'bg-gradient-to-r from-[#7c3aed] to-[#6d28d9] text-white shadow-[0_2px_12px_rgba(124,58,237,0.4)]'
-                  : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04]'
-              }`}
-            >
-              ทั้งหมด
-              <span
-                className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${
-                  activeTab === 'all' ? 'bg-black/25 text-white' : 'bg-white/[0.08] text-gray-400'
-                }`}
-              >
-                {counts.all}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('done')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
-                activeTab === 'done'
-                  ? 'bg-gradient-to-r from-[#7c3aed] to-[#6d28d9] text-white shadow-[0_2px_12px_rgba(124,58,237,0.4)]'
-                  : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04]'
-              }`}
-            >
-              สำเร็จ
-              <span
-                className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${
-                  activeTab === 'done' ? 'bg-black/25 text-white' : 'bg-white/[0.08] text-gray-400'
-                }`}
-              >
-                {counts.done}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('draft')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
-                activeTab === 'draft'
-                  ? 'bg-gradient-to-r from-[#7c3aed] to-[#6d28d9] text-white shadow-[0_2px_12px_rgba(124,58,237,0.4)]'
-                  : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04]'
-              }`}
-            >
-              ฉบับร่าง
-              <span
-                className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${
-                  activeTab === 'draft' ? 'bg-black/25 text-white' : 'bg-white/[0.08] text-gray-400'
-                }`}
-              >
-                {counts.draft}
-              </span>
-            </button>
-          </div>
-
-          {/* Search Input Box */}
-          <div className="relative w-full sm:w-72 md:w-80">
-            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-            <input
-              type="text"
-              placeholder="ค้นหาชื่อวิดีโอหรือโปรเจกต์..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-9 py-2 rounded-xl border border-white/[0.08] bg-[#12111c] text-xs sm:text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-purple-500/80 focus:ring-2 focus:ring-purple-500/20 transition-all shadow-sm"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-200 transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            )}
-          </div>
-        </div>
 
         {/* 3. Grid of Cards or Empty State */}
         {filteredVideos.length > 0 ? (

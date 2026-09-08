@@ -92,7 +92,6 @@ export async function saveProjectAction(payload: SaveProjectPayload) {
 }
 
 /**
-/**
  * Deletes a project by ID from Supabase and purges preview video and thumbnail
  * from Supabase Storage and temporary server storage.
  */
@@ -284,20 +283,41 @@ export async function duplicateProjectAction(projectId: string) {
     }
 
     const { id, created_at, ...rest } = original;
-    const { error: insertErr } = await supabase.from('videos').insert({
-      ...rest,
-      title: `${original.title} (สำเนา)`,
-      status: 'draft',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    });
+    const { data: inserted, error: insertErr } = await supabase
+      .from('videos')
+      .insert({
+        ...rest,
+        title: `${original.title} (สำเนา)`,
+        status: 'draft',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select('id, title, status, thumbnail_url, video_url, duration, updated_at')
+      .single();
 
-    if (insertErr) {
-      return { error: insertErr.message };
+    if (insertErr || !inserted) {
+      return { error: insertErr?.message || 'Failed to duplicate project' };
     }
 
     revalidatePath('/my-video');
-    return { success: true };
+    return {
+      success: true,
+      project: {
+        id: inserted.id,
+        title: inserted.title || 'Untitled Video',
+        status: (inserted.status as 'done' | 'draft' | 'processing') || 'draft',
+        thumbnail_url: inserted.thumbnail_url,
+        video_url: inserted.video_url,
+        duration: inserted.duration
+          ? `${Math.floor(inserted.duration / 60)}:${Math.floor(inserted.duration % 60).toString().padStart(2, '0')}`
+          : undefined,
+        updated_at: new Date(inserted.updated_at).toLocaleDateString('th-TH', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        }),
+      },
+    };
   } catch (err: any) {
     return { error: err.message };
   }

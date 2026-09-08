@@ -34,23 +34,38 @@ interface VideoEditorPageProps {
 
 export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
   // State
+  const initialSubtitlesRaw = initialProject?.subtitles?.items ?? initialProject?.subtitles;
+  const initialStylesRaw = initialProject?.subtitles?.styles ?? initialProject?.styles;
+  const initialFilenameRaw = initialProject?.subtitles?.video_filename ?? initialProject?.video_filename ?? 'sample_video.mp4';
+  const initialSubtitlesParsed = initialSubtitlesRaw ? normaliseSubtitles(initialSubtitlesRaw) : DEFAULT_SUBTITLES;
+
+  const formatVideoUrl = (url?: string) => {
+    if (!url) return '';
+    if (
+      url.startsWith('http://') ||
+      url.startsWith('https://') ||
+      url.startsWith('blob:') ||
+      url.startsWith('data:')
+    ) {
+      return url;
+    }
+    return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+  };
+
   const [projectId, setProjectId] = useState<string | null>(initialProject?.id || null);
-  const [videoUrl, setVideoUrl] = useState<string>(initialProject?.video_url || '');
-  const [videoFilename, setVideoFilename] = useState<string>(initialProject?.video_filename || 'sample_video.mp4');
-  const [subtitles, setSubtitles] = useState<SubtitleSegment[]>(
-    initialProject?.subtitles?.length ? normaliseSubtitles(initialProject.subtitles) : DEFAULT_SUBTITLES
-  );
-  const [history, setHistory] = useState<SubtitleSegment[][]>([
-    initialProject?.subtitles?.length ? normaliseSubtitles(initialProject.subtitles) : DEFAULT_SUBTITLES
-  ]);
+  const [videoUrl, setVideoUrl] = useState<string>(formatVideoUrl(initialProject?.video_url));
+  const [thumbnailUrl, setThumbnailUrl] = useState<string>(initialProject?.thumbnail_url || '');
+  const [videoFilename, setVideoFilename] = useState<string>(initialFilenameRaw);
+  const [subtitles, setSubtitles] = useState<SubtitleSegment[]>(initialSubtitlesParsed);
+  const [history, setHistory] = useState<SubtitleSegment[][]>([initialSubtitlesParsed]);
   const [historyIndex, setHistoryIndex] = useState<number>(0);
 
   // Keep references to history state for instant, synchronous access
-  const historyRef = useRef<SubtitleSegment[][]>([DEFAULT_SUBTITLES]);
+  const historyRef = useRef<SubtitleSegment[][]>([initialSubtitlesParsed]);
   const historyIndexRef = useRef<number>(0);
   const isUndoRedoAction = useRef<boolean>(false);
   const textDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const originalSubtitlesRef = useRef<SubtitleSegment[]>([]);
+  const originalSubtitlesRef = useRef<SubtitleSegment[]>(initialSubtitlesParsed);
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState<boolean>(false);
 
   // Sync refs with state
@@ -132,7 +147,7 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
   }, []);
 
   const [globalStyles, setGlobalStyles] = useState<SubtitleStyle>(
-    initialProject?.styles && Object.keys(initialProject.styles).length ? initialProject.styles : DEFAULT_STYLES
+    initialStylesRaw && Object.keys(initialStylesRaw).length ? initialStylesRaw : DEFAULT_STYLES
   );
   const [selectedSubtitleId, setSelectedSubtitleId] = useState<number | string | null>(null);
   const [isSyncOn, setIsSyncOn] = useState<boolean>(true);
@@ -151,7 +166,9 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
 
   // Playback state
   const [currentTime, setCurrentTime] = useState<number>(0);
-  const [duration, setDuration] = useState<number>(9.1);
+  const [duration, setDuration] = useState<number>(
+    initialProject?.duration ? Number(initialProject.duration) : 9.1
+  );
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [volume, setVolume] = useState<number>(1);
   const [isMuted, setIsMuted] = useState<boolean>(false);
@@ -160,6 +177,12 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
   const [isRendering, setIsRendering] = useState<boolean>(false);
   const [renderProgress, setRenderProgress] = useState<string>('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Toast notification helper
+  const showToast = useCallback((msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  }, []);
 
   // Responsive default panel widths helper based on device screen resolution
   const getDefaultPanelWidths = useCallback((screenWidth: number) => {
@@ -217,10 +240,99 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
     } catch {}
   }, [getDefaultPanelWidths]);
 
-  // Auto-save draft on exit / navigation
+  // Tracking save status for Header indicator ('saved' | 'saving' | 'unsaved')
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const projectIdRef = useRef<string | null>(projectId);
+  useEffect(() => {
+    projectIdRef.current = projectId;
+  }, [projectId]);
+
+  // Core background save routine that persists to Supabase and sessionStorage
+  const performSave = useCallback(
+    async (isBackground = true) => {
+      try {
+        if (!isBackground) {
+          showToast('กำลังบันทึกโปรเจกต์...');
+        }
+        setSaveStatus('saving');
+
+        // 1. Sync to sessionStorage immediately
+        try {
+          sessionStorage.setItem(
+            'subtitle_project',
+            JSON.stringify({
+              video_url: videoUrl,
+              video_filename: videoFilename,
+              subtitles,
+              globalStyles,
+              projectName,
+            })
+          );
+        } catch {}
+
+        // 2. Persist to Supabase Database
+        const result = await saveProjectAction({
+          id: projectIdRef.current || undefined,
+          title: projectName || 'โปรเจกต์ไม่มีชื่อ',
+          status: 'draft',
+          duration: duration ? String(duration) : undefined,
+          video_url: videoUrl,
+          thumbnail_url: thumbnailUrl || undefined,
+          video_filename: videoFilename,
+          subtitles: subtitles,
+          styles: globalStyles,
+        });
+
+        if (result.success && result.projectId) {
+          setProjectId(result.projectId);
+          projectIdRef.current = result.projectId;
+          setHasChanges(false);
+          setSaveStatus('saved');
+          if (!isBackground) {
+            showToast('บันทึกโปรเจกต์ลงคลาวด์เรียบร้อยแล้ว');
+          }
+          if (typeof window !== 'undefined' && !window.location.search.includes(result.projectId)) {
+            window.history.replaceState(null, '', `/editor?id=${result.projectId}`);
+          }
+        } else {
+          setHasChanges(false);
+          setSaveStatus('saved');
+          if (!isBackground) {
+            showToast(result.error || 'บันทึกฉบับร่างไว้ในเบราว์เซอร์แล้ว');
+          }
+        }
+      } catch (err) {
+        console.error('Auto-save error:', err);
+        setSaveStatus('unsaved');
+      }
+    },
+    [videoUrl, videoFilename, subtitles, globalStyles, projectName, duration, showToast]
+  );
+
+  // Debounced auto-save whenever changes occur (1.5s after user stops typing or adjusting styles)
+  useEffect(() => {
+    if (!hasChanges) return;
+    setSaveStatus('unsaved');
+
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
+
+    autoSaveTimerRef.current = setTimeout(() => {
+      performSave(true);
+    }, 1500);
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, [hasChanges, performSave]);
+
+  // Flush save on page unload / close
   useEffect(() => {
     const handleBeforeUnload = () => {
-      // Sync to sessionStorage immediately
       try {
         sessionStorage.setItem(
           'subtitle_project',
@@ -229,6 +341,7 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
             video_filename: videoFilename,
             subtitles,
             globalStyles,
+            projectName,
           })
         );
       } catch {}
@@ -238,7 +351,7 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [videoUrl, videoFilename, subtitles, globalStyles]);
+  }, [videoUrl, videoFilename, subtitles, globalStyles, projectName]);
 
   const handleLeftResizeStart = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
@@ -300,12 +413,6 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
   // Refs
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  // Toast notification helper
-  const showToast = useCallback((msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3000);
-  }, []);
 
   // Selected subtitle and active styles for StylePanel
   const selectedSubtitle = useMemo(
@@ -389,6 +496,18 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
           setHistory([storedSubtitles]);
           setHistoryIndex(0);
         }
+        if (parsed.projectName || parsed.title) {
+          setProjectName(parsed.projectName || parsed.title);
+        }
+        if (parsed.id && !projectId) {
+          setProjectId(parsed.id);
+          projectIdRef.current = parsed.id;
+        } else if (!parsed.id && !initialProject) {
+          // If fresh upload without a Supabase project ID yet, trigger background save immediately
+          setTimeout(() => {
+            performSave(true);
+          }, 400);
+        }
       } catch (err) {
         console.error('Failed to parse stored subtitle_project:', err);
       }
@@ -442,16 +561,27 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
     }
   }, []);
 
+  useEffect(() => {
+    const vid = videoRef.current;
+    if (vid && vid.readyState >= 1) {
+      handleLoadedMetadata();
+    }
+  }, [videoUrl, handleLoadedMetadata]);
+
   const togglePlay = useCallback(() => {
-    if (!videoRef.current) return;
+    if (!videoRef.current || !videoUrl) return;
     if (videoRef.current.paused) {
-      videoRef.current.play();
-      setIsPlaying(true);
+      videoRef.current.play().then(() => {
+        setIsPlaying(true);
+      }).catch((err) => {
+        console.warn('Video play prevented or source not ready:', err);
+        setIsPlaying(false);
+      });
     } else {
       videoRef.current.pause();
       setIsPlaying(false);
     }
-  }, []);
+  }, [videoUrl]);
 
   const toggleMute = useCallback(() => {
     setIsMuted((prev) => {
@@ -1003,46 +1133,10 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
     showToast('ส่งออกไฟล์ .SRT สำเร็จ');
   }, [subtitles, projectName, showToast]);
 
-  // Save project to Supabase & sessionStorage
+  // Manual save project to Supabase & sessionStorage
   const handleSave = useCallback(async () => {
-    // 1. Keep in sessionStorage for immediate local offline backup
-    sessionStorage.setItem(
-      'subtitle_project',
-      JSON.stringify({
-        video_url: videoUrl,
-        video_filename: videoFilename,
-        subtitles,
-        globalStyles,
-      })
-    );
-
-    // 2. Persist to Supabase Database
-    showToast('กำลังบันทึกโปรเจกต์...');
-    const result = await saveProjectAction({
-      id: projectId || undefined,
-      title: projectName,
-      status: 'draft',
-      duration: duration ? formatTime(duration) : undefined,
-      video_url: videoUrl,
-      video_filename: videoFilename,
-      subtitles: subtitles,
-      styles: globalStyles,
-    });
-
-    if (result.success && result.projectId) {
-      setProjectId(result.projectId);
-      setHasChanges(false);
-      showToast('บันทึกโปรเจกต์ลงคลาวด์เรียบร้อยแล้ว');
-      // Update browser URL without reloading so subsequent saves update the same project
-      if (typeof window !== 'undefined' && !window.location.search.includes(result.projectId)) {
-        window.history.replaceState(null, '', `/editor?id=${result.projectId}`);
-      }
-    } else {
-      // If error or unauthenticated, local save was still performed
-      setHasChanges(false);
-      showToast(result.error || 'บันทึกฉบับร่างไว้ในเบราว์เซอร์แล้ว');
-    }
-  }, [projectId, projectName, duration, videoUrl, videoFilename, subtitles, globalStyles, showToast]);
+    await performSave(false);
+  }, [performSave]);
 
   // Render Video
   const handleRenderVideo = useCallback(async () => {
@@ -1050,17 +1144,64 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
     setRenderProgress('กำลังสร้างไฟล์ .ass และฝังซับไตเติ้ลด้วย FFmpeg...');
 
     try {
+      // Determine effective filename (fallback to videoUrl basename if videoFilename is generic)
+      let effectiveFilename = videoFilename;
+      if (!effectiveFilename || effectiveFilename === 'sample_video.mp4') {
+        if (videoUrl) {
+          const urlParts = videoUrl.split('?')[0].split('/');
+          const lastPart = urlParts[urlParts.length - 1];
+          if (lastPart && (lastPart.endsWith('.mp4') || lastPart.endsWith('.webm') || lastPart.endsWith('.mov'))) {
+            effectiveFilename = lastPart;
+          }
+        }
+      }
+
+      const vidEl = videoRef.current;
+      const vidW = vidEl ? vidEl.videoWidth : undefined;
+      const vidH = vidEl ? vidEl.videoHeight : undefined;
+
+      // Accurately measure the actual displayed video stage dimensions on the user's screen
+      let prevW: number | undefined = undefined;
+      let prevH: number | undefined = undefined;
+      if (vidEl) {
+        const stageEl = (document.querySelector('[data-canvas-stage]') || document.querySelector('[data-subtitle-overlay]')?.parentElement) as HTMLElement | null;
+        if (stageEl && stageEl.clientWidth > 0 && stageEl.clientHeight > 0) {
+          prevW = stageEl.clientWidth;
+          prevH = stageEl.clientHeight;
+        } else {
+          const rect = vidEl.getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) {
+            prevW = Math.round(rect.width);
+            prevH = Math.round(rect.height);
+          }
+        }
+      }
+
       const payload = {
-        video_filename: videoFilename,
+        video_filename: effectiveFilename,
+        video_url: videoUrl,
+        video_width: vidW,
+        video_height: vidH,
+        preview_width: prevW,
+        preview_height: prevH,
+        aspect_ratio: aspectRatio,
         subtitles: subtitles.map((s) => ({
           id: s.id,
           start: s.start,
           end: s.end,
           text: s.text,
-          style: s.style,
+          style: s.style ? {
+            ...s.style,
+            custom_x: s.style.custom_x ?? globalStyles.custom_x,
+            custom_y: s.style.custom_y ?? globalStyles.custom_y,
+            box_width: s.style.box_width ?? globalStyles.box_width,
+          } : undefined,
         })),
         styles: {
           ...globalStyles,
+          custom_x: globalStyles.custom_x ?? 50,
+          custom_y: globalStyles.custom_y ?? (globalStyles.position === 'center' ? 50 : globalStyles.position === 'custom' ? 12 : 82),
+          box_width: globalStyles.box_width ?? 86,
           position: globalStyles.position,
           animation: globalStyles.animation,
         },
@@ -1096,6 +1237,7 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
         status: 'done',
         duration: duration ? formatTime(duration) : undefined,
         video_url: videoUrl,
+        thumbnail_url: thumbnailUrl || undefined,
         video_filename: videoFilename,
         subtitles: subtitles,
         styles: globalStyles,
@@ -1206,6 +1348,7 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
         setProjectName={setProjectName}
         hasChanges={hasChanges}
         setHasChanges={setHasChanges}
+        saveStatus={saveStatus}
         aspectRatio={aspectRatio}
         setAspectRatio={setAspectRatio}
         speed={speed}
@@ -1277,12 +1420,10 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
           <VideoPlayer
             videoUrl={videoUrl}
             videoRef={videoRef}
-            fileInputRef={fileInputRef}
             aspectRatio={aspectRatio}
             togglePlay={togglePlay}
             handleTimeUpdate={handleTimeUpdate}
             handleLoadedMetadata={handleLoadedMetadata}
-            handleDirectUpload={handleDirectUpload}
             activeSubtitle={activeSubtitle}
             selectedSubtitle={selectedSubtitle}
             selectedSubtitleId={selectedSubtitleId}

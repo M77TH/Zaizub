@@ -181,68 +181,17 @@ function TranscriptPanel({
     setTimeout(() => { isProgrammaticScrollRef.current = false; }, smooth ? 350 : 50);
   }, [activeSubtitle?.id, selectedSubtitleId, smoothScrollTo]);
 
-  /**
-   * Ensure a target subtitle card is within the visible frame of the transcript scroll area.
-   * If the card is already comfortably in view, do nothing.
-   * If it is below or cut off at the bottom, scroll down to bring it into view (with padding).
-   * If it is above or cut off at the top, scroll up to bring it into view (with padding).
-   */
-  const scrollCardIntoView = useCallback((targetSpecificId?: number | string | null, smooth: boolean = true) => {
-    const targetId = targetSpecificId ?? selectedSubtitleId ?? activeSubtitle?.id;
-    if (targetId === null || targetId === undefined || !transcriptScrollRef.current) return;
 
-    const container = transcriptScrollRef.current;
-    const el = container.querySelector(`[data-subtitle-id="${targetId}"]`) as HTMLElement | null;
-    if (!el) return;
-
-    const topPadding = 48; // padding from top so header/prev card has room
-    const bottomPadding = 48; // padding from bottom so next card has room
-
-    const containerRect = container.getBoundingClientRect();
-    const elRect = el.getBoundingClientRect();
-    const cardTop = container.scrollTop + (elRect.top - containerRect.top);
-    const cardHeight = el.offsetHeight;
-    const cardBottom = cardTop + cardHeight;
-
-    const viewTop = container.scrollTop + topPadding;
-    const viewBottom = container.scrollTop + container.clientHeight - bottomPadding;
-
-    // Check if card is cut off or outside the visible window
-    const isAbove = cardTop < viewTop;
-    const isBelow = cardBottom > viewBottom;
-
-    if (!isAbove && !isBelow) {
-      // The card is already comfortably inside the frame! No scroll needed.
-      return;
-    }
-
-    let targetTop: number;
-    if (isAbove || cardHeight > (container.clientHeight - topPadding - bottomPadding)) {
-      // Bring card top into view, offset by topPadding
-      targetTop = Math.max(0, cardTop - topPadding);
-    } else {
-      // Bring card bottom into view, offset by bottomPadding
-      targetTop = Math.max(0, cardBottom - container.clientHeight + bottomPadding);
-    }
-
-    isProgrammaticScrollRef.current = true;
-    smoothScrollTo.current(targetTop, smooth);
-    setTimeout(() => { isProgrammaticScrollRef.current = false; }, smooth ? 350 : 50);
-  }, [selectedSubtitleId, activeSubtitle?.id, smoothScrollTo]);
-
-  // Keep selected card in frame / locked to top whenever selectedSubtitleId changes
+  // Scroll selected card into view ONLY when sync is ON and the user selects a card
   useEffect(() => {
+    if (!isSyncOn) return; // When lock is OFF, NEVER jump anywhere
     if (selectedSubtitleId !== null && selectedSubtitleId !== undefined) {
       const raf = requestAnimationFrame(() => {
-        if (isSyncOn) {
-          scrollToActive(selectedSubtitleId, true);
-        } else {
-          scrollCardIntoView(selectedSubtitleId, true);
-        }
+        scrollToActive(selectedSubtitleId, true);
       });
       return () => cancelAnimationFrame(raf);
     }
-  }, [selectedSubtitleId, isSyncOn, scrollToActive, scrollCardIntoView]);
+  }, [selectedSubtitleId, isSyncOn, scrollToActive]);
 
   // When sync is turned back ON (e.g. via 'L' shortcut or clicking the lock button),
   // smoothly scroll the current playing/active or selected card to the top
@@ -265,10 +214,13 @@ function TranscriptPanel({
     prevIsSyncOnRef.current = isSyncOn;
   }, [isSyncOn, activeSubtitle?.id, selectedSubtitleId, subtitles, currentTime, scrollToActive]);
 
-  // When Lock Sync is ON, whenever active card changes (playback or scrubbing timeline),
-  // automatically glide the active card to the top of the transcript list
+  // When video plays or active subtitle changes:
+  // - If sync is OFF: do NOT scroll anywhere.
+  // - If sync is ON: track the currently playing subtitle (activeSubtitle.id)
   useEffect(() => {
-    if (isSyncOn && activeSubtitle?.id !== undefined) {
+    if (!isSyncOn) return; // Never scroll when lock is off
+
+    if (activeSubtitle?.id !== undefined) {
       scrollToActive(activeSubtitle.id, true);
     }
   }, [activeSubtitle?.id, isSyncOn, scrollToActive]);
@@ -599,8 +551,37 @@ function TranscriptPanel({
                   <div className="flex items-center gap-2">
                     {/* Word Count Indicator */}
                     {(() => {
+                      if (sub.words && sub.words.length > 0) {
+                        return (
+                          <span
+                            className={`text-[10px] tabular-nums font-mono px-1.5 py-0.2 rounded transition-colors ${
+                              isSelected || isPlayingThis
+                                ? 'bg-purple-500/25 text-purple-200 border border-purple-400/30'
+                                : 'bg-white/[0.04] text-gray-400 border border-white/[0.05]'
+                            }`}
+                            title={`${sub.words.length} คำในการ์ดนี้`}
+                          >
+                            {sub.words.length} คำ
+                          </span>
+                        );
+                      }
                       const trimmed = (sub.text || '').trim();
-                      const count = trimmed ? trimmed.split(/\s+/).filter(Boolean).length : 0;
+                      let count = 0;
+                      if (trimmed) {
+                        if (trimmed.includes(' ')) {
+                          count = trimmed.split(/\s+/).filter(Boolean).length;
+                        } else if (typeof Intl !== 'undefined' && (Intl as any).Segmenter) {
+                          try {
+                            const segmenter = new (Intl as any).Segmenter('th', { granularity: 'word' });
+                            count = (Array.from(segmenter.segment(trimmed)) as any[])
+                              .filter((s) => s.isWordLike && s.segment.trim().length > 0).length;
+                          } catch {
+                            count = 1;
+                          }
+                        } else {
+                          count = 1;
+                        }
+                      }
                       return (
                         <span
                           className={`text-[10px] tabular-nums font-mono px-1.5 py-0.2 rounded transition-colors ${

@@ -17,7 +17,7 @@ if SUPABASE_URL and SUPABASE_KEY:
     except Exception as e:
         print(f"[Supabase Init Warning] {e}")
 
-
+#
 def upload_to_supabase_storage(file_path: str, destination_path: str, bucket_name: str = "videos", content_type: str = "video/mp4") -> str:
     """
     Uploads a local file to Supabase Storage bucket and returns its permanent public URL.

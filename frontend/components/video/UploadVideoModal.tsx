@@ -234,7 +234,7 @@ export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalPr
         try {
           const errRes = JSON.parse(xhr.responseText);
           if (errRes.detail) detail = errRes.detail;
-        } catch {}
+        } catch { }
         setUploadState('error');
         setErrorMessage(detail);
       }
@@ -473,11 +473,10 @@ export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalPr
                 setActiveMode('file');
                 setErrorMessage('');
               }}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all ${
-                activeMode === 'file'
+              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all ${activeMode === 'file'
                   ? 'bg-purple-600 text-white shadow-md'
                   : 'text-gray-400 hover:text-gray-200'
-              }`}
+                }`}
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -492,11 +491,10 @@ export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalPr
                 setActiveMode('link');
                 setErrorMessage('');
               }}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all ${
-                activeMode === 'link'
+              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all ${activeMode === 'link'
                   ? 'bg-purple-600 text-white shadow-md'
                   : 'text-gray-400 hover:text-gray-200'
-              }`}
+                }`}
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
@@ -529,11 +527,10 @@ export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalPr
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
-                className={`relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center cursor-pointer transition-all duration-200 ${
-                  isDragging
+                className={`relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center cursor-pointer transition-all duration-200 ${isDragging
                     ? 'border-purple-400 bg-purple-500/10 scale-[1.01]'
                     : 'border-white/10 bg-white/[0.02] hover:border-purple-500/40 hover:bg-white/[0.04]'
-                }`}
+                  }`}
               >
                 <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-600/15 border border-purple-500/20 text-purple-400 mb-4 transition-transform group-hover:scale-105">
                   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -619,8 +616,8 @@ export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalPr
                     {uploadState === 'uploading'
                       ? `อัปโหลด ${formatFileSize(loadedBytes)} จาก ${formatFileSize(totalBytes)}`
                       : uploadState === 'transcribing'
-                      ? stageMessage || `AI กำลังถอดเสียงและสร้างซับไตเติ้ล (${transcribingSeconds} วิ)...`
-                      : 'เตรียมเปิดพื้นที่ทำงานใน Editor...'}
+                        ? stageMessage || `AI กำลังถอดเสียงและสร้างซับไตเติ้ล (${transcribingSeconds} วิ)...`
+                        : 'เตรียมเปิดพื้นที่ทำงานใน Editor...'}
                   </p>
                 </div>
               </div>
@@ -628,11 +625,10 @@ export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalPr
               {/* Progress Bar */}
               <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-black/50 border border-white/10">
                 <div
-                  className={`h-full transition-all duration-200 ease-out rounded-full shadow-[0_0_12px_rgba(168,85,247,0.5)] ${
-                    uploadState === 'success'
+                  className={`h-full transition-all duration-200 ease-out rounded-full shadow-[0_0_12px_rgba(168,85,247,0.5)] ${uploadState === 'success'
                       ? 'bg-emerald-500 w-full'
                       : 'bg-gradient-to-r from-purple-500 via-indigo-500 to-purple-400'
-                  }`}
+                    }`}
                   style={{ width: `${uploadState === 'success' ? 100 : Math.max(4, Math.round(uploadPercent))}%` }}
                 />
               </div>

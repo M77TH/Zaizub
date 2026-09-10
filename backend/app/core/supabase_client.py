@@ -1,10 +1,13 @@
 import os
 from supabase import create_client, Client
+from pathlib import Path
 from dotenv import load_dotenv
 
+env_path = Path(__file__).resolve().parent.parent.parent / ".env"
+load_dotenv(dotenv_path=env_path)
 load_dotenv()
 
-SUPABASE_URL = os.getenv("SUPABASE_URL", "https://ywjfwxuvrzgefuuncapt.supabase.co")
+SUPABASE_URL = (os.getenv("SUPABASE_URL") or "https://ywjfwxuvrzgefuuncapt.supabase.co").rstrip("/")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_ANON_KEY", "")
 
 supabase: Client | None = None
@@ -14,7 +17,7 @@ if SUPABASE_URL and SUPABASE_KEY:
     except Exception as e:
         print(f"[Supabase Init Warning] {e}")
 
-
+#
 def upload_to_supabase_storage(file_path: str, destination_path: str, bucket_name: str = "videos", content_type: str = "video/mp4") -> str:
     """
     Uploads a local file to Supabase Storage bucket and returns its permanent public URL.

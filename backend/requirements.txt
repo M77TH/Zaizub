@@ -1,11 +1,11 @@
-ffmpeg
 fastapi
 uvicorn
 python-multipart
 groq
 yt-dlp
 pydantic-settings
-whisper
+faster-whisper
+openai-whisper
 whisperx
 pythainlp
 supabase

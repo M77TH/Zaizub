@@ -8,3 +8,5 @@ pydantic-settings
 whisper
 whisperx
 pythainlp
+supabase
+python-dotenv

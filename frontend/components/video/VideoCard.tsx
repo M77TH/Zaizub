@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import { API_BASE_URL } from '@/lib/api';
 
 export interface VideoProject {
   id: string;
@@ -20,6 +21,19 @@ interface VideoCardProps {
   onDuplicate?: (id: string) => void;
 }
 
+function resolveMediaUrl(url?: string): string {
+  if (!url) return '';
+  if (
+    url.startsWith('http://') ||
+    url.startsWith('https://') ||
+    url.startsWith('blob:') ||
+    url.startsWith('data:')
+  ) {
+    return url;
+  }
+  return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+}
+
 export default function VideoCard({
   video,
   onDelete,
@@ -29,8 +43,10 @@ export default function VideoCard({
   const [menuOpen, setMenuOpen] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
   const [title, setTitle] = useState(video.title);
-  const [isHovered, setIsHovered] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const resolvedVideoUrl = resolveMediaUrl(video.video_url);
+  const resolvedThumbnailUrl = resolveMediaUrl(video.thumbnail_url);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -53,7 +69,7 @@ export default function VideoCard({
 
   const statusConfig = {
     done: {
-      label: 'พร้อมใช้งาน',
+      label: 'สำเร็จ',
       badge: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
       dot: 'bg-emerald-400',
     },
@@ -72,25 +88,41 @@ export default function VideoCard({
   const status = statusConfig[video.status] || statusConfig.draft;
 
   return (
-    <div
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      className="group relative rounded-2xl border border-white/[0.08] bg-[#12111a]/90 backdrop-blur-sm overflow-hidden hover:border-[#8b5cf6]/50 hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)] transition-all duration-200 flex flex-col hover:-translate-y-0.5"
-    >
+    <div className="group relative rounded-2xl border border-white/[0.08] bg-[#12111a]/90 backdrop-blur-sm overflow-hidden hover:border-[#581c87] hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)] transition-all duration-200 flex flex-col hover:-translate-y-0.5">
       {/* 1. Video Preview Area */}
       <Link
         href={`/editor?id=${video.id}`}
-        className="relative aspect-video w-full overflow-hidden block cursor-pointer bg-[#0d0c13]"
+        className="relative aspect-video w-full overflow-hidden block cursor-pointer bg-[#0a0910]"
       >
-        {video.thumbnail_url ? (
+        {resolvedThumbnailUrl ? (
           <img
-            src={video.thumbnail_url}
+            src={resolvedThumbnailUrl}
             alt={video.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            className="w-full h-full object-cover"
+          />
+        ) : resolvedVideoUrl ? (
+          /* Simple video poster frame snapshot without autoplay or play UI */
+          <video
+            src={`${resolvedVideoUrl}#t=0.5`}
+            muted
+            playsInline
+            preload="metadata"
+            className="w-full h-full object-cover"
           />
         ) : (
-          /* Empty clean preview when there is no clip */
-          <div className="w-full h-full bg-[#13121d]" />
+          /* Clean empty placeholder */
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#12111d] to-[#0a0912]">
+            <div className="w-12 h-12 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-zinc-500 group-hover:text-purple-400 group-hover:border-purple-500/30 group-hover:bg-purple-500/10 transition-all duration-300">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.5"
+                  d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                />
+              </svg>
+            </div>
+          </div>
         )}
 
         {/* Status Badge Tag */}
@@ -106,7 +138,7 @@ export default function VideoCard({
         {/* Duration Pill */}
         {video.duration && (
           <div className="absolute bottom-2.5 right-2.5 z-10">
-            <span className="px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-md text-[11px] font-mono text-zinc-300 border border-white/10">
+            <span className="px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-md text-[11px] font-mono text-zinc-300 border border-white/10 shadow-sm">
               {video.duration}
             </span>
           </div>

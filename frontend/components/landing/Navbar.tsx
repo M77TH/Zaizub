@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useLenis } from "@/components/providers/SmoothScroll";
 import type { Lang } from "./copy";
 
@@ -94,12 +95,12 @@ export default function Navbar({
             </button>
           </div>
 
-          <a
+          <Link
             href="/login"
             className="hidden text-sm text-ink-muted transition-colors hover:text-ink sm:inline focus-ring rounded"
           >
             {lang === "en" ? "Log in" : "เข้าสู่ระบบ"}
-          </a>
+          </Link>
 
           <a
             href="/register"
@@ -171,12 +172,12 @@ export default function Navbar({
               </div>
             </div>
 
-            <a
+            <Link
               href="/login"
               className="mt-2 text-sm text-center text-ink-muted py-2 hover:text-ink"
             >
               {lang === "en" ? "Log in" : "เข้าสู่ระบบ"}
-            </a>
+            </Link>
           </div>
         </div>
       )}

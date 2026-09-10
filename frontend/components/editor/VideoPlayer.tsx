@@ -6,12 +6,12 @@ import { SubtitleSegment, SubtitleStyle } from './types';
 interface VideoPlayerProps {
   videoUrl: string;
   videoRef: React.RefObject<HTMLVideoElement | null>;
-  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  fileInputRef?: React.RefObject<HTMLInputElement | null>;
   aspectRatio: '16:9' | '9:16' | '1:1';
   togglePlay: () => void;
   handleTimeUpdate: () => void;
   handleLoadedMetadata: () => void;
-  handleDirectUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleDirectUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   activeSubtitle?: SubtitleSegment;
   selectedSubtitle?: SubtitleSegment;
   selectedSubtitleId: number | string | null;
@@ -25,12 +25,10 @@ interface VideoPlayerProps {
 function VideoPlayer({
   videoUrl,
   videoRef,
-  fileInputRef,
   aspectRatio,
   togglePlay,
   handleTimeUpdate,
   handleLoadedMetadata,
-  handleDirectUpload,
   activeSubtitle,
   selectedSubtitle,
   selectedSubtitleId,
@@ -41,9 +39,44 @@ function VideoPlayer({
   isPlaying = false,
 }: VideoPlayerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const videoStageRef = useRef<HTMLDivElement | null>(null);
+  const [videoNaturalSize, setVideoNaturalSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [isResizing, setIsResizing] = useState<boolean>(false);
   const [showCenterGuide, setShowCenterGuide] = useState<boolean>(false);
+  const [isDragOver, setIsDragOver] = useState<boolean>(false);
+  const [videoError, setVideoError] = useState<boolean>(false);
+  // Tracks the actual rendered canvas size to drive proportional font/padding scaling
+  const [parentDimensions, setParentDimensions] = useState<{ width: number; height: number }>({ width: 800, height: 600 });
+
+  const onVideoLoaded = useCallback(() => {
+    if (videoRef.current) {
+      const w = videoRef.current.videoWidth;
+      const h = videoRef.current.videoHeight;
+      if (w > 0 && h > 0) {
+        setVideoNaturalSize({ width: w, height: h });
+      }
+    }
+    handleLoadedMetadata();
+  }, [handleLoadedMetadata, videoRef]);
+
+  useEffect(() => {
+    const vid = videoRef.current;
+    if (vid) {
+      const w = vid.videoWidth;
+      const h = vid.videoHeight;
+      if (w > 0 && h > 0) {
+        setVideoNaturalSize({ width: w, height: h });
+      }
+      if (vid.readyState >= 1) {
+        handleLoadedMetadata();
+      }
+    }
+  }, [videoUrl, handleLoadedMetadata, videoRef]);
+
+  useEffect(() => {
+    setVideoError(false);
+  }, [videoUrl]);
 
   // Track last active subtitle to prevent flicker during gaps between segments
   const lastActiveRef = useRef<SubtitleSegment | undefined>(undefined);
@@ -93,7 +126,7 @@ function VideoPlayer({
     e.stopPropagation();
 
     const target = e.currentTarget as HTMLElement;
-    const container = containerRef.current;
+    const container = containerRef.current || videoStageRef.current;
     if (!container) return;
 
     try {
@@ -134,9 +167,9 @@ function VideoPlayer({
         setShowCenterGuide(false);
       }
 
-      // Clamp smoothly inside video boundary (6% to 94%)
-      const clampedX = Math.round(Math.max(6, Math.min(94, rawX)) * 10) / 10;
-      const clampedY = Math.round(Math.max(6, Math.min(94, rawY)) * 10) / 10;
+      // Clamp smoothly inside canvas boundary (4% to 96%)
+      const clampedX = Math.round(Math.max(4, Math.min(96, rawX)) * 10) / 10;
+      const clampedY = Math.round(Math.max(4, Math.min(96, rawY)) * 10) / 10;
 
       setStyles?.({
         ...activeEffectiveStyle,
@@ -173,7 +206,7 @@ function VideoPlayer({
     e.stopPropagation();
 
     const target = e.currentTarget as HTMLElement;
-    const container = containerRef.current;
+    const container = containerRef.current || videoStageRef.current;
     const subtitleEl = target.closest('[data-subtitle-overlay]') as HTMLElement;
     if (!container || !subtitleEl) return;
 
@@ -202,7 +235,7 @@ function VideoPlayer({
       if (handle === 'e' || handle === 'w') {
         const currentDistX = Math.abs(moveEvent.clientX - centerX);
         const newWidthPx = currentDistX * 2;
-        const widthPercent = Math.min(95, Math.max(20, Math.round((newWidthPx / containerRect.width) * 100)));
+        const widthPercent = Math.min(96, Math.max(15, Math.round((newWidthPx / containerRect.width) * 100)));
         setResizeHUD(`ความกว้าง: ${widthPercent}%`);
         setStyles?.({
           ...activeEffectiveStyle,
@@ -264,18 +297,6 @@ function VideoPlayer({
   }, [activeEffectiveStyle, setStyles]);
 
   const activeOverlayStyle = useMemo(() => {
-    const textShadowValues = [];
-    if (activeEffectiveStyle.shadow) {
-      textShadowValues.push(
-        `${activeEffectiveStyle.shadow_thickness}px ${activeEffectiveStyle.shadow_thickness}px ${activeEffectiveStyle.shadow_thickness * 2}px ${activeEffectiveStyle.shadow_color}`
-      );
-    }
-    if (activeEffectiveStyle.outline) {
-      textShadowValues.push(
-        `-1px -1px 0 ${activeEffectiveStyle.shadow_color}, 1px -1px 0 ${activeEffectiveStyle.shadow_color}, -1px 1px 0 ${activeEffectiveStyle.shadow_color}, 1px 1px 0 ${activeEffectiveStyle.shadow_color}`
-      );
-    }
-
     let bgRgba = 'transparent';
     if (activeEffectiveStyle.bg_opacity > 0) {
       const hex = activeEffectiveStyle.bg_color.replace('#', '');
@@ -285,8 +306,18 @@ function VideoPlayer({
       bgRgba = `rgba(${r}, ${g}, ${b}, ${activeEffectiveStyle.bg_opacity})`;
     }
 
-    const baseScale = aspectRatio === '9:16' ? 0.32 : aspectRatio === '1:1' ? 0.38 : 0.44;
-    const computedFontSize = Math.round(Math.max(12, (activeEffectiveStyle.font_size || 52) * baseScale));
+    // Scale font size relative to the actual rendered container height so the
+    // preview is pixel-accurate to the exported video (backend scales by the same ratio).
+    const containerH = parentDimensions.height > 0 ? parentDimensions.height : 550;
+    const referenceVideoH = aspectRatio === '9:16' ? 1920 : aspectRatio === '1:1' ? 1080 : 1080;
+    const computedFontSize = Math.round(Math.max(8, (activeEffectiveStyle.font_size || 52) * (containerH / referenceVideoH)));
+
+    // Scale all sizes proportionally to container height for visual parity with exported video
+    const scaleRatio = containerH / referenceVideoH;
+    const scaledPaddingY = Math.round(Math.max(2, (activeEffectiveStyle.padding_y || 10) * scaleRatio));
+    const scaledPaddingX = Math.round(Math.max(4, (activeEffectiveStyle.padding_x || 18) * scaleRatio));
+    const scaledBorderRadius = Math.round(Math.max(0, (activeEffectiveStyle.border_radius || 12) * scaleRatio));
+    const scaledShadowThickness = Math.round(Math.max(1, (activeEffectiveStyle.shadow_thickness || 2) * scaleRatio));
 
     return {
       fontFamily: `"${activeEffectiveStyle.font_family || 'Noto Sans Thai'}", "Noto Sans Thai", "Prompt", sans-serif`,
@@ -295,10 +326,14 @@ function VideoPlayer({
       fontStyle: activeEffectiveStyle.italic ? 'italic' : 'normal',
       textDecoration: activeEffectiveStyle.underline ? 'underline' : 'none',
       color: activeEffectiveStyle.text_color,
-      textShadow: textShadowValues.join(', ') || 'none',
+      textShadow: activeEffectiveStyle.shadow
+        ? `${scaledShadowThickness}px ${scaledShadowThickness}px ${scaledShadowThickness * 2}px ${activeEffectiveStyle.shadow_color}`
+        : activeEffectiveStyle.outline
+        ? `-1px -1px 0 ${activeEffectiveStyle.shadow_color}, 1px -1px 0 ${activeEffectiveStyle.shadow_color}, -1px 1px 0 ${activeEffectiveStyle.shadow_color}, 1px 1px 0 ${activeEffectiveStyle.shadow_color}`
+        : 'none',
       backgroundColor: bgRgba,
-      padding: `${activeEffectiveStyle.padding_y}px ${activeEffectiveStyle.padding_x}px`,
-      borderRadius: `${activeEffectiveStyle.border_radius}px`,
+      padding: `${scaledPaddingY}px ${scaledPaddingX}px`,
+      borderRadius: `${scaledBorderRadius}px`,
       textAlign: 'center' as const,
       lineHeight: 1.35,
       whiteSpace: 'pre-wrap' as const,
@@ -306,7 +341,8 @@ function VideoPlayer({
       display: 'inline-block' as const,
       width: '100%',
     };
-  }, [activeEffectiveStyle, aspectRatio]);
+  }, [activeEffectiveStyle, aspectRatio, parentDimensions]);
+
 
   const activeAnimationClass = useMemo(() => {
     if (activeEffectiveStyle.animation === 'fade') return 'anim-fade';
@@ -317,7 +353,6 @@ function VideoPlayer({
   const isSelected = selectedSubtitleId === null || (activeSubtitle && selectedSubtitleId === activeSubtitle.id);
 
   const wrapperRef = useRef<HTMLDivElement | null>(null);
-  const [parentDimensions, setParentDimensions] = useState<{ width: number; height: number }>({ width: 800, height: 600 });
 
   // Dynamically measure player stage container
   useEffect(() => {
@@ -367,6 +402,7 @@ function VideoPlayer({
     };
   }, [aspectRatio, parentDimensions]);
 
+
   return (
     <div ref={wrapperRef} className="relative flex flex-1 items-center justify-center p-2 sm:p-6 overflow-hidden select-none">
       <div
@@ -375,141 +411,158 @@ function VideoPlayer({
         className="relative overflow-hidden rounded-2xl bg-black shadow-[0_25px_70px_rgba(0,0,0,0.85)] border border-[#221f33] transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] flex items-center justify-center will-change-[width,height]"
       >
         {/* Video Element */}
-        {videoUrl ? (
+        {videoUrl && !videoError ? (
           <video
             ref={videoRef}
             src={videoUrl}
             onTimeUpdate={handleTimeUpdate}
-            onLoadedMetadata={handleLoadedMetadata}
+            onLoadedMetadata={onVideoLoaded}
             onClick={togglePlay}
+            onError={(e) => {
+              console.warn('Video source error:', videoUrl, e);
+              setVideoError(true);
+            }}
             className="h-full w-full object-contain cursor-pointer transition-transform duration-300"
             playsInline
+            preload="metadata"
           />
         ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-3 p-6 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/5 text-gray-400">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <polygon points="23 7 16 12 23 17 23 7" />
-                <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-              </svg>
+          <div className="relative flex h-full w-full flex-col items-center justify-center p-6 sm:p-8 text-center overflow-hidden">
+            {/* Ambient Background Glow */}
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <div className="h-64 w-64 rounded-full bg-gradient-to-tr from-purple-600/10 via-indigo-600/5 to-transparent blur-3xl opacity-60" />
             </div>
-            <div>
-              <p className="text-sm font-medium text-gray-300">ยังไม่มีวิดีโอที่โหลดอยู่</p>
-              <p className="text-xs text-gray-500">อัปโหลดไฟล์วิดีโอ MP4 หรือ MOV เพื่อเริ่มต้น</p>
-            </div>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="mt-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 px-4 py-2 text-xs font-bold text-white transition-all shadow-[0_0_20px_rgba(139,92,246,0.35)]"
-            >
-              เลือกไฟล์วิดีโอ
-            </button>
-          </div>
-        )}
 
-        {/* Purple Neon Center Guide Line during drag */}
-        {showCenterGuide && (
-          <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[1.5px] bg-purple-400 shadow-[0_0_12px_rgba(168,85,247,0.9)] pointer-events-none z-30" />
-        )}
-
-        {/* Subtitle Draggable & 4-Side Resizable Real-time Preview Overlay */}
-        {displaySubtitle && (
-          <div
-            data-subtitle-overlay="true"
-            onPointerDown={handleDragStart}
-            onClick={(e) => {
-              e.stopPropagation();
-              // Preserve current editing stage (Global vs Individual)
-            }}
-            style={{
-              left: `${posX}%`,
-              top: `${posY}%`,
-              transform: 'translate(-50%, -50%)',
-              width: activeEffectiveStyle.box_width ? `${activeEffectiveStyle.box_width}%` : undefined,
-              maxWidth: '95%',
-              touchAction: 'none',
-            }}
-            className={`group absolute select-none cursor-grab active:cursor-grabbing ${
-              isDragging || isResizing ? 'shadow-2xl z-40' : 'z-20'
-            }`}
-            title="ลากเพื่อย้ายตำแหน่ง หรือลากขอบทั้ง 4 ด้านเพื่อขยายขนาดกล่อง"
-          >
-            {/* Live Tooltip HUD during Drag / Resize */}
-            {(isDragging || isResizing) && (
-              <div className="absolute -top-7 left-1/2 -translate-x-1/2 rounded-full bg-[#14111d]/90 backdrop-blur border border-purple-500/30 px-2.5 py-0.5 text-[9px] tabular-nums antialiased text-purple-200 whitespace-nowrap shadow-[0_0_15px_rgba(139,92,246,0.3)] pointer-events-none z-50">
-                {isResizing
-                  ? resizeHUD || `ขนาดฟอนต์: ${activeEffectiveStyle.font_size}px`
-                  : `X: ${posX}% | Y: ${posY}% ${posX === 50 ? '· กึ่งกลาง' : ''}`}
+            <div className="relative z-10 flex flex-col items-center max-w-xs px-2">
+              <div className="relative mb-4">
+                <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-[#13111f]/90 text-zinc-400 shadow-xl backdrop-blur-md">
+                  <svg
+                    className="w-7 h-7 text-purple-400/80"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth="1.75"
+                  >
+                    <polygon points="23 7 16 12 23 17 23 7" />
+                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                  </svg>
+                </div>
               </div>
-            )}
 
-            {/* Purple Bounding Box & 4-Side + 4-Corner Handles (Shown on Hover or active Drag/Resize) */}
-            <div
-              className={`absolute -inset-1.5 border border-dashed border-purple-400/80 rounded-lg pointer-events-none z-30 transition-opacity duration-150 ${
-                isDragging || isResizing ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-              }`}
-            >
-              {/* 4 Corner Handles (Circular White Dots) */}
-              <span
-                onPointerDown={(e) => handleResizeStart(e, 'nw')}
-                className="block absolute -top-1.5 -left-1.5 h-3 w-3 rounded-full bg-white border border-black/80 shadow-md cursor-nwse-resize pointer-events-auto transition-transform hover:scale-125"
-                title="ขยายมุมบนซ้าย"
-              />
-              <span
-                onPointerDown={(e) => handleResizeStart(e, 'ne')}
-                className="block absolute -top-1.5 -right-1.5 h-3 w-3 rounded-full bg-white border border-black/80 shadow-md cursor-nesw-resize pointer-events-auto transition-transform hover:scale-125"
-                title="ขยายมุมบนขวา"
-              />
-              <span
-                onPointerDown={(e) => handleResizeStart(e, 'sw')}
-                className="block absolute -bottom-1.5 -left-1.5 h-3 w-3 rounded-full bg-white border border-black/80 shadow-md cursor-nesw-resize pointer-events-auto transition-transform hover:scale-125"
-                title="ขยายมุมล่างซ้าย"
-              />
-              <span
-                onPointerDown={(e) => handleResizeStart(e, 'se')}
-                className="block absolute -bottom-1.5 -right-1.5 h-3 w-3 rounded-full bg-white border border-black/80 shadow-md cursor-nwse-resize pointer-events-auto transition-transform hover:scale-125"
-                title="ขยายมุมล่างขวา"
-              />
-
-              {/* 4 Side Pill Handles (Crisp White) */}
-              {/* Left Side Pill Handle (Width) */}
-              <span
-                onPointerDown={(e) => handleResizeStart(e, 'w')}
-                className="block absolute top-1/2 -left-1.5 -translate-y-1/2 h-6 w-1.5 rounded-full bg-white border border-black/80 shadow-md cursor-ew-resize pointer-events-auto transition-transform hover:scale-125"
-                title="ลากเพื่อขยาย/ลดความกว้างซ้าย"
-              />
-              {/* Right Side Pill Handle (Width) */}
-              <span
-                onPointerDown={(e) => handleResizeStart(e, 'e')}
-                className="block absolute top-1/2 -right-1.5 -translate-y-1/2 h-6 w-1.5 rounded-full bg-white border border-black/80 shadow-md cursor-ew-resize pointer-events-auto transition-transform hover:scale-125"
-                title="ลากเพื่อขยาย/ลดความกว้างขวา"
-              />
-              {/* Top Side Pill Handle (Height / Font) */}
-              <span
-                onPointerDown={(e) => handleResizeStart(e, 'n')}
-                className="block absolute left-1/2 -top-1.5 -translate-x-1/2 w-6 h-1.5 rounded-full bg-white border border-black/80 shadow-md cursor-ns-resize pointer-events-auto transition-transform hover:scale-125"
-                title="ลากเพื่อขยาย/ลดความสูงบน"
-              />
-              {/* Bottom Side Pill Handle (Height / Font) */}
-              <span
-                onPointerDown={(e) => handleResizeStart(e, 's')}
-                className="block absolute left-1/2 -bottom-1.5 -translate-x-1/2 w-6 h-1.5 rounded-full bg-white border border-black/80 shadow-md cursor-ns-resize pointer-events-auto transition-transform hover:scale-125"
-                title="ลากเพื่อขยาย/ลดความสูงล่าง"
-              />
-            </div>
-
-            <div key={captionKey} style={activeOverlayStyle} className={activeAnimationClass}>
-              {displaySubtitle.text}
+              <h3 className="text-base font-semibold text-white tracking-tight mb-1">
+                ยังไม่มีวิดีโอที่โหลดอยู่
+              </h3>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                โปรดเลือกหรือสร้างโปรเจกต์ใหม่จากหน้า &quot;วิดีโอของฉัน&quot;
+              </p>
             </div>
           </div>
         )}
 
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="video/*"
-          onChange={handleDirectUpload}
-          className="hidden"
-        />
+        {/* Canvas Subtitle Stage Layer - spans 100% of the entire player canvas */}
+        <div
+          ref={videoStageRef}
+          data-canvas-stage="true"
+          className="absolute inset-0 pointer-events-none overflow-hidden"
+        >
+          {/* Purple Neon Center Guide Line during drag */}
+          {showCenterGuide && (
+            <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[1.5px] bg-purple-400 shadow-[0_0_12px_rgba(168,85,247,0.9)] pointer-events-none z-30" />
+          )}
+
+          {/* Subtitle Draggable & 4-Side Resizable Real-time Preview Overlay */}
+          {displaySubtitle && (
+            <div
+              data-subtitle-overlay="true"
+              onPointerDown={handleDragStart}
+              onClick={(e) => {
+                e.stopPropagation();
+                // Preserve current editing stage (Global vs Individual)
+              }}
+              style={{
+                left: `${posX}%`,
+                top: `${posY}%`,
+                transform: 'translate(-50%, -50%)',
+                width: activeEffectiveStyle.box_width ? `${activeEffectiveStyle.box_width}%` : undefined,
+                maxWidth: '95%',
+                touchAction: 'none',
+                pointerEvents: 'auto',
+              }}
+              className={`group absolute select-none cursor-grab active:cursor-grabbing ${
+                isDragging || isResizing ? 'shadow-2xl z-40' : 'z-20'
+              }`}
+              title="ลากเพื่อย้ายตำแหน่ง หรือลากขอบทั้ง 4 ด้านเพื่อขยายขนาดกล่อง"
+            >
+              {/* Live Tooltip HUD during Drag / Resize */}
+              {(isDragging || isResizing) && (
+                <div className="absolute -top-7 left-1/2 -translate-x-1/2 rounded-full bg-[#14111d]/90 backdrop-blur border border-purple-500/30 px-2.5 py-0.5 text-[9px] tabular-nums antialiased text-purple-200 whitespace-nowrap shadow-[0_0_15px_rgba(139,92,246,0.3)] pointer-events-none z-50">
+                  {isResizing
+                    ? resizeHUD || `ขนาดฟอนต์: ${activeEffectiveStyle.font_size}px`
+                    : `X: ${posX}% | Y: ${posY}% ${posX === 50 ? '· กึ่งกลาง' : ''}`}
+                </div>
+              )}
+
+              {/* Purple Bounding Box & 4-Side + 4-Corner Handles (Shown on Hover or active Drag/Resize) */}
+              <div
+                className={`absolute -inset-1.5 border border-dashed border-purple-400/80 rounded-lg pointer-events-none z-30 transition-opacity duration-150 ${
+                  isDragging || isResizing ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                }`}
+              >
+                {/* 4 Corner Handles (Circular White Dots) */}
+                <span
+                  onPointerDown={(e) => handleResizeStart(e, 'nw')}
+                  className="block absolute -top-1.5 -left-1.5 h-3 w-3 rounded-full bg-white border border-black/80 shadow-md cursor-nwse-resize pointer-events-auto transition-transform hover:scale-125"
+                  title="ขยายมุมบนซ้าย"
+                />
+                <span
+                  onPointerDown={(e) => handleResizeStart(e, 'ne')}
+                  className="block absolute -top-1.5 -right-1.5 h-3 w-3 rounded-full bg-white border border-black/80 shadow-md cursor-nesw-resize pointer-events-auto transition-transform hover:scale-125"
+                  title="ขยายมุมบนขวา"
+                />
+                <span
+                  onPointerDown={(e) => handleResizeStart(e, 'sw')}
+                  className="block absolute -bottom-1.5 -left-1.5 h-3 w-3 rounded-full bg-white border border-black/80 shadow-md cursor-nesw-resize pointer-events-auto transition-transform hover:scale-125"
+                  title="ขยายมุมล่างซ้าย"
+                />
+                <span
+                  onPointerDown={(e) => handleResizeStart(e, 'se')}
+                  className="block absolute -bottom-1.5 -right-1.5 h-3 w-3 rounded-full bg-white border border-black/80 shadow-md cursor-nwse-resize pointer-events-auto transition-transform hover:scale-125"
+                  title="ขยายมุมล่างขวา"
+                />
+
+                {/* 4 Side Pill Handles (Crisp White) */}
+                {/* Left Side Pill Handle (Width) */}
+                <span
+                  onPointerDown={(e) => handleResizeStart(e, 'w')}
+                  className="block absolute top-1/2 -left-1.5 -translate-y-1/2 h-6 w-1.5 rounded-full bg-white border border-black/80 shadow-md cursor-ew-resize pointer-events-auto transition-transform hover:scale-125"
+                  title="ลากเพื่อขยาย/ลดความกว้างซ้าย"
+                />
+                {/* Right Side Pill Handle (Width) */}
+                <span
+                  onPointerDown={(e) => handleResizeStart(e, 'e')}
+                  className="block absolute top-1/2 -right-1.5 -translate-y-1/2 h-6 w-1.5 rounded-full bg-white border border-black/80 shadow-md cursor-ew-resize pointer-events-auto transition-transform hover:scale-125"
+                  title="ลากเพื่อขยาย/ลดความกว้างขวา"
+                />
+                {/* Top Side Pill Handle (Height / Font) */}
+                <span
+                  onPointerDown={(e) => handleResizeStart(e, 'n')}
+                  className="block absolute left-1/2 -top-1.5 -translate-x-1/2 w-6 h-1.5 rounded-full bg-white border border-black/80 shadow-md cursor-ns-resize pointer-events-auto transition-transform hover:scale-125"
+                  title="ลากเพื่อขยาย/ลดความสูงบน"
+                />
+                {/* Bottom Side Pill Handle (Height / Font) */}
+                <span
+                  onPointerDown={(e) => handleResizeStart(e, 's')}
+                  className="block absolute left-1/2 -bottom-1.5 -translate-x-1/2 w-6 h-1.5 rounded-full bg-white border border-black/80 shadow-md cursor-ns-resize pointer-events-auto transition-transform hover:scale-125"
+                  title="ลากเพื่อขยาย/ลดความสูงล่าง"
+                />
+              </div>
+
+              <div key={captionKey} style={activeOverlayStyle} className={activeAnimationClass}>
+                {displaySubtitle.text}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

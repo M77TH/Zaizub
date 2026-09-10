@@ -1,7 +1,12 @@
 import os
 import math
 import logging
+import warnings
 from typing import List, Dict, Any
+
+# Suppress harmless deprecation warnings from transformers (e.g. gradient_checkpointing in Wav2Vec2/WhisperX)
+warnings.filterwarnings("ignore", message=r".*gradient_checkpointing.*", category=UserWarning)
+
 import torch
 import whisperx
 from app.core.config import settings

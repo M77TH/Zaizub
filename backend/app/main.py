@@ -1,4 +1,9 @@
 import os
+import warnings
+
+# Suppress harmless deprecation warnings from transformers/whisperx model configs
+warnings.filterwarnings("ignore", message=r".*gradient_checkpointing.*", category=UserWarning)
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles

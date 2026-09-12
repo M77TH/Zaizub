@@ -10,3 +10,4 @@ whisperx
 pythainlp
 supabase
 python-dotenv
+PyJWT

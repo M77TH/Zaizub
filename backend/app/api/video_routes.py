@@ -215,9 +215,11 @@ async def extract_audio(
             '-vn', '-ac', '1', '-ar', '16000',
             temp_audio
         ]
+        logger.info('extracting audio')
         subprocess.run(extract_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         # 3. Generate browser-compatible H.264 preview video and thumbnail poster
+        logger.info('creating preview')
         try:
             create_web_preview(input_video, preview_video)
             preview_filename = os.path.basename(preview_video)
@@ -226,6 +228,7 @@ async def extract_audio(
             preview_filename = os.path.basename(input_video)
 
         thumbnail_filename = ""
+        logger.info('creating thumbnail')
         try:
             # Generate thumbnail from original source video for maximum clarity
             create_thumbnail(input_video if os.path.exists(input_video) else preview_video, thumbnail_file)
@@ -234,6 +237,7 @@ async def extract_audio(
             logger.warning(f"Thumbnail generation warning: {te}")
 
         # 4. Transcribe audio using selected engine (groq or whisperx)
+        logger.info('transcribing')
         from app.services.ai_services import transcribe_audio
         subtitles = await run_in_threadpool(transcribe_audio, temp_audio, engine=engine)
 
@@ -243,6 +247,7 @@ async def extract_audio(
         video_url = f"/temp_storage/{preview_filename}"
         thumbnail_url = f"/temp_storage/{thumbnail_filename}" if thumbnail_filename else ""
 
+        logger.info('uploading preview and thumbnail')
         uploaded_to_cloud = False
         try:
             # Upload compressed preview video
@@ -275,6 +280,7 @@ async def extract_audio(
             # Only delete local preview and thumbnail if they were safely stored in Supabase
             files_to_clean.extend([preview_video, thumbnail_file])
 
+        logger.info(f'done in {(time.time() * 1000 - job_id) / 1000:.1f}s')
         background_tasks.add_task(cleanup_files, *files_to_clean)
 
         return {
@@ -566,6 +572,7 @@ async def process_link(
             'quiet': True,
             'no_warnings': True,
         }
+        logger.info('downloading video')
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(request.url, download=True)
             if info:
@@ -578,10 +585,12 @@ async def process_link(
             '-vn', '-ac', '1', '-ar', '16000',
             temp_audio
         ]
+        logger.info('extracting audio')
         subprocess.run(extract_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         # 3. Generate browser-compatible H.264 preview video and thumbnail poster
         preview_video = os.path.join(TEMP_DIR, f"prev_{job_id}.mp4").replace("\\", "/")
+        logger.info('creating preview')
         try:
             create_web_preview(input_video, preview_video)
             preview_filename = os.path.basename(preview_video)
@@ -591,6 +600,7 @@ async def process_link(
 
         thumbnail_file = os.path.join(TEMP_DIR, f"thumb_{job_id}.jpg").replace("\\", "/")
         thumbnail_filename = ""
+        logger.info('creating thumbnail')
         try:
             create_thumbnail(input_video if os.path.exists(input_video) else preview_video, thumbnail_file)
             thumbnail_filename = os.path.basename(thumbnail_file)
@@ -598,6 +608,7 @@ async def process_link(
             logger.warning(f"Thumbnail generation warning: {te}")
 
         # 4. ถอดเสียงด้วย transcribe_audio (groq หรือ whisperx)
+        logger.info('transcribing')
         from app.services.ai_services import transcribe_audio
         subtitles = await run_in_threadpool(transcribe_audio, temp_audio, engine=request.engine)
 
@@ -607,6 +618,7 @@ async def process_link(
         video_url = f"/temp_storage/{preview_filename}"
         thumbnail_url = f"/temp_storage/{thumbnail_filename}" if thumbnail_filename else ""
 
+        logger.info('uploading preview and thumbnail')
         uploaded_to_cloud = False
         try:
             actual_preview_file = preview_video if os.path.exists(preview_video) else input_video
@@ -636,6 +648,7 @@ async def process_link(
         if uploaded_to_cloud:
             files_to_clean.extend([preview_video, thumbnail_file])
 
+        logger.info(f'done in {(time.time() * 1000 - job_id) / 1000:.1f}s')
         background_tasks.add_task(cleanup_files, *files_to_clean)
 
         return {

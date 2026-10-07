@@ -162,10 +162,11 @@ def transcribe_audio_whisperx(audio_path: str, srt_path: str = None) -> List[Dic
     try:
         if WhisperModel is None:
             raise ImportError("faster_whisper is not installed in the environment.")
-        segments, _ = _load_model().transcribe(
+        segments, info = _load_model().transcribe(
             audio_path,
             language="th",
             batch_size=8,
+            chunk_length=15,  # 30s chunks make Thai decoding stop early and drop the middle
             word_timestamps=True,
             vad_filter=True,
             vad_parameters=dict(min_silence_duration_ms=500, speech_pad_ms=200),
@@ -189,15 +190,20 @@ def transcribe_audio_whisperx(audio_path: str, srt_path: str = None) -> List[Dic
                 chunk.clear()
 
         for seg in segments:
+            logger.info(f"transcribed {seg.end:.0f}/{info.duration:.0f}s")
             pieces = [w for w in seg.words or [] if w.word.strip()]
-            # Whisper emits sub-word pieces; only break the subtitle where a real Thai word ends
-            toks = word_tokenize("".join(w.word.strip() for w in pieces), engine="newmm") if word_tokenize else []
-            ends, pos = set(accumulate(map(len, toks))), 0
-            for w in pieces:
-                pos += len(w.word.strip())
-                chunk.append({"word": w.word.strip(), "start": round(w.start, 2), "end": round(w.end, 2)})
-                if (pos in ends or not ends) and (len(chunk) >= 8 or chunk[-1]["end"] - chunk[0]["start"] >= 3.5):
-                    flush()
+            # Whisper emits sub-word pieces: regroup them into real Thai words, timing from first/last piece
+            owner = [k for k, w in enumerate(pieces) for _ in w.word.strip()]
+            text = "".join(w.word.strip() for w in pieces)
+            toks = word_tokenize(text, engine="newmm") if word_tokenize else [w.word.strip() for w in pieces]
+            pos = 0
+            for tok in toks:
+                if tok.strip() and pos < len(owner):
+                    a, b = pieces[owner[pos]], pieces[owner[min(pos + len(tok), len(owner)) - 1]]
+                    chunk.append({"word": tok.strip(), "start": round(a.start, 2), "end": round(b.end, 2)})
+                    if len(chunk) >= 8 or chunk[-1]["end"] - chunk[0]["start"] >= 3.5:
+                        flush()
+                pos += len(tok)
             flush()  # never merge across segments/pauses
 
     except Exception as e:

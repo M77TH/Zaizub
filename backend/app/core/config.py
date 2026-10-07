@@ -3,6 +3,8 @@ from typing import Literal
 
 class Settings(BaseSettings):
     GROQ_API_KEY: str = ""
+    # any faster-whisper (CTranslate2) repo id or local path
+    WHISPER_MODEL: str = "Vinxscribe/biodatlab-whisper-th-large-v3-faster"
     MODEL: str = "whisperx"  # "whisperx" or "groq"
 
     # ตั้งค่าให้ไปดึงข้อมูลมาจากไฟล์ .env

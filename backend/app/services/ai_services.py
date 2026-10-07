@@ -2,17 +2,16 @@ import os
 import math
 import logging
 import warnings
+from functools import lru_cache
 from typing import List, Dict, Any
 
 # Suppress harmless deprecation warnings from transformers (e.g. gradient_checkpointing in Wav2Vec2/WhisperX)
 warnings.filterwarnings("ignore", message=r".*gradient_checkpointing.*", category=UserWarning)
 
-import torch
-import whisperx
 from app.core.config import settings
 
 try:
-    from faster_whisper import WhisperModel
+    from faster_whisper import WhisperModel, BatchedInferencePipeline
 except ImportError:
     WhisperModel = None
 
@@ -138,161 +137,63 @@ def transcribe_audio_groq(
     return subtitles
 
 
-def transcribe_audio_whisperx(
-    audio_path: str, 
-    srt_path: str = None, 
-    model_name: str = None, 
-    batch_size: int = 8
-) -> List[Dict[str, Any]]:
+@lru_cache(maxsize=1)
+def _load_model():
+    # Load once per process; reloading per request was most of the latency.
+    # ctranslate2 ships its own CUDA kernels, so this works even when torch lacks them (RTX 50xx).
+    import ctranslate2
+    gpu = ctranslate2.get_cuda_device_count() > 0
+    # Pascal (GTX 10xx) has no fast fp16, so take the best type this GPU actually supports
+    supported = ctranslate2.get_supported_compute_types("cuda" if gpu else "cpu")
+    compute = next(c for c in ("float16", "int8_float16", "int8_float32", "int8") if c in supported)
+    model = WhisperModel(
+        settings.WHISPER_MODEL if gpu else "small",
+        device="cuda" if gpu else "cpu",
+        compute_type=compute,
+    )
+    return BatchedInferencePipeline(model)
+
+
+def transcribe_audio_whisperx(audio_path: str, srt_path: str = None) -> List[Dict[str, Any]]:
+    """Thai-tuned faster-whisper, batched, with built-in word timestamps (no wav2vec2 align pass)."""
     subtitles: List[Dict[str, Any]] = []
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    if device == "cuda":
-        import ctranslate2
-        supported = ctranslate2.get_supported_compute_types("cuda")
-        if "float16" in supported:
-            compute_type = "float16"
-        elif "int8_float32" in supported:
-            compute_type = "int8_float32"
-        elif "int8" in supported:
-            compute_type = "int8"
-        else:
-            compute_type = "float32"
-    else:
-        compute_type = "int8"
-
-    if model_name is None:
-        model_name = "large-v3" if device == "cuda" else "base"
-
     try:
         if WhisperModel is None:
             raise ImportError("faster_whisper is not installed in the environment.")
-
-        # 1. ถอดเสียงด้วย Faster-Whisper พร้อมบังคับภาษาไทยและป้องกัน hallucination loop
-        logger.info(f"Transcribing full audio with Faster-Whisper '{model_name}'...")
-        fw_model = WhisperModel(model_name, device=device, compute_type=compute_type)
-        segments_raw, _ = fw_model.transcribe(
+        segments, _ = _load_model().transcribe(
             audio_path,
             language="th",
+            batch_size=8,
+            word_timestamps=True,
             vad_filter=True,
-            vad_parameters=dict(
-                min_silence_duration_ms=1000,
-                speech_pad_ms=300
-            ),
+            vad_parameters=dict(min_silence_duration_ms=500, speech_pad_ms=200),
             beam_size=5,
             temperature=0.0,
-            repetition_penalty=1.2,
-            no_repeat_ngram_size=3,
-            condition_on_previous_text=False
+            condition_on_previous_text=False,
         )
 
-        # 2. แปลงผลลัพธ์ให้อยู่ในรูปแบบ Segment Dict พร้อมตัดคำไทย
-        segments = []
-        for s in segments_raw:
-            text = s.text.strip()
-            if not text:
-                continue
-            
-            if word_tokenize:
-                tokens = [t.strip() for t in word_tokenize(text, engine="newmm") if t.strip()]
-                text_formatted = " ".join(tokens)
-            else:
-                text_formatted = text
+        # Group words into subtitle chunks (<= 8 words or 3.5s)
+        chunk: List[Dict[str, Any]] = []
 
-            segments.append({
-                "start": float(s.start),
-                "end": float(s.end),
-                "text": text_formatted
-            })
-
-        # 3. ทำ Forced Alignment ด้วย Wav2Vec2 เพื่อล็อกเวลาระดับคำ
-        logger.info("Aligning text with Wav2Vec2 via WhisperX...")
-        align_model_name = "airesearch/wav2vec2-large-xlsr-53-th"
-        model_a, metadata = whisperx.load_align_model(
-            language_code="th", device=device, model_name=align_model_name
-        )
-        
-        audio = whisperx.load_audio(audio_path)
-        aligned_result = whisperx.align(
-            segments, model_a, metadata, audio, device, return_char_alignments=False
-        )
-        aligned_segments = aligned_result.get("segments", [])
-
-        # 4. จัดกลุ่มคำลงกรอบเวลา (Sentence-level subtitle chunks)
-        subtitle_id = 1
-        max_words_per_sub = 8
-        max_duration_per_sub = 3.5
-
-        for seg in aligned_segments:
-            seg_start = float(seg.get("start", 0.0))
-            seg_end = float(seg.get("end", 0.0))
-            words = seg.get("words", [])
-
-            if not words:
-                clean_text = seg.get("text", "").replace(" ", "")
-                if clean_text:
-                    subtitles.append({
-                        "id": subtitle_id,
-                        "start": round(seg_start, 2),
-                        "end": round(seg_end, 2),
-                        "text": clean_text
-                    })
-                    subtitle_id += 1
-                continue
-
-            for i, w in enumerate(words):
-                if not is_valid_num(w.get("start")):
-                    w["start"] = words[i-1]["end"] if (i > 0 and is_valid_num(words[i-1].get("end"))) else seg_start
-                if not is_valid_num(w.get("end")):
-                    w["end"] = words[i+1]["start"] if (i + 1 < len(words) and is_valid_num(words[i+1].get("start"))) else seg_end
-
-            current_chunk = []
-            current_words_data = []
-            current_start = None
-
-            for w in words:
-                word_text = w.get("word", "").strip()
-                if not word_text:
-                    continue
-
-                w_start = float(w.get("start", seg_start))
-                w_end = float(w.get("end", seg_end))
-
-                if current_start is None:
-                    current_start = w_start
-
-                current_chunk.append(word_text)
-                current_words_data.append({
-                    "word": word_text,
-                    "start": round(w_start, 2),
-                    "end": round(w_end, 2)
-                })
-                current_end = w_end
-                current_duration = float(current_end) - float(current_start)
-
-                if len(current_chunk) >= max_words_per_sub or current_duration >= max_duration_per_sub:
-                    subtitles.append({
-                        "id": subtitle_id,
-                        "start": round(float(current_start), 2),
-                        "end": round(float(current_end), 2),
-                        "text": "".join(current_chunk),
-                        "words": current_words_data
-                    })
-                    subtitle_id += 1
-                    current_chunk = []
-                    current_words_data = []
-                    current_start = None
-
-            if current_chunk:
-                c_start = current_start if current_start is not None else seg_start
-                c_end = words[-1].get("end", seg_end)
+        def flush():
+            if chunk:
                 subtitles.append({
-                    "id": subtitle_id,
-                    "start": round(float(c_start), 2),
-                    "end": round(float(c_end if is_valid_num(c_end) else seg_end), 2),
-                    "text": "".join(current_chunk),
-                    "words": current_words_data
+                    "id": len(subtitles) + 1,
+                    "start": chunk[0]["start"],
+                    "end": chunk[-1]["end"],
+                    "text": "".join(w["word"] for w in chunk),
+                    "words": list(chunk),
                 })
-                subtitle_id += 1
+                chunk.clear()
+
+        for seg in segments:
+            for w in seg.words or []:
+                if not w.word.strip():
+                    continue
+                chunk.append({"word": w.word.strip(), "start": round(w.start, 2), "end": round(w.end, 2)})
+                if len(chunk) >= 8 or chunk[-1]["end"] - chunk[0]["start"] >= 3.5:
+                    flush()
+            flush()  # never merge across segments/pauses
 
     except Exception as e:
         logger.exception(f"Error executing transcription pipeline: {e}")
@@ -304,9 +205,7 @@ def transcribe_audio_whisperx(
     if srt_path:
         with open(srt_path, "w", encoding="utf-8") as f:
             for sub in subtitles:
-                start_ts = format_timestamp(sub["start"])
-                end_ts = format_timestamp(sub["end"])
-                f.write(f"{sub['id']}\n{start_ts} --> {end_ts}\n{sub['text']}\n\n")
+                f.write(f"{sub['id']}\n{format_timestamp(sub['start'])} --> {format_timestamp(sub['end'])}\n{sub['text']}\n\n")
 
     return subtitles
 

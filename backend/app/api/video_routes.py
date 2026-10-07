@@ -12,6 +12,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from app.utils.ass_generator import generate_ass_content, compute_canvas_dimensions
 from app.core.supabase_client import upload_to_supabase_storage, delete_from_supabase_storage
 import yt_dlp
+from starlette.concurrency import run_in_threadpool
 
 logger = logging.getLogger("video_routes")
 router = APIRouter()
@@ -200,7 +201,7 @@ async def extract_audio(
     input_video = os.path.join(TEMP_DIR, f"in_{job_id}{ext}").replace("\\", "/")
     preview_video = os.path.join(TEMP_DIR, f"prev_{job_id}.mp4").replace("\\", "/")
     thumbnail_file = os.path.join(TEMP_DIR, f"thumb_{job_id}.jpg").replace("\\", "/")
-    temp_audio = os.path.join(TEMP_DIR, f"aud_{job_id}.m4a").replace("\\", "/")
+    temp_audio = os.path.join(TEMP_DIR, f"aud_{job_id}.wav").replace("\\", "/")
 
     try:
         # 1. Save uploaded video to disk
@@ -211,9 +212,7 @@ async def extract_audio(
         extract_cmd = [
             'ffmpeg', '-y',
             '-i', input_video,
-            '-vn',
-            '-c:a', 'aac',
-            '-b:a', '64k',
+            '-vn', '-ac', '1', '-ar', '16000',
             temp_audio
         ]
         subprocess.run(extract_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -236,7 +235,7 @@ async def extract_audio(
 
         # 4. Transcribe audio using selected engine (groq or whisperx)
         from app.services.ai_services import transcribe_audio
-        subtitles = transcribe_audio(temp_audio, engine=engine)
+        subtitles = await run_in_threadpool(transcribe_audio, temp_audio, engine=engine)
 
         filename_only = os.path.basename(input_video)
 
@@ -517,7 +516,7 @@ async def process_video(
     """Legacy one-step endpoint for backward compatibility."""
     job_id = int(time.time())
     input_video = f"{TEMP_DIR}/in_{job_id}.mp4"
-    temp_audio = f"{TEMP_DIR}/aud_{job_id}.m4a"
+    temp_audio = f"{TEMP_DIR}/aud_{job_id}.wav"
     srt_file = f"{TEMP_DIR}/sub_{job_id}.srt"
     output_video = f"{TEMP_DIR}/out_{job_id}.mp4"
 
@@ -556,7 +555,7 @@ async def process_link(
     """
     job_id = int(time.time() * 1000)
     input_video = os.path.join(TEMP_DIR, f"in_{job_id}.mp4").replace("\\", "/")
-    temp_audio = os.path.join(TEMP_DIR, f"aud_{job_id}.m4a").replace("\\", "/")
+    temp_audio = os.path.join(TEMP_DIR, f"aud_{job_id}.wav").replace("\\", "/")
 
     try:
         # 1. โหลดวิดีโอจากลิงก์ด้วย yt-dlp และดึงชื่อคลิปต้นทางจริง
@@ -576,9 +575,7 @@ async def process_link(
         extract_cmd = [
             'ffmpeg', '-y',
             '-i', input_video,
-            '-vn',
-            '-c:a', 'aac',
-            '-b:a', '64k',
+            '-vn', '-ac', '1', '-ar', '16000',
             temp_audio
         ]
         subprocess.run(extract_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -602,7 +599,7 @@ async def process_link(
 
         # 4. ถอดเสียงด้วย transcribe_audio (groq หรือ whisperx)
         from app.services.ai_services import transcribe_audio
-        subtitles = transcribe_audio(temp_audio, engine=request.engine)
+        subtitles = await run_in_threadpool(transcribe_audio, temp_audio, engine=request.engine)
 
         filename_only = os.path.basename(input_video)
 

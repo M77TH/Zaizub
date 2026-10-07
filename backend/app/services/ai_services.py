@@ -137,8 +137,21 @@ def transcribe_audio_groq(
     return subtitles
 
 
+def _preload_cuda_libs():
+    # ctranslate2 doesn't search pip's nvidia-* wheels (torch used to preload them), so load them by path.
+    try:
+        import ctypes, glob, nvidia
+        for pat in ("cublas/lib/libcublasLt.so.12", "cublas/lib/libcublas.so.12", "cudnn/lib/libcudnn.so.9"):
+            for d in nvidia.__path__:
+                for f in glob.glob(os.path.join(d, pat)):
+                    ctypes.CDLL(f, mode=ctypes.RTLD_GLOBAL)
+    except Exception as e:  # no wheels -> rely on system CUDA
+        logger.warning(f"CUDA preload skipped: {e}")
+
+
 @lru_cache(maxsize=1)
 def _load_model():
+    _preload_cuda_libs()
     # Load once per process; reloading per request was most of the latency.
     # ctranslate2 ships its own CUDA kernels, so this works even when torch lacks them (RTX 50xx).
     import ctranslate2
@@ -187,11 +200,17 @@ def transcribe_audio_whisperx(audio_path: str, srt_path: str = None) -> List[Dic
                 chunk.clear()
 
         for seg in segments:
-            for w in seg.words or []:
-                if not w.word.strip():
-                    continue
+            pieces = [w for w in seg.words or [] if w.word.strip()]
+            # Whisper emits sub-word pieces; only break the subtitle where a real Thai word ends
+            ends, pos = set(), 0
+            for tok in (word_tokenize("".join(w.word.strip() for w in pieces), engine="newmm") if word_tokenize else []):
+                pos += len(tok)
+                ends.add(pos)
+            pos = 0
+            for w in pieces:
+                pos += len(w.word.strip())
                 chunk.append({"word": w.word.strip(), "start": round(w.start, 2), "end": round(w.end, 2)})
-                if len(chunk) >= 8 or chunk[-1]["end"] - chunk[0]["start"] >= 3.5:
+                if (pos in ends or not ends) and (len(chunk) >= 8 or chunk[-1]["end"] - chunk[0]["start"] >= 3.5):
                     flush()
             flush()  # never merge across segments/pauses
 

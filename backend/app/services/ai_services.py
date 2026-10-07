@@ -1,12 +1,8 @@
 import os
-import math
 import logging
-import warnings
 from functools import lru_cache
+from itertools import accumulate
 from typing import List, Dict, Any
-
-# Suppress harmless deprecation warnings from transformers (e.g. gradient_checkpointing in Wav2Vec2/WhisperX)
-warnings.filterwarnings("ignore", message=r".*gradient_checkpointing.*", category=UserWarning)
 
 from app.core.config import settings
 
@@ -29,13 +25,10 @@ def format_timestamp(seconds: float) -> str:
     millisecs = int((seconds - int(seconds)) * 1000)
     return f"{hours:02d}:{minutes:02d}:{secs:02d},{millisecs:03d}"
 
-def is_valid_num(val: Any) -> bool:
-    if val is None:
-        return False
-    try:
-        return not math.isnan(float(val))
-    except (ValueError, TypeError):
-        return False
+def write_srt(subtitles: List[Dict[str, Any]], srt_path: str) -> None:
+    with open(srt_path, "w", encoding="utf-8") as f:
+        for sub in subtitles:
+            f.write(f"{sub['id']}\n{format_timestamp(sub['start'])} --> {format_timestamp(sub['end'])}\n{sub['text']}\n\n")
 
 def transcribe_audio_groq(
     audio_path: str,
@@ -128,11 +121,7 @@ def transcribe_audio_groq(
         subtitles = [{"id": 1, "start": 0.0, "end": 2.0, "text": "ไม่พบเสียงพูดในคลิป"}]
 
     if srt_path:
-        with open(srt_path, "w", encoding="utf-8") as f:
-            for sub in subtitles:
-                start_ts = format_timestamp(sub["start"])
-                end_ts = format_timestamp(sub["end"])
-                f.write(f"{sub['id']}\n{start_ts} --> {end_ts}\n{sub['text']}\n\n")
+        write_srt(subtitles, srt_path)
 
     return subtitles
 
@@ -202,11 +191,8 @@ def transcribe_audio_whisperx(audio_path: str, srt_path: str = None) -> List[Dic
         for seg in segments:
             pieces = [w for w in seg.words or [] if w.word.strip()]
             # Whisper emits sub-word pieces; only break the subtitle where a real Thai word ends
-            ends, pos = set(), 0
-            for tok in (word_tokenize("".join(w.word.strip() for w in pieces), engine="newmm") if word_tokenize else []):
-                pos += len(tok)
-                ends.add(pos)
-            pos = 0
+            toks = word_tokenize("".join(w.word.strip() for w in pieces), engine="newmm") if word_tokenize else []
+            ends, pos = set(accumulate(map(len, toks))), 0
             for w in pieces:
                 pos += len(w.word.strip())
                 chunk.append({"word": w.word.strip(), "start": round(w.start, 2), "end": round(w.end, 2)})
@@ -222,9 +208,7 @@ def transcribe_audio_whisperx(audio_path: str, srt_path: str = None) -> List[Dic
         subtitles = [{"id": 1, "start": 0.0, "end": 2.0, "text": "ไม่พบเสียงพูดในคลิป"}]
 
     if srt_path:
-        with open(srt_path, "w", encoding="utf-8") as f:
-            for sub in subtitles:
-                f.write(f"{sub['id']}\n{format_timestamp(sub['start'])} --> {format_timestamp(sub['end'])}\n{sub['text']}\n\n")
+        write_srt(subtitles, srt_path)
 
     return subtitles
 

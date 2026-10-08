@@ -5,8 +5,8 @@ groq
 yt-dlp
 pydantic-settings
 faster-whisper
-openai-whisper
-whisperx
+nvidia-cublas-cu12
+nvidia-cudnn-cu12
 pythainlp
 supabase
 python-dotenv

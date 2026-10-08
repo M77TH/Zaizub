@@ -5,10 +5,10 @@ import time
 import json
 import logging
 import asyncio
-from typing import List, Optional, Union, Dict, Any
+from typing import List, Optional
 from pydantic import BaseModel
 from fastapi import APIRouter, UploadFile, File, Form, Request, BackgroundTasks, HTTPException
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse
 from app.utils.ass_generator import generate_ass_content, compute_canvas_dimensions
 from app.core.supabase_client import upload_to_supabase_storage, delete_from_supabase_storage
 import yt_dlp
@@ -19,6 +19,21 @@ router = APIRouter()
 
 TEMP_DIR = "temp_storage"
 os.makedirs(TEMP_DIR, exist_ok=True)
+
+_last_id = 0
+def _new_job_id() -> int:
+    """Millisecond timestamp, bumped if two requests land in the same ms (single event loop, no lock needed)."""
+    global _last_id
+    _last_id = max(_last_id + 1, int(time.time() * 1000))
+    return _last_id
+
+# One GPU model: transcribe one clip at a time, others queue here instead of OOM-ing / racing
+_gpu_lock = asyncio.Semaphore(1)
+
+async def transcribe(audio_path: str, engine: Optional[str]):
+    from app.services.ai_services import transcribe_audio
+    async with _gpu_lock:
+        return await run_in_threadpool(transcribe_audio, audio_path, engine=engine)
 
 def cleanup_files(*filepaths, delay: float = 0.0):
     """Background task to remove temporary files, with optional delay for streamed responses."""
@@ -50,52 +65,9 @@ def cleanup_stale_temp_storage(max_age_seconds: int = 3600):
             except Exception:
                 pass
 
-class StyleConfig(BaseModel):
-    font_family: Optional[str] = "Noto Sans Thai"
-    font_size: Optional[int] = 52
-    bold: Optional[bool] = True
-    italic: Optional[bool] = False
-    underline: Optional[bool] = False
-    shadow: Optional[bool] = False
-    outline: Optional[bool] = False
-    shadow_color: Optional[str] = "#000000"
-    shadow_thickness: Optional[int] = 2
-    text_color: Optional[str] = "#ffffff"
-    bg_color: Optional[str] = "#000000"
-    bg_opacity: Optional[float] = 0.85
-    padding_x: Optional[int] = 18
-    padding_y: Optional[int] = 10
-    border_radius: Optional[int] = 12
-    position: Optional[str] = "bottom"
-    custom_x: Optional[float] = 50.0
-    custom_y: Optional[float] = 82.0
-    box_width: Optional[float] = 86.0
-    animation: Optional[str] = "none"
-
-    class Config:
-        extra = "allow"
-
-class SubtitleItem(BaseModel):
-    id: Optional[Union[int, str]] = None
-    start: float
-    end: float
-    text: str
-    style: Optional[Dict[str, Any]] = None
-
-    class Config:
-        extra = "allow"
-
-class RenderRequest(BaseModel):
-    video_filename: str
-    subtitles: List[SubtitleItem]
-    styles: Optional[StyleConfig] = None
-    video_width: Optional[int] = None
-    video_height: Optional[int] = None
-
 class DeleteMediaRequest(BaseModel):
     urls: Optional[List[str]] = []
     paths: Optional[List[str]] = []
-
 
 
 def create_web_preview(input_path: str, preview_path: str):
@@ -178,6 +150,62 @@ def probe_video_dimensions(video_path: str) -> tuple[int, int]:
     return 1080, 1920
 
 
+async def _transcribe_and_upload(job_id: int, input_video: str, engine: Optional[str], background_tasks: BackgroundTasks) -> dict:
+    """Shared tail of /extract-audio and /process-link: audio, preview, thumbnail, transcribe, upload."""
+    preview_video = os.path.join(TEMP_DIR, f"prev_{job_id}.mp4")
+    thumbnail_file = os.path.join(TEMP_DIR, f"thumb_{job_id}.jpg")
+    temp_audio = os.path.join(TEMP_DIR, f"aud_{job_id}.wav")
+    try:
+        logger.info('extracting audio')
+        await asyncio.to_thread(subprocess.run, ['ffmpeg', '-y', '-i', input_video, '-vn', '-ac', '1', '-ar', '16000', temp_audio],
+                                check=True, capture_output=True)
+
+        async def media():
+            # CPU/network work; overlaps with GPU transcription below
+            nonlocal preview_video
+            logger.info('creating preview and thumbnail')
+            try:
+                await asyncio.to_thread(create_web_preview, input_video, preview_video)
+            except Exception as pe:
+                logger.warning(f"Preview transcoding warning: {pe}, using original file")
+                preview_video = input_video
+            try:
+                await asyncio.to_thread(create_thumbnail, input_video, thumbnail_file)
+            except Exception as te:
+                logger.warning(f"Thumbnail generation warning: {te}")
+            urls = [f"/temp_storage/{os.path.basename(preview_video)}",
+                    f"/temp_storage/{os.path.basename(thumbnail_file)}" if os.path.exists(thumbnail_file) else ""]
+            logger.info('uploading preview and thumbnail')
+            try:
+                up = lambda f, n, ct: asyncio.to_thread(upload_to_supabase_storage, f, n, bucket_name="videos", content_type=ct)
+                jobs = [up(preview_video, f"prev_{job_id}.mp4", "video/mp4")]
+                if urls[1]:
+                    jobs.append(up(thumbnail_file, f"thumb_{job_id}.jpg", "image/jpeg"))
+                urls[:len(jobs)] = await asyncio.gather(*jobs)
+                return urls, True
+            except Exception as sup_err:
+                logger.warning(f"Supabase storage upload warning (serving locally via temp_storage): {sup_err}")
+                return urls, False
+
+        logger.info('transcribing + preview in parallel')
+        subtitles, ((video_url, thumbnail_url), uploaded) = await asyncio.gather(
+            transcribe(temp_audio, engine), media())
+
+        # Keep local preview/thumbnail only if the cloud upload failed
+        background_tasks.add_task(cleanup_files, input_video, temp_audio, *([preview_video, thumbnail_file] if uploaded else []))
+        logger.info(f'done in {(time.time() * 1000 - job_id) / 1000:.1f}s')
+        return {
+            "success": True,
+            "job_id": job_id,
+            "video_url": video_url,
+            "thumbnail_url": thumbnail_url,
+            "video_filename": os.path.basename(input_video),
+            "subtitles": subtitles,
+        }
+    except Exception:
+        cleanup_files(temp_audio, preview_video, thumbnail_file)
+        raise
+
 @router.post("/extract-audio")
 async def extract_audio(
     background_tasks: BackgroundTasks,
@@ -192,114 +220,18 @@ async def extract_audio(
     - Transcribes audio using Groq API or WhisperX.
     - Returns video_url (browser-compatible H.264) and structured subtitles JSON array.
     """
-    job_id = int(time.time() * 1000)
-    original_name = file.filename or "video.mp4"
-    _, ext = os.path.splitext(original_name)
-    if not ext:
-        ext = ".mp4"
-
-    input_video = os.path.join(TEMP_DIR, f"in_{job_id}{ext}").replace("\\", "/")
-    preview_video = os.path.join(TEMP_DIR, f"prev_{job_id}.mp4").replace("\\", "/")
-    thumbnail_file = os.path.join(TEMP_DIR, f"thumb_{job_id}.jpg").replace("\\", "/")
-    temp_audio = os.path.join(TEMP_DIR, f"aud_{job_id}.wav").replace("\\", "/")
-
+    job_id = _new_job_id()
+    ext = os.path.splitext(file.filename or "")[1] or ".mp4"
+    input_video = os.path.join(TEMP_DIR, f"in_{job_id}{ext}")
     try:
-        # 1. Save uploaded video to disk
         with open(input_video, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-
-        # 2. Extract audio via ffmpeg
-        extract_cmd = [
-            'ffmpeg', '-y',
-            '-i', input_video,
-            '-vn', '-ac', '1', '-ar', '16000',
-            temp_audio
-        ]
-        logger.info('extracting audio')
-        subprocess.run(extract_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-        # 3. Generate browser-compatible H.264 preview video and thumbnail poster
-        logger.info('creating preview')
-        try:
-            create_web_preview(input_video, preview_video)
-            preview_filename = os.path.basename(preview_video)
-        except Exception as pe:
-            logger.warning(f"Preview transcoding warning: {pe}, using original file")
-            preview_filename = os.path.basename(input_video)
-
-        thumbnail_filename = ""
-        logger.info('creating thumbnail')
-        try:
-            # Generate thumbnail from original source video for maximum clarity
-            create_thumbnail(input_video if os.path.exists(input_video) else preview_video, thumbnail_file)
-            thumbnail_filename = os.path.basename(thumbnail_file)
-        except Exception as te:
-            logger.warning(f"Thumbnail generation warning: {te}")
-
-        # 4. Transcribe audio using selected engine (groq or whisperx)
-        logger.info('transcribing')
-        from app.services.ai_services import transcribe_audio
-        subtitles = await run_in_threadpool(transcribe_audio, temp_audio, engine=engine)
-
-        filename_only = os.path.basename(input_video)
-
-        # 5. Upload compressed preview and thumbnail to Supabase Storage
-        video_url = f"/temp_storage/{preview_filename}"
-        thumbnail_url = f"/temp_storage/{thumbnail_filename}" if thumbnail_filename else ""
-
-        logger.info('uploading preview and thumbnail')
-        uploaded_to_cloud = False
-        try:
-            # Upload compressed preview video
-            actual_preview_file = preview_video if os.path.exists(preview_video) else input_video
-            if os.path.exists(actual_preview_file):
-                uploaded_video_url = upload_to_supabase_storage(
-                    actual_preview_file,
-                    f"prev_{job_id}.mp4",
-                    bucket_name="videos",
-                    content_type="video/mp4"
-                )
-                video_url = uploaded_video_url
-                uploaded_to_cloud = True
-            
-            # Upload thumbnail
-            if thumbnail_file and os.path.exists(thumbnail_file):
-                uploaded_thumb_url = upload_to_supabase_storage(
-                    thumbnail_file,
-                    f"thumb_{job_id}.jpg",
-                    bucket_name="videos",
-                    content_type="image/jpeg"
-                )
-                thumbnail_url = uploaded_thumb_url
-        except Exception as sup_err:
-            logger.warning(f"Supabase storage upload warning (serving locally via temp_storage): {sup_err}")
-
-        # Always clean up raw video and extracted audio immediately to save local disk
-        files_to_clean = [input_video, temp_audio]
-        if uploaded_to_cloud:
-            # Only delete local preview and thumbnail if they were safely stored in Supabase
-            files_to_clean.extend([preview_video, thumbnail_file])
-
-        logger.info(f'done in {(time.time() * 1000 - job_id) / 1000:.1f}s')
-        background_tasks.add_task(cleanup_files, *files_to_clean)
-
-        return {
-            "success": True,
-            "job_id": job_id,
-            "video_url": video_url,
-            "thumbnail_url": thumbnail_url,
-            "video_filename": filename_only,
-            "subtitles": subtitles
-        }
-
-    except subprocess.CalledProcessError as e:
-        cleanup_files(input_video, temp_audio, preview_video)
-        logger.error(f"FFmpeg audio extraction error: {e.stderr.decode('utf-8', errors='ignore') if e.stderr else str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to extract audio from video: {str(e)}")
+        return await _transcribe_and_upload(job_id, input_video, engine, background_tasks)
     except Exception as e:
-        cleanup_files(input_video, temp_audio, preview_video)
-        logger.error(f"Extract audio error: {str(e)}")
+        cleanup_files(input_video)
+        logger.error(f"Extract audio error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
 
 
 @router.post("/render-video")
@@ -359,59 +291,20 @@ async def render_video(
 
     logger.info(f"render-video: aspect_ratio={aspect_ratio!r}")
 
-    # Extract target filename from either video_filename or video_url
-    clean_filename = ""
-    if video_filename and video_filename != "sample_video.mp4":
-        clean_filename = os.path.basename(video_filename)
-    elif video_url:
-        clean_filename = os.path.basename(video_url.split("?")[0])
-
-    if not clean_filename or clean_filename == "sample_video.mp4":
-        # Check if there is any recent in_*.mp4 or prev_*.mp4 in temp_storage
-        if os.path.exists(TEMP_DIR):
-            existing_vids = [
-                f for f in os.listdir(TEMP_DIR)
-                if (f.startswith("in_") or f.startswith("prev_")) and f.endswith(".mp4")
-            ]
-            if existing_vids:
-                existing_vids.sort(key=lambda x: os.path.getmtime(os.path.join(TEMP_DIR, x)), reverse=True)
-                clean_filename = existing_vids[0]
-
-    if not clean_filename:
+    video_url = video_url or ""
+    # Try the filename, then the url's basename (local preview survives when the cloud upload failed)
+    names = [os.path.basename(n.split("?")[0]) for n in (video_filename, video_url) if n]
+    if not names:
         raise HTTPException(status_code=400, detail="video_filename or video_url is required")
+    clean_filename = names[0]
 
-    # 1. First attempt to resolve input video from local storage
-    input_video_path = None
+    input_video_path = next((p for p in (os.path.join(TEMP_DIR, n) for n in names) if os.path.isfile(p)), None)
     scratch_input_file = None
-
-    # Check directly by clean_filename or video_filename if available locally
-    if clean_filename:
-        direct_local = os.path.join(TEMP_DIR, clean_filename).replace("\\", "/")
-        if os.path.exists(direct_local):
-            input_video_path = direct_local
-
-    if not input_video_path and video_filename and os.path.exists(video_filename):
-        input_video_path = video_filename.replace("\\", "/")
-
-    # Check for stem match in temp_storage (e.g. matching timestamp in in_* or prev_*)
-    if not input_video_path and clean_filename and os.path.exists(TEMP_DIR):
-        stem = clean_filename.replace("in_", "").replace("prev_", "").replace("out_", "").replace("subtitled_", "").split(".")[0]
-        if stem:
-            candidates = []
-            for fname in os.listdir(TEMP_DIR):
-                if stem in fname and fname.endswith(".mp4"):
-                    full_p = os.path.join(TEMP_DIR, fname).replace("\\", "/")
-                    candidates.append(full_p)
-            if candidates:
-                # Prefer in_* (original high-res) over prev_* or other
-                in_candidates = [c for c in candidates if "in_" in os.path.basename(c)]
-                input_video_path = in_candidates[0] if in_candidates else candidates[0]
-
-    # 2. If not found locally and video_url is a remote URL, download it with a timeout
-    is_loopback_url = any(host in video_url for host in ["localhost:8000", "127.0.0.1:8000"])
-    if not input_video_path and video_url and (video_url.startswith("http://") or video_url.startswith("https://")) and not is_loopback_url:
-        job_id_scratch = int(time.time() * 1000)
-        scratch_input_file = os.path.join(TEMP_DIR, f"scratch_render_{job_id_scratch}.mp4").replace("\\", "/")
+    if not input_video_path:
+        # Local copy is deleted after upload, so fall back to the cloud URL
+        if not video_url.startswith(("http://", "https://")):
+            raise HTTPException(status_code=404, detail=f"Input video '{clean_filename}' not found on server.")
+        scratch_input_file = os.path.join(TEMP_DIR, f"scratch_render_{_new_job_id()}.mp4")
         try:
             import urllib.request
             logger.info(f"Downloading source video from cloud for rendering: {video_url}")
@@ -426,20 +319,8 @@ async def render_video(
             cleanup_files(scratch_input_file)
             raise HTTPException(status_code=400, detail=f"Failed to download video from cloud for rendering: {dl_err}")
 
-    # Fallback to the most recent mp4 in temp_storage if still not found
-    if not input_video_path and os.path.exists(TEMP_DIR):
-        existing_vids = [
-            f for f in os.listdir(TEMP_DIR)
-            if (f.startswith("in_") or f.startswith("prev_")) and f.endswith(".mp4")
-        ]
-        if existing_vids:
-            existing_vids.sort(key=lambda x: os.path.getmtime(os.path.join(TEMP_DIR, x)), reverse=True)
-            input_video_path = os.path.join(TEMP_DIR, existing_vids[0]).replace("\\", "/")
 
-    if not input_video_path or not os.path.exists(input_video_path):
-        raise HTTPException(status_code=404, detail=f"Input video '{clean_filename}' not found on server.")
-
-    job_id = int(time.time() * 1000)
+    job_id = _new_job_id()
     ass_file_path = os.path.join(TEMP_DIR, f"sub_{job_id}.ass").replace("\\", "/")
     output_video_path = os.path.join(TEMP_DIR, f"out_{job_id}.mp4").replace("\\", "/")
 
@@ -513,35 +394,6 @@ async def render_video(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/process-video")
-async def process_video(
-    background_tasks: BackgroundTasks, 
-    file: UploadFile = File(...),
-    engine: Optional[str] = Form(None)
-):
-    """Legacy one-step endpoint for backward compatibility."""
-    job_id = int(time.time())
-    input_video = f"{TEMP_DIR}/in_{job_id}.mp4"
-    temp_audio = f"{TEMP_DIR}/aud_{job_id}.wav"
-    srt_file = f"{TEMP_DIR}/sub_{job_id}.srt"
-    output_video = f"{TEMP_DIR}/out_{job_id}.mp4"
-
-    try:
-        with open(input_video, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-
-        subprocess.run(['ffmpeg', '-y', '-i', input_video, '-vn', '-c:a', 'aac', '-b:a', '64k', temp_audio], check=True)
-        transcribe_audio(temp_audio, srt_file, engine=engine)
-        safe_srt_path = srt_file.replace('\\', '/')
-        subprocess.run(['ffmpeg', '-y', '-i', input_video, '-vf', f"subtitles='{safe_srt_path}'", output_video], check=True)
-
-        background_tasks.add_task(cleanup_files, input_video, temp_audio, srt_file)
-        return FileResponse(output_video, media_type="video/mp4", filename=f"subtitled_{file.filename}")
-
-    except Exception as e:
-        cleanup_files(input_video, temp_audio, srt_file, output_video)
-        return {"error": str(e)}
-
 
 class LinkRequest(BaseModel):
     url: str
@@ -559,13 +411,9 @@ async def process_link(
     - Extracts audio and calls transcribe_audio.
     - Returns video_url and subtitles (same format as /extract-audio).
     """
-    job_id = int(time.time() * 1000)
-    input_video = os.path.join(TEMP_DIR, f"in_{job_id}.mp4").replace("\\", "/")
-    temp_audio = os.path.join(TEMP_DIR, f"aud_{job_id}.wav").replace("\\", "/")
-
+    job_id = _new_job_id()
+    input_video = os.path.join(TEMP_DIR, f"in_{job_id}.mp4")
     try:
-        # 1. โหลดวิดีโอจากลิงก์ด้วย yt-dlp และดึงชื่อคลิปต้นทางจริง
-        video_title = ""
         ydl_opts = {
             'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4',
             'outtmpl': input_video,
@@ -575,101 +423,14 @@ async def process_link(
         logger.info('downloading video')
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(request.url, download=True)
-            if info:
-                video_title = info.get('title') or ""
-
-        # 2. แยกเสียงออกมาเป็นไฟล์ .m4a ด้วย FFmpeg
-        extract_cmd = [
-            'ffmpeg', '-y',
-            '-i', input_video,
-            '-vn', '-ac', '1', '-ar', '16000',
-            temp_audio
-        ]
-        logger.info('extracting audio')
-        subprocess.run(extract_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-        # 3. Generate browser-compatible H.264 preview video and thumbnail poster
-        preview_video = os.path.join(TEMP_DIR, f"prev_{job_id}.mp4").replace("\\", "/")
-        logger.info('creating preview')
-        try:
-            create_web_preview(input_video, preview_video)
-            preview_filename = os.path.basename(preview_video)
-        except Exception as pe:
-            logger.warning(f"Preview transcoding warning: {pe}, using original file")
-            preview_filename = os.path.basename(input_video)
-
-        thumbnail_file = os.path.join(TEMP_DIR, f"thumb_{job_id}.jpg").replace("\\", "/")
-        thumbnail_filename = ""
-        logger.info('creating thumbnail')
-        try:
-            create_thumbnail(input_video if os.path.exists(input_video) else preview_video, thumbnail_file)
-            thumbnail_filename = os.path.basename(thumbnail_file)
-        except Exception as te:
-            logger.warning(f"Thumbnail generation warning: {te}")
-
-        # 4. ถอดเสียงด้วย transcribe_audio (groq หรือ whisperx)
-        logger.info('transcribing')
-        from app.services.ai_services import transcribe_audio
-        subtitles = await run_in_threadpool(transcribe_audio, temp_audio, engine=request.engine)
-
-        filename_only = os.path.basename(input_video)
-
-        # 5. Upload compressed preview and thumbnail to Supabase Storage
-        video_url = f"/temp_storage/{preview_filename}"
-        thumbnail_url = f"/temp_storage/{thumbnail_filename}" if thumbnail_filename else ""
-
-        logger.info('uploading preview and thumbnail')
-        uploaded_to_cloud = False
-        try:
-            actual_preview_file = preview_video if os.path.exists(preview_video) else input_video
-            if os.path.exists(actual_preview_file):
-                uploaded_video_url = upload_to_supabase_storage(
-                    actual_preview_file,
-                    f"prev_{job_id}.mp4",
-                    bucket_name="videos",
-                    content_type="video/mp4"
-                )
-                video_url = uploaded_video_url
-                uploaded_to_cloud = True
-
-            if thumbnail_file and os.path.exists(thumbnail_file):
-                uploaded_thumb_url = upload_to_supabase_storage(
-                    thumbnail_file,
-                    f"thumb_{job_id}.jpg",
-                    bucket_name="videos",
-                    content_type="image/jpeg"
-                )
-                thumbnail_url = uploaded_thumb_url
-        except Exception as sup_err:
-            logger.warning(f"Supabase storage upload warning (link download): {sup_err}")
-
-        # Always clean up raw video and extracted audio immediately to save local disk
-        files_to_clean = [input_video, temp_audio]
-        if uploaded_to_cloud:
-            files_to_clean.extend([preview_video, thumbnail_file])
-
-        logger.info(f'done in {(time.time() * 1000 - job_id) / 1000:.1f}s')
-        background_tasks.add_task(cleanup_files, *files_to_clean)
-
-        return {
-            "success": True,
-            "job_id": job_id,
-            "title": video_title,
-            "video_url": video_url,
-            "thumbnail_url": thumbnail_url,
-            "video_filename": filename_only,
-            "subtitles": subtitles
-        }
-
-    except subprocess.CalledProcessError as e:
-        cleanup_files(input_video, temp_audio)
-        err_msg = e.stderr.decode('utf-8', errors='ignore') if e.stderr else str(e)
-        logger.error(f"FFmpeg error processing link: {err_msg}")
-        raise HTTPException(status_code=500, detail="Failed to extract audio from downloaded video.")
+        result = await _transcribe_and_upload(job_id, input_video, request.engine, background_tasks)
+        result["title"] = (info or {}).get('title') or ""
+        return result
     except Exception as e:
-        cleanup_files(input_video, temp_audio)
-        logger.error(f"Download/Process link error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to process video link: {str(e)}")
+        cleanup_files(input_video)
+        logger.error(f"Download/Process link error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to process video link: {e}")
+
 
 
 @router.post("/delete-media")

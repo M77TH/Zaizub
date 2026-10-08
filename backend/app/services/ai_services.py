@@ -6,15 +6,8 @@ from typing import List, Dict, Any
 
 from app.core.config import settings
 
-try:
-    from faster_whisper import WhisperModel, BatchedInferencePipeline
-except ImportError:
-    WhisperModel = None
-
-try:
-    from pythainlp.tokenize import word_tokenize
-except ImportError:
-    word_tokenize = None
+from faster_whisper import WhisperModel, BatchedInferencePipeline
+from pythainlp.tokenize import word_tokenize
 
 logger = logging.getLogger("ai_services")
 
@@ -131,9 +124,8 @@ def _preload_cuda_libs():
     try:
         import ctypes, glob, nvidia
         for pat in ("cublas/lib/libcublasLt.so.12", "cublas/lib/libcublas.so.12", "cudnn/lib/libcudnn.so.9"):
-            for d in nvidia.__path__:
-                for f in glob.glob(os.path.join(d, pat)):
-                    ctypes.CDLL(f, mode=ctypes.RTLD_GLOBAL)
+            for f in glob.glob(os.path.join(nvidia.__path__[0], pat)):
+                ctypes.CDLL(f, mode=ctypes.RTLD_GLOBAL)
     except Exception as e:  # no wheels -> rely on system CUDA
         logger.warning(f"CUDA preload skipped: {e}")
 
@@ -147,7 +139,7 @@ def _load_model():
     gpu = ctranslate2.get_cuda_device_count() > 0
     # Pascal (GTX 10xx) has no fast fp16, so take the best type this GPU actually supports
     supported = ctranslate2.get_supported_compute_types("cuda" if gpu else "cpu")
-    compute = next(c for c in ("float16", "int8_float16", "int8_float32", "int8") if c in supported)
+    compute = "float16" if "float16" in supported else "int8_float32"
     model = WhisperModel(
         settings.WHISPER_MODEL if gpu else "small",
         device="cuda" if gpu else "cpu",
@@ -160,8 +152,6 @@ def transcribe_audio_whisperx(audio_path: str, srt_path: str = None) -> List[Dic
     """Thai-tuned faster-whisper, batched, with built-in word timestamps (no wav2vec2 align pass)."""
     subtitles: List[Dict[str, Any]] = []
     try:
-        if WhisperModel is None:
-            raise ImportError("faster_whisper is not installed in the environment.")
         segments, info = _load_model().transcribe(
             audio_path,
             language="th",
@@ -191,15 +181,14 @@ def transcribe_audio_whisperx(audio_path: str, srt_path: str = None) -> List[Dic
 
         for seg in segments:
             logger.info(f"transcribed {seg.end:.0f}/{info.duration:.0f}s")
-            pieces = [w for w in seg.words or [] if w.word.strip()]
+            pieces = [(w.word.strip(), w) for w in seg.words or [] if w.word.strip()]
             # Whisper emits sub-word pieces: regroup them into real Thai words, timing from first/last piece
-            owner = [k for k, w in enumerate(pieces) for _ in w.word.strip()]
-            text = "".join(w.word.strip() for w in pieces)
-            toks = word_tokenize(text, engine="newmm") if word_tokenize else [w.word.strip() for w in pieces]
+            owner = [k for k, (t, _) in enumerate(pieces) for _ in t]
+            toks = word_tokenize("".join(t for t, _ in pieces), engine="newmm")
             pos = 0
             for tok in toks:
                 if tok.strip() and pos < len(owner):
-                    a, b = pieces[owner[pos]], pieces[owner[min(pos + len(tok), len(owner)) - 1]]
+                    a, b = pieces[owner[pos]][1], pieces[owner[min(pos + len(tok), len(owner)) - 1]][1]
                     chunk.append({"word": tok.strip(), "start": round(a.start, 2), "end": round(b.end, 2)})
                     if len(chunk) >= 8 or chunk[-1]["end"] - chunk[0]["start"] >= 3.5:
                         flush()

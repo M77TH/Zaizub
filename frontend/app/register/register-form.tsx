@@ -35,7 +35,7 @@ export default function RegisterForm() {
           <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">
             สร้างบัญชีใหม่
           </h1>
-          <p className="text-gray-400">เริ่มต้นใช้งาน AI Subtitles ได้ฟรี</p>
+          <p className="text-gray-400">เริ่มต้นใช้งาน ZaiZub ได้ฟรี</p>
         </div>
 
         {/* --- ส่วนที่เพิ่มใหม่ 1: ปุ่ม Google Auth --- */}

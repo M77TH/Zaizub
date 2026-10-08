@@ -5,6 +5,8 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str = ""
     # faster-whisper (CTranslate2) repo id or local path; best: scripts/convert_typhoon.sh output
     WHISPER_MODEL: str = "Vinxscribe/biodatlab-whisper-th-large-v3-faster"
+    # Primes Whisper's spelling/vocabulary; add your channel's recurring names and jargon. "" disables it.
+    WHISPER_PROMPT: str = "สวัสดีครับ วันนี้เรามาคุยกันเรื่องต่าง ๆ ด้วยภาษาไทยที่ถูกต้อง ใช้เครื่องหมายวรรคตอนครบถ้วน"
     MODEL: str = "whisperx"  # "whisperx" or "groq"
 
     # ตั้งค่าให้ไปดึงข้อมูลมาจากไฟล์ .env

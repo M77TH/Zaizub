@@ -47,8 +47,10 @@ def cleanup_files(*filepaths, delay: float = 0.0):
             except Exception as e:
                 logger.warning(f"Failed to cleanup {path}: {e}")
 
+ORIGINAL_TTL = 6 * 3600  # in_* originals are kept this long so renders use full quality, not the 720p preview
+
 def cleanup_stale_temp_storage(max_age_seconds: int = 3600):
-    """Prunes temporary files older than max_age_seconds to prevent disk buildup."""
+    """Prunes temporary files older than max_age_seconds (originals: ORIGINAL_TTL) to prevent disk buildup."""
     if not os.path.exists(TEMP_DIR):
         return
     now = time.time()
@@ -59,7 +61,8 @@ def cleanup_stale_temp_storage(max_age_seconds: int = 3600):
                 # Remove intermediate files immediately if they are out_, sub_, or scratch_
                 is_intermediate = fname.startswith(("out_", "sub_", "scratch_"))
                 file_age = now - os.path.getmtime(fpath)
-                if (is_intermediate and file_age > 120) or (file_age > max_age_seconds):
+                limit = ORIGINAL_TTL if fname.startswith("in_") else max_age_seconds
+                if (is_intermediate and file_age > 120) or (file_age > limit):
                     os.remove(fpath)
                     logger.info(f"Auto-pruned stale temp file: {fpath}")
             except Exception:
@@ -73,22 +76,21 @@ class DeleteMediaRequest(BaseModel):
 def create_web_preview(input_path: str, preview_path: str):
     """
     Transcodes or normalizes video to standard H.264 / AAC MP4 with YUV420p and faststart.
-    Optimized for Supabase Free Tier: scales to max 720p at CRF 28 and ~800k bitrate
-    so a 2-minute video is only ~8-12 MB.
+    Capped at 720p on the short side (1280x720 landscape / 720x1280 portrait), CRF 24, 1.5 Mbps ceiling
+    so a 2-minute video stays ~10-20 MB for Supabase.
     """
     cmd = [
         'ffmpeg', '-y',
         '-i', input_path,
-        '-vf', "scale='min(720,iw)':-2",
+        '-vf', "scale='if(gt(iw,ih),min(1280,iw),min(720,iw))':-2",
         '-c:v', 'libx264',
         '-pix_fmt', 'yuv420p',
-        '-preset', 'fast',
-        '-crf', '28',
-        '-b:v', '900k',
-        '-maxrate', '1200k',
-        '-bufsize', '1800k',
+        '-preset', 'medium',
+        '-crf', '24',
+        '-maxrate', '1500k',
+        '-bufsize', '3000k',
         '-c:a', 'aac',
-        '-b:a', '96k',
+        '-b:a', '128k',
         '-movflags', '+faststart',
         preview_path
     ]
@@ -123,6 +125,16 @@ def create_thumbnail(input_path: str, thumbnail_path: str):
             thumbnail_path
         ]
         subprocess.run(cmd_fallback, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+
+def audio_args(path: str) -> list[str]:
+    """Copy AAC audio untouched (no generation loss); anything else becomes high-bitrate AAC for MP4."""
+    try:
+        out = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=codec_name',
+                              '-of', 'csv=p=0', path], capture_output=True, text=True).stdout.strip()
+    except Exception:
+        out = ""
+    return ['-c:a', 'copy'] if out == 'aac' else ['-c:a', 'aac', '-b:a', '256k']
 
 
 def probe_video_dimensions(video_path: str) -> tuple[int, int]:
@@ -191,8 +203,9 @@ async def _transcribe_and_upload(job_id: int, input_video: str, engine: Optional
         subtitles, ((video_url, thumbnail_url), uploaded) = await asyncio.gather(
             transcribe(temp_audio, engine), media())
 
-        # Keep local preview/thumbnail only if the cloud upload failed
-        background_tasks.add_task(cleanup_files, input_video, temp_audio, *([preview_video, thumbnail_file] if uploaded else []))
+        # Keep the original (renders need it) and local preview/thumbnail only if the cloud upload failed
+        background_tasks.add_task(cleanup_files, temp_audio, *([f for f in (preview_video, thumbnail_file) if f != input_video] if uploaded else []))
+        background_tasks.add_task(cleanup_stale_temp_storage)
         logger.info(f'done in {(time.time() * 1000 - job_id) / 1000:.1f}s')
         return {
             "success": True,
@@ -358,9 +371,11 @@ async def render_video(
             '-i', input_video_path,
             '-vf', filter_str,
             '-c:v', 'libx264',
-            '-preset', 'veryfast',
-            '-crf', '22',
-            '-c:a', 'copy',
+            '-pix_fmt', 'yuv420p',
+            '-preset', 'medium',
+            '-crf', '18',
+            *audio_args(input_video_path),
+            '-movflags', '+faststart',
             output_video_path
         ]
 

@@ -17,9 +17,9 @@ export default function Navbar({
 
   const links =
     lang === "en"
-      ? ["How it works", "Features", "Pricing"]
-      : ["วิธีใช้งาน", "ฟีเจอร์", "ราคา"];
-  const ids = ["how-it-works", "features", "pricing"];
+      ? ["How it works", "Features"]
+      : ["วิธีใช้งาน", "ฟีเจอร์"];
+  const ids = ["how-it-works", "features"];
 
   const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, targetId: string) => {
     e.preventDefault();

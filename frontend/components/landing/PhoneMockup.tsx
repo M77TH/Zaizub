@@ -31,11 +31,11 @@ export default function PhoneMockup({
   const active = lines[lineIndex] || lines[0] || { time: "00:01", words: [] };
 
   return (
-    <div className="relative flex min-h-[440px] w-full items-center justify-center py-6 sm:min-h-[560px] sm:py-8">
+    <div className="relative flex min-h-[400px] w-full items-center justify-center py-4 sm:min-h-[460px] lg:min-h-[480px] xl:min-h-[540px] sm:py-6">
       {/* Shared wrapper for phone compositions */}
-      <div className="relative h-[380px] w-[200px] sm:h-[480px] sm:w-[250px]">
+      <div className="relative h-[360px] w-[190px] sm:h-[420px] sm:w-[220px] lg:h-[440px] lg:w-[230px] xl:h-[480px] xl:w-[250px]">
         {/* Back phone: Balanced hover scale & purple glow */}
-        <div className="group/back absolute inset-0 z-10 translate-x-10 translate-y-4 transition-transform duration-500 ease-out hover:scale-[1.028] sm:translate-x-24 sm:translate-y-8">
+        <div className="group/back absolute inset-0 z-10 translate-x-10 translate-y-4 transition-transform duration-500 ease-out hover:scale-[1.01] sm:translate-x-24 sm:translate-y-8">
           <div className="h-full w-full animate-phoneIdleBack rounded-[2.4rem] bg-black p-2.5 shadow-2xl ring-1 ring-purple-500/20 will-change-transform transform-gpu [backface-visibility:hidden] transition-[box-shadow,ring-color] duration-500 group-hover/back:shadow-[0_10px_32px_rgba(139,92,246,0.22)] group-hover/back:ring-purple-400/45">
             <div className="relative h-full w-full overflow-hidden rounded-[1.9rem] bg-gradient-to-br from-[#130b20] via-[#201032] to-[#0a0712]">
               {backVideoSrc || videoSrc ? (
@@ -88,7 +88,7 @@ export default function PhoneMockup({
         </div>
 
         {/* Front phone: Balanced hover scale & purple glow */}
-        <div className="group/front absolute inset-0 z-20 -translate-x-10 -translate-y-4 transition-transform duration-500 ease-out hover:scale-[1.028] sm:-translate-x-24 sm:-translate-y-8">
+        <div className="group/front absolute inset-0 z-20 -translate-x-10 -translate-y-4 transition-transform duration-500 ease-out hover:scale-[1.01] sm:-translate-x-24 sm:-translate-y-8">
           <div className="h-full w-full animate-phoneIdleFront rounded-[2.4rem] bg-black p-2.5 shadow-2xl ring-1 ring-purple-500/28 will-change-transform transform-gpu [backface-visibility:hidden] transition-[box-shadow,ring-color] duration-500 group-hover/front:shadow-[0_16px_40px_rgba(139,92,246,0.25)] group-hover/front:ring-purple-400/55">
             <div className="relative h-full w-full overflow-hidden rounded-[1.9rem] bg-gradient-to-br from-[#1a1024] via-[#241534] to-[#0c0a12]">
               {videoSrc ? (

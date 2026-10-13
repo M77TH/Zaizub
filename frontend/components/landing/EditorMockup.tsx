@@ -273,6 +273,37 @@ function getShakeWordProps(token: string, idx: number) {
   };
 }
 
+const hexToRgba = (hex: string, alpha: number) => {
+  if (!hex) return `rgba(255, 255, 255, ${alpha})`;
+  const clean = hex.replace("#", "");
+  if (clean.length === 6) {
+    const r = parseInt(clean.substring(0, 2), 16);
+    const g = parseInt(clean.substring(2, 4), 16);
+    const b = parseInt(clean.substring(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+  if (clean.length === 3) {
+    const r = parseInt(clean[0] + clean[0], 16);
+    const g = parseInt(clean[1] + clean[1], 16);
+    const b = parseInt(clean[2] + clean[2], 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+  return hex;
+};
+
+const getContrastTextColor = (hex: string) => {
+  if (!hex) return "#000000";
+  const clean = hex.replace("#", "");
+  if (clean.length === 6) {
+    const r = parseInt(clean.substring(0, 2), 16);
+    const g = parseInt(clean.substring(2, 4), 16);
+    const b = parseInt(clean.substring(4, 6), 16);
+    const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+    return yiq >= 135 ? "#000000" : "#ffffff";
+  }
+  return "#000000";
+};
+
 const TEMPLATE_DEMO_TOKENS: Record<Lang, string[]> = {
   en: ["Make", "clips", "go", "viral", "with", "Zaizub"],
   th: ["ทำคลิป", "ให้ติดฟีด", "ด้วย", "Zaizub"],
@@ -442,7 +473,6 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
   const card2Ref = useRef<HTMLDivElement>(null);
   const card3Ref = useRef<HTMLDivElement>(null);
   const phoneCardRef = useRef<HTMLDivElement>(null);
-  const bgGlowRef = useRef<HTMLDivElement>(null);
   const cardListRef = useRef<HTMLDivElement>(null);
   const modalCardRef = useRef<HTMLDivElement>(null);
 
@@ -569,10 +599,6 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
 
       if (phoneCardRef.current) {
         phoneCardRef.current.style.transform = `translate3d(${(state.currentPx * 0.2).toFixed(2)}px, ${(state.currentPy * 0.2).toFixed(2)}px, 0)`;
-      }
-
-      if (bgGlowRef.current) {
-        bgGlowRef.current.style.transform = `translate(-50%, -50%) translate3d(${(-state.currentPx * 0.15).toFixed(2)}px, ${(-state.currentPy * 0.15).toFixed(2)}px, 0)`;
       }
 
       if (isResting) {
@@ -869,10 +895,9 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
       ref={sectionRef}
       className="relative overflow-visible overflow-x-clip pt-12 sm:pt-16 lg:pt-20 pb-16 sm:pb-24 lg:pb-28"
     >
-      {/* Background ambient lighting */}
+      {/* Background ambient lighting - static native CSS background glow */}
       <div
-        ref={bgGlowRef}
-        className="pointer-events-none absolute left-1/2 top-1/2 h-[650px] w-[1050px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(ellipse_60%_50%_at_50%_45%,rgba(139,92,246,0.15)_0%,rgba(109,40,217,0.05)_50%,transparent_75%)] blur-3xl will-change-transform"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_45%,rgba(139,92,246,0.16)_0%,rgba(124,58,237,0.08)_30%,rgba(109,40,217,0.03)_55%,transparent_75%)]"
         aria-hidden
       />
 
@@ -938,7 +963,7 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
                         {lang === "th" ? "เลือกคลิปวิดีโอเพื่อตัดต่อ" : "Select video to caption"}
                       </p>
                       <p className="text-[10px] text-white/50 font-mono mt-0.5">
-                        MP4, MOV • {lang === "th" ? "ไม่เกิน 50 MB" : "up to 50 MB"}
+                        MP4 • {lang === "th" ? "ไม่เกิน 50 MB" : "up to 50 MB"}
                       </p>
                     </div>
                   </div>
@@ -1132,7 +1157,7 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
                 />
               </div>
 
-              {/* Text Color Setting */}
+              {/* Highlight Color Setting */}
               <div className="mt-2.5 pt-2 border-t border-white/[0.06]">
                 <div className="flex justify-between items-center text-xs font-medium text-white mb-1">
                   <span className="text-gray-300 text-[10px] flex items-center gap-1">
@@ -1150,7 +1175,10 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
                     <button
                       key={c}
                       type="button"
-                      onClick={() => setTextColor(c)}
+                      onClick={() => {
+                        setTextColor(c);
+                        setBadgeBgColor(c);
+                      }}
                       style={{ backgroundColor: c }}
                       className={`h-4 w-4 rounded-full transition-all border border-black/50 ${
                         textColor.toLowerCase() === c.toLowerCase()
@@ -1351,18 +1379,19 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
                                 tokenShadow = "none";
                               } else if (wIdx < currentWordIndexInSub) {
                                 tokenColor = "#ffffff";
-                                tokenShadow = "0 0 5px rgba(34, 211, 238, 0.35), 0 1px 2px #000";
+                                tokenShadow = `0 0 5px ${hexToRgba(textColor, 0.4)}, 0 1px 2px #000`;
                               } else {
                                 tokenColor = textColor || "#22d3ee";
-                                tokenShadow = "0 0 10px #22d3ee, 0 0 18px rgba(34, 211, 238, 0.95), 0 1px 2px #000";
+                                tokenShadow = `0 0 10px ${textColor}, 0 0 18px ${hexToRgba(textColor, 0.95)}, 0 1px 2px #000`;
                               }
                             } else if (isBadge) {
                               if (isWordActive) {
-                                tokenColor = badgeTextColor || "#000000";
-                                tokenBg = badgeBgColor || textColor || "#22c55e";
+                                const activeBadgeBg = selectedTemplateId === "mrbeast-badge" ? textColor : (badgeBgColor || textColor || "#22c55e");
+                                tokenColor = getContrastTextColor(activeBadgeBg);
+                                tokenBg = activeBadgeBg;
                                 tokenPadding = "1px 5px";
                                 tokenRadius = "4px";
-                                tokenBoxShadow = "0 1px 4px rgba(34, 197, 94, 0.4)";
+                                tokenBoxShadow = `0 1px 6px ${hexToRgba(activeBadgeBg, 0.55)}`;
                                 tokenShadow = "none";
                               } else {
                                 tokenColor = baseTextColor || "#ffffff";
@@ -1371,7 +1400,7 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
                             } else if (isFrosted) {
                               if (isWordActive) {
                                 tokenColor = textColor || "#fde047";
-                                tokenShadow = "0 0 8px rgba(253, 224, 71, 0.7)";
+                                tokenShadow = `0 0 8px ${hexToRgba(textColor, 0.85)}`;
                               } else {
                                 tokenColor = "#ffffff";
                                 tokenShadow = "0 1px 2px rgba(0,0,0,0.6)";
@@ -1379,7 +1408,7 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
                             } else if (selectedTemplateId === "danger-hook") {
                               if (isWordActive) {
                                 tokenColor = textColor || "#ef4444";
-                                tokenShadow = "0 3px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000";
+                                tokenShadow = `0 0 8px ${hexToRgba(textColor, 0.85)}, 0 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000`;
                               } else {
                                 tokenColor = baseTextColor || "#ffffff";
                                 tokenShadow = "0 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000";
@@ -1570,23 +1599,33 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
                                 tokenShadow = "none";
                               } else if (idx < currentWordIndex) {
                                 tokenColor = "#ffffff";
-                                tokenShadow = "0 0 6px rgba(34, 211, 238, 0.35), 0 1px 2px rgba(0, 0, 0, 0.8)";
+                                tokenShadow = `0 0 6px ${hexToRgba(textColor, 0.4)}, 0 1px 2px rgba(0, 0, 0, 0.8)`;
                               } else {
                                 tokenColor = textColor || "#22d3ee";
-                                tokenShadow = "0 0 14px #22d3ee, 0 0 28px rgba(34, 211, 238, 0.95), 0 2px 4px #000000";
+                                tokenShadow = `0 0 14px ${textColor}, 0 0 28px ${hexToRgba(textColor, 0.95)}, 0 2px 4px #000000`;
                               }
                             } else if (isWordBadgeActive) {
                               if (isCurrent) {
-                                tokenColor = badgeTextColor || "#000000";
-                                tokenBg = badgeBgColor || textColor || "#22c55e";
+                                const activeBadgeBg = selectedTemplateId === "mrbeast-badge" ? textColor : (badgeBgColor || textColor || "#22c55e");
+                                tokenColor = getContrastTextColor(activeBadgeBg);
+                                tokenBg = activeBadgeBg;
                                 tokenPadding = "2px 8px";
                                 tokenRadius = "8px";
-                                tokenBoxShadow = "0 3px 12px rgba(34, 197, 94, 0.45), 0 2px 0 #000000";
+                                tokenBoxShadow = `0 3px 14px ${hexToRgba(activeBadgeBg, 0.55)}, 0 2px 0 #000000`;
                                 tokenShadow = "none";
                               } else {
                                 tokenColor = baseTextColor || "#ffffff";
                                 tokenShadow = "0 4px 0 #000000, -1px -1px 0 #000000, 1px -1px 0 #000000, -1px 1px 0 #000000, 1px 1px 0 #000000, 0 2px 4px rgba(0,0,0,0.8)";
                                 tokenPadding = "2px 0";
+                              }
+                            } else if (selectedTemplateId === "danger-hook" || isShake) {
+                              if (isCurrent) {
+                                tokenColor = textColor || "#ef4444";
+                                tokenShadow = "0 4px 0 #000000, -1px -1px 0 #000000, 1px -1px 0 #000000, -1px 1px 0 #000000, 1px 1px 0 #000000, 0 2px 4px rgba(0,0,0,0.8)";
+                                tokenFilter = `drop-shadow(0 0 14px ${hexToRgba(textColor, 0.85)}) drop-shadow(0 2px 3px rgba(0,0,0,0.9))`;
+                              } else {
+                                tokenColor = baseTextColor || "#ffffff";
+                                tokenShadow = "0 3px 0 #000000, -1px -1px 0 #000000, 1px -1px 0 #000000, -1px 1px 0 #000000, 1px 1px 0 #000000";
                               }
                             } else if (isGradientActive) {
                               if (isCurrent) {
@@ -1615,14 +1654,14 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
                             } else if (isFrostedActive) {
                               if (isCurrent) {
                                 tokenColor = textColor || "#fde047";
-                                tokenShadow = "0 0 14px rgba(253, 224, 71, 0.7), 0 1px 2px rgba(0,0,0,0.8)";
+                                tokenShadow = `0 0 14px ${hexToRgba(textColor, 0.85)}, 0 1px 2px rgba(0,0,0,0.8)`;
                               } else {
                                 tokenColor = "#ffffff";
                                 tokenShadow = "0 1px 3px rgba(0,0,0,0.6)";
                               }
                             } else if (isGlow) {
                               tokenShadow = (stylesCurrentWord ? isCurrent : true)
-                                ? `0 0 14px ${textColor}, 0 0 24px ${textColor}99, 0 2px 4px #000000`
+                                ? `0 0 14px ${textColor}, 0 0 24px ${hexToRgba(textColor, 0.6)}, 0 2px 4px #000000`
                                 : "0 2px 4px rgba(0, 0, 0, 0.8)";
                               tokenColor = stylesCurrentWord ? (isCurrent ? textColor : (baseTextColor || "#ffffff")) : textColor;
                             } else if (hasOutline && hasShadow) {
@@ -1848,32 +1887,45 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
                                 let isTextGradient = false;
                                 let tokenFilter: string | undefined = undefined;
 
+                                const isSelectedTpl = tpl.id === selectedTemplateId;
+                                const activeHighlight = isSelectedTpl ? textColor : (tpl.textColor || "#ffffff");
+
                                 if (isKaraoke) {
                                   if (isAtEndHold) {
                                     tokenColor = "#ffffff";
-                                    tokenShadow = "0 0 6px rgba(34, 211, 238, 0.4), 0 1px 2px #000";
+                                    tokenShadow = `0 0 6px ${hexToRgba(activeHighlight, 0.4)}, 0 1px 2px #000`;
                                   } else if (idx > currentIdx) {
                                     tokenColor = "rgba(255, 255, 255, 0.32)";
                                     tokenShadow = "none";
                                   } else if (idx < currentIdx) {
                                     tokenColor = "#ffffff";
-                                    tokenShadow = "0 0 5px rgba(34, 211, 238, 0.35), 0 1px 2px #000";
+                                    tokenShadow = `0 0 5px ${hexToRgba(activeHighlight, 0.35)}, 0 1px 2px #000`;
                                   } else {
-                                    tokenColor = tpl.textColor || "#22d3ee";
-                                    tokenShadow = "0 0 10px #22d3ee, 0 0 20px rgba(34, 211, 238, 0.95), 0 1.5px 3px #000000";
+                                    tokenColor = activeHighlight;
+                                    tokenShadow = `0 0 10px ${activeHighlight}, 0 0 20px ${hexToRgba(activeHighlight, 0.95)}, 0 1.5px 3px #000000`;
                                   }
                                 } else if (isBadge) {
                                   if (isCurrent) {
-                                    tokenColor = tpl.badgeTextColor || "#000000";
-                                    tokenBg = tpl.badgeBgColor || tpl.textColor || "#22c55e";
+                                    const activeBadgeBg = isSelectedTpl ? textColor : (tpl.badgeBgColor || tpl.textColor || "#22c55e");
+                                    tokenColor = getContrastTextColor(activeBadgeBg);
+                                    tokenBg = activeBadgeBg;
                                     tokenPadding = "1px 5px";
                                     tokenRadius = "4px";
-                                    tokenBoxShadow = "0 2px 6px rgba(34, 197, 94, 0.45), 0 1px 0 #000000";
+                                    tokenBoxShadow = `0 2px 6px ${hexToRgba(activeBadgeBg, 0.5)}, 0 1px 0 #000000`;
                                     tokenShadow = "none";
                                   } else {
                                     tokenColor = tpl.baseTextColor || "#ffffff";
                                     tokenShadow = "0 3px 0 #000000, -1px -1px 0 #000000, 1px -1px 0 #000000, -1px 1px 0 #000000, 1px 1px 0 #000000";
                                     tokenPadding = "1px 0";
+                                  }
+                                } else if (tpl.id === "danger-hook") {
+                                  if (isCurrent) {
+                                    tokenColor = activeHighlight;
+                                    tokenShadow = "0 3px 0 #000000, -1px -1px 0 #000000, 1px -1px 0 #000000, -1px 1px 0 #000000, 1px 1px 0 #000000";
+                                    tokenFilter = `drop-shadow(0 0 8px ${hexToRgba(activeHighlight, 0.85)}) drop-shadow(0 1px 2px rgba(0,0,0,0.9))`;
+                                  } else {
+                                    tokenColor = tpl.baseTextColor || "#ffffff";
+                                    tokenShadow = "0 2px 0 #000000, -1px -1px 0 #000000, 1px -1px 0 #000000, -1px 1px 0 #000000, 1px 1px 0 #000000";
                                   }
                                 } else if (isGradientTpl) {
                                   if (isCurrent) {
@@ -1901,21 +1953,21 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
                                   }
                                 } else if (isFrostedTpl) {
                                   if (isCurrent) {
-                                    tokenColor = tpl.textColor || "#fde047";
-                                    tokenShadow = "0 0 8px rgba(253, 224, 71, 0.7)";
+                                    tokenColor = activeHighlight;
+                                    tokenShadow = `0 0 8px ${hexToRgba(activeHighlight, 0.85)}`;
                                   } else {
                                     tokenColor = "#ffffff";
                                     tokenShadow = "0 1px 2px rgba(0,0,0,0.6)";
                                   }
                                 } else if (isGlow) {
                                   tokenShadow = (tpl.stylesCurrentWord ? isCurrent : true)
-                                    ? `0 0 10px ${tpl.textColor}, 0 0 18px ${tpl.textColor}99, 0 1.5px 3px #000000`
+                                    ? `0 0 10px ${activeHighlight}, 0 0 18px ${hexToRgba(activeHighlight, 0.6)}, 0 1.5px 3px #000000`
                                     : "0 1.5px 3px rgba(0, 0, 0, 0.8)";
                                   tokenColor = tpl.stylesCurrentWord
                                     ? isCurrent
-                                      ? tpl.textColor
+                                      ? activeHighlight
                                       : (tpl.baseTextColor || "#ffffff")
-                                    : tpl.textColor;
+                                    : activeHighlight;
                                 } else if (tpl.outline && tpl.shadow) {
                                   tokenShadow = `0 ${tpl.shadowThickness ?? 4}px 0 ${tpl.shadowColor || "#000"}, -1px -1px 0 ${tpl.shadowColor || "#000"}, 1px -1px 0 ${tpl.shadowColor || "#000"}, -1px 1px 0 ${tpl.shadowColor || "#000"}, 1px 1px 0 ${tpl.shadowColor || "#000"}, 0 1.5px 3px rgba(0,0,0,0.7)`;
                                   tokenColor = tpl.stylesCurrentWord

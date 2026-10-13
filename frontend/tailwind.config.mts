@@ -70,7 +70,7 @@ const config: Config = {
       },
       backgroundImage: {
         "hero-glow":
-          "radial-gradient(60% 50% at 12% 8%, rgba(109,40,217,0.28) 0%, rgba(109,40,217,0) 60%), radial-gradient(40% 35% at 85% 25%, rgba(139,92,246,0.10) 0%, rgba(139,92,246,0) 55%)",
+          "radial-gradient(60% 50% at 75% 28%, rgba(139,92,246,0.12) 0%, rgba(124,58,237,0.06) 40%, transparent 65%), radial-gradient(45% 40% at 15% 15%, rgba(124,58,237,0.08) 0%, transparent 60%)",
       },
       boxShadow: {
         glow: "0 0 0 1px rgba(139,92,246,0.25), 0 8px 40px -8px rgba(139,92,246,0.45)",

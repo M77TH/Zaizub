@@ -200,7 +200,6 @@
 }
 .cap-word[data-anim="shake"][data-active="true"] {
   transform: scale(1.18);
-  filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.75));
   animation: capShakeAlert 0.35s ease-in-out infinite;
 }
 

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useLenis } from "@/components/providers/SmoothScroll";
+import ZaiZubLogo from "@/components/logo/Logo-v3";
 import type { Lang } from "./copy";
 
 export default function Navbar({
@@ -14,22 +15,27 @@ export default function Navbar({
 }) {
   const { lenis } = useLenis();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
   const links =
     lang === "en"
-      ? ["How it works", "Features"]
-      : ["วิธีใช้งาน", "ฟีเจอร์"];
-  const ids = ["how-it-works", "features"];
+      ? ["Demo", "How it works", "Features"]
+      : ["เดโม", "วิธีใช้งาน", "ฟีเจอร์"];
+  const ids = ["editor-mockup", "how-it-works", "features"];
 
   const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, targetId: string) => {
     e.preventDefault();
     setMobileMenuOpen(false);
 
-    if (targetId === "top") {
+    if (targetId === "top" || targetId === "generate") {
       if (lenis) {
-        lenis.scrollTo(0, { duration: 1.2 });
+        lenis.scrollTo(0, { duration: 1.1 });
       } else {
         window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      if (targetId === "generate") {
+        setTimeout(() => {
+          const input = document.querySelector<HTMLInputElement>("#generate input[type='text']");
+          if (input) input.focus();
+        }, 400);
       }
       return;
     }
@@ -37,7 +43,7 @@ export default function Navbar({
     const element = document.getElementById(targetId);
     if (element) {
       if (lenis) {
-        lenis.scrollTo(element, { offset: -70, duration: 1.2 });
+        lenis.scrollTo(element, { offset: -70, duration: 1.1 });
       } else {
         const top = element.getBoundingClientRect().top + window.scrollY - 70;
         window.scrollTo({ top, behavior: "smooth" });
@@ -46,84 +52,85 @@ export default function Navbar({
   };
 
   return (
-    <header className="fixed inset-x-0 top-0 z-40 border-b border-line/10 bg-bg/25 backdrop-blur-md">
-      <nav className="relative mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-10" aria-label="Main Navigation">
+    <header className="fixed inset-x-0 top-0 z-50 border-b border-white/[0.05] bg-[#07060a]/40 backdrop-blur-xl">
+      <nav
+        className="relative mx-auto flex max-w-7xl h-16 items-center justify-between px-4 sm:px-6 lg:px-10"
+        aria-label="Main Navigation"
+      >
+        {/* Left: Brand Logo + Name */}
         <a
           href="#top"
           onClick={(e) => scrollToSection(e, "top")}
-          className="focus-ring rounded font-display text-lg font-semibold tracking-tight text-ink hover:text-white transition-colors"
+          className="group flex items-center gap-2.5 focus-ring rounded-full px-1.5 py-1 transition-transform active:scale-95"
+          aria-label="Zaizub Home"
         >
-          Zaizub
+          <div className="relative flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
+            <ZaiZubLogo size={26} />
+          </div>
+          <span className="font-display text-[17px] font-bold tracking-tight text-white group-hover:text-purple-200 transition-colors">
+            Zaizub
+          </span>
         </a>
 
-        {/* Desktop Navigation Links */}
-        <div className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-8 md:flex">
+        {/* Center: Clean Unboxed Studio Navigation Links */}
+        <div className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-7 lg:gap-8 md:flex">
           {links.map((label, i) => (
             <a
               key={label}
               href={`#${ids[i]}`}
               onClick={(e) => scrollToSection(e, ids[i])}
-              className="text-sm text-ink-muted transition-colors hover:text-ink focus-ring rounded"
+              className="text-[13px] font-medium text-zinc-400 hover:text-white transition-colors duration-200 focus-ring rounded-lg py-1 px-1"
             >
               {label}
             </a>
           ))}
         </div>
 
-        <div className="flex items-center gap-3 sm:gap-5">
-          {/* Desktop Language Switcher */}
-          <div className="mr-1 hidden items-center gap-1 text-sm sm:flex rounded-lg border border-white/5 bg-white/[0.03] p-0.5" role="group" aria-label="Language Selector">
-            <button
-              type="button"
-              onClick={() => setLang("en")}
-              aria-pressed={lang === "en"}
-              className={`focus-ring rounded-md px-2 py-0.5 text-xs font-medium transition-all ${
-                lang === "en" ? "bg-accent/20 text-accent-soft shadow-sm" : "text-ink-muted hover:text-ink"
-              }`}
-            >
-              EN
-            </button>
-            <button
-              type="button"
-              onClick={() => setLang("th")}
-              aria-pressed={lang === "th"}
-              className={`focus-ring rounded-md px-2 py-0.5 text-xs font-medium transition-all ${
-                lang === "th" ? "bg-accent/20 text-accent-soft shadow-sm" : "text-ink-muted hover:text-ink"
-              }`}
-            >
-              TH
-            </button>
-          </div>
+        {/* Right: Controls & CTAs */}
+        <div className="flex items-center gap-3 sm:gap-3.5">
+
+          {/* Language Toggle — simple text button, click to switch */}
+          <button
+            type="button"
+            onClick={() => setLang(lang === "en" ? "th" : "en")}
+            className="focus-ring text-[13px] font-medium text-zinc-400 hover:text-white transition-colors py-1 px-1 rounded-lg"
+            aria-label={lang === "en" ? "Switch language to Thai" : "เปลี่ยนภาษาเป็น English"}
+          >
+            {lang === "en" ? "English" : "ไทย"}
+          </button>
+
+          {/* Vertical divider line between English and Log in */}
+          <span className="hidden sm:inline-block h-3.5 w-px bg-white/15" aria-hidden="true" />
 
           <Link
             href="/login"
-            className="hidden text-sm text-ink-muted transition-colors hover:text-ink sm:inline focus-ring rounded"
+            className="hidden text-[13px] font-medium text-zinc-400 hover:text-white transition-colors sm:inline-flex px-2 py-1 focus-ring rounded-lg"
           >
             {lang === "en" ? "Log in" : "เข้าสู่ระบบ"}
           </Link>
 
           <a
-            href="/register"
-            onClick={(e) => scrollToSection(e, "top")}
-            className="focus-ring rounded-xl bg-gradient-to-b from-accent-soft to-accent-deep px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium text-white shadow-[0_0_20px_rgba(130,80,255,0.3)] transition-transform hover:scale-[1.03]"
+            href="#top"
+            onClick={(e) => scrollToSection(e, "generate")}
+            className="group focus-ring rounded-full bg-gradient-to-r from-[#8b5cf6] via-[#7c3aed] to-[#6d28d9] hover:from-[#9333ea] hover:to-[#7c3aed] border border-purple-400/30 px-4 py-1.5 text-xs font-semibold text-white shadow-[0_0_14px_rgba(139,92,246,0.22)] hover:shadow-[0_0_20px_rgba(139,92,246,0.35)] hover:scale-[1.02] active:scale-95 transition-all duration-200"
           >
-            {lang === "en" ? "Start free" : "เริ่มใช้ฟรี"}
+            <span>{lang === "en" ? "Try it free" : "ทดลองใช้ฟรี"}</span>
           </a>
 
           {/* Mobile Hamburger Toggle Button */}
           <button
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="focus-ring flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-ink-muted hover:text-ink md:hidden"
+            className="focus-ring flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.08] bg-[#12101e]/80 text-zinc-400 hover:text-white hover:bg-white/[0.08] md:hidden transition-colors"
             aria-expanded={mobileMenuOpen}
             aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
           >
             {mobileMenuOpen ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <path d="M18 6L6 18M6 6l12 12" />
               </svg>
             ) : (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <path d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             )}
@@ -133,29 +140,29 @@ export default function Navbar({
 
       {/* Mobile Drawer Dropdown */}
       {mobileMenuOpen && (
-        <div className="border-b border-line bg-bg/95 backdrop-blur-xl px-6 py-6 md:hidden animate-[uploadOverlayIn_200ms_ease-out]">
-          <div className="flex flex-col gap-4">
+        <div className="border-b border-white/[0.08] bg-[#0c0a15]/95 backdrop-blur-2xl px-6 py-6 md:hidden animate-[uploadOverlayIn_200ms_ease-out]">
+          <div className="flex flex-col gap-2">
             {links.map((label, i) => (
               <a
                 key={label}
                 href={`#${ids[i]}`}
                 onClick={(e) => scrollToSection(e, ids[i])}
-                className="text-base font-medium text-ink-muted hover:text-ink transition-colors py-1"
+                className="text-sm font-medium text-zinc-300 hover:text-white transition-colors py-2 px-3 rounded-xl hover:bg-white/[0.05]"
               >
                 {label}
               </a>
             ))}
 
-            <hr className="border-white/5 my-1" />
+            <hr className="border-white/[0.08] my-2" />
 
             <div className="flex items-center justify-between py-1">
-              <span className="text-sm text-ink-muted">{lang === "en" ? "Language" : "ภาษา"}</span>
-              <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.03] p-1">
+              <span className="text-sm text-zinc-400">{lang === "en" ? "Language" : "ภาษา"}</span>
+              <div className="flex items-center rounded-lg border border-white/[0.08] bg-[#12101e] p-0.5">
                 <button
                   type="button"
                   onClick={() => setLang("en")}
-                  className={`rounded px-2.5 py-1 text-xs font-medium ${
-                    lang === "en" ? "bg-accent text-white" : "text-ink-muted"
+                  className={`rounded-md px-3 py-1 text-xs font-semibold ${
+                    lang === "en" ? "bg-white/10 text-white shadow-sm" : "text-zinc-400"
                   }`}
                 >
                   EN
@@ -163,8 +170,8 @@ export default function Navbar({
                 <button
                   type="button"
                   onClick={() => setLang("th")}
-                  className={`rounded px-2.5 py-1 text-xs font-medium ${
-                    lang === "th" ? "bg-accent text-white" : "text-ink-muted"
+                  className={`rounded-md px-3 py-1 text-xs font-semibold ${
+                    lang === "th" ? "bg-white/10 text-white shadow-sm" : "text-zinc-400"
                   }`}
                 >
                   TH
@@ -174,7 +181,7 @@ export default function Navbar({
 
             <Link
               href="/login"
-              className="mt-2 text-sm text-center text-ink-muted py-2 hover:text-ink"
+              className="mt-2 text-sm text-center text-zinc-300 py-2.5 rounded-full border border-white/[0.08] bg-white/[0.02] hover:text-white hover:bg-white/[0.06] font-semibold transition-colors"
             >
               {lang === "en" ? "Log in" : "เข้าสู่ระบบ"}
             </Link>

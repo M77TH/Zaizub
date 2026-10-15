@@ -43,9 +43,10 @@ export default function Navbar({
     const element = document.getElementById(targetId);
     if (element) {
       if (lenis) {
+        lenis.resize();
         // Elements have scroll-mt-16 (64px) which Lenis reads automatically from scrollMarginTop.
         // offset: 0 aligns the section's top edge exactly at the 64px navbar bottom.
-        lenis.scrollTo(element, { offset: 0, duration: 1.1 });
+        lenis.scrollTo(element, { offset: 0, duration: 1.1, force: true });
       } else {
         const top = element.getBoundingClientRect().top + window.scrollY - 64;
         window.scrollTo({ top, behavior: "smooth" });

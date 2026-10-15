@@ -135,7 +135,8 @@ export default function SmoothScroll({ children }: { children: ReactNode }) {
       const targetElement = document.querySelector(href);
       if (targetElement) {
         e.preventDefault();
-        lenisInstance.scrollTo(targetElement as HTMLElement, { offset: 0, duration: 1.2 });
+        lenisInstance.resize();
+        lenisInstance.scrollTo(targetElement as HTMLElement, { offset: 0, duration: 1.2, force: true });
       }
     };
 

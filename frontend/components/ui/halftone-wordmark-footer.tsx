@@ -37,7 +37,9 @@ export interface HalftoneWordmarkFooterProps {
   label?: string
   /** The muted line under it. */
   meta?: string
-  /** Link columns along the top. */
+  /** Direct links along the top right. */
+  links?: FooterLink[]
+  /** Link columns along the top (legacy). */
   columns?: FooterColumn[]
   /** Show the back-to-top link. It scrolls the window to 0. Defaults to true. */
   backToTop?: boolean
@@ -68,33 +70,16 @@ export interface HalftoneWordmarkFooterProps {
 }
 
 const PRESETS: { [K in HalftonePreset]: HalftonePalette } = {
-  night: { background: "#07060a", ink: "#5d4f91", warm: "#d8b4fe" },
+  night: { background: "#07060a", ink: "#2d2746", warm: "#c084fc" },
   paper: { background: "#efebe3", ink: "#3c3832", warm: "#8b5cf6" },
   ember: { background: "#160a06", ink: "#361b14", warm: "#ff7a3d" },
   cobalt: { background: "#0a0e27", ink: "#1d2a54", warm: "#818cf8" },
 }
 
-const DEFAULT_COLUMNS: FooterColumn[] = [
-  {
-    title: "Legal",
-    links: [
-      { label: "Privacy", href: "#" },
-      { label: "Terms", href: "#" },
-    ],
-  },
-  {
-    title: "Social",
-    links: [
-      { label: "Instagram", href: "#" },
-      { label: "Discord", href: "#" },
-    ],
-  },
-  {
-    title: "Contact",
-    links: [
-      { label: "Support", href: "#" },
-    ],
-  },
+const DEFAULT_LINKS: FooterLink[] = [
+  { label: "Terms", href: "#" },
+  { label: "Privacy", href: "#" },
+  { label: "Support", href: "#" },
 ]
 
 const SANS_STACK = 'Geist, "Inter Tight", "Inter Variable", "Inter", "Helvetica Neue", Arial, system-ui, sans-serif'
@@ -155,60 +140,44 @@ const HWF_CSS = `
 .hwf-root {
   position: relative; width: 100%; overflow: hidden; isolation: isolate;
   background: var(--hwf-bg); color: #f4f2f8; -webkit-font-smoothing: antialiased;
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 -4px 30px rgba(139, 92, 246, 0.12);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 .hwf-root canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; max-width: none; }
 .hwf-container {
-  position: relative; z-index: 10; max-width: 80rem; margin: 0 auto;
+  position: relative; z-index: 1; max-width: 80rem; margin: 0 auto;
   padding: 0 1.25rem;
 }
 @media (min-width: 640px) { .hwf-container { padding: 0 1.5rem; } }
 @media (min-width: 1024px) { .hwf-container { padding: 0 2.5rem; } }
 
-.hwf-top {
-  display: grid; grid-template-columns: minmax(0, 1.4fr) repeat(var(--hwf-cols, 4), minmax(0, 1fr));
-  gap: 32px; padding-top: 40px;
+.hwf-bar {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 20px; padding-top: clamp(20px, 2.5vw, 28px);
   font-family: var(--font-display), Geist, -apple-system, sans-serif;
 }
-.hwf-brand { display: flex; flex-direction: column; gap: 8px; }
-.hwf-brand strong { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; color: #ffffff; letter-spacing: -0.02em; }
-.hwf-brand span { font-size: 13px; color: #a19cb0; line-height: 1.6; max-width: 280px; }
-.hwf-col h3 {
-  margin: 0 0 14px 0; font-size: 11px; font-weight: 600; text-transform: uppercase;
-  letter-spacing: 0.12em; color: #c084fc; font-family: var(--hwf-mono);
+.hwf-brand { display: flex; flex-direction: column; gap: 4px; }
+.hwf-brand strong { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 16px; color: #ffffff; letter-spacing: -0.02em; }
+.hwf-copy { font-family: var(--hwf-mono); font-size: 11px; color: #71717a; letter-spacing: -0.01em; }
+.hwf-nav { display: flex; align-items: center; flex-wrap: wrap; gap: 20px; }
+.hwf-nav a {
+  color: #a19cb0; text-decoration: none; font-size: 13px; font-weight: 400;
+  transition: color 0.2s ease;
 }
-.hwf-col ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-.hwf-col a {
-  color: #c4c0d0; text-decoration: none; font-size: 13.5px; font-weight: 400;
-  transition: color 0.2s ease, text-shadow 0.2s ease;
-}
-.hwf-col a:hover { color: #ffffff; text-shadow: 0 0 12px rgba(167, 139, 250, 0.4); }
-.hwf-col a:focus-visible { outline: 1px solid #a78bfa; outline-offset: 3px; }
-.hwf-rule {
-  display: flex; justify-content: space-between; align-items: center; gap: 16px;
-  margin-top: 36px; padding: 18px 0 0 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  font-family: var(--hwf-mono); font-size: 11.5px; color: #8e8a9d;
-}
-.hwf-rule-copy { font-size: 11.5px; color: #8e8a9d; }
+.hwf-nav a:hover { color: #ffffff; }
+.hwf-nav a:focus-visible { outline: 1px solid #a78bfa; outline-offset: 3px; }
 .hwf-up {
-  color: #c4c0d0; background: none; border: 0; padding: 4px 8px; border-radius: 6px;
+  color: #a19cb0; background: none; border: 0; padding: 4px 8px; border-radius: 6px;
   font-size: 11.5px; font-family: var(--hwf-mono); cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 3px;
 }
-.hwf-up:hover { color: #d8b4fe; background: rgba(139, 92, 246, 0.15); }
+.hwf-up:hover { color: #a78bfa; background: rgba(139, 92, 246, 0.08); }
 .hwf-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-@media (max-width: 960px) {
-  .hwf-top { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 28px; }
-  .hwf-brand { grid-column: 1 / -1; }
-  .hwf-rule { flex-direction: column; align-items: flex-start; gap: 12px; }
-}
-@media (max-width: 560px) {
-  .hwf-top { grid-template-columns: 1fr; row-gap: 24px; }
+@media (max-width: 640px) {
+  .hwf-bar { flex-direction: column; align-items: flex-start; gap: 14px; }
+  .hwf-nav { gap: 14px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .hwf-col a, .hwf-up { transition: none; }
+  .hwf-nav a, .hwf-up { transition: none; }
 }
 `
 
@@ -216,7 +185,8 @@ export default function HalftoneWordmarkFooter({
   wordmark = "zaizub",
   label = "Zaizub",
   meta = "",
-  columns = DEFAULT_COLUMNS,
+  links,
+  columns,
   backToTop = true,
   preset = "night",
   palette,
@@ -228,9 +198,11 @@ export default function HalftoneWordmarkFooter({
   fontFamily = SANS_STACK,
   fontWeight = 800,
   monoFamily = MONO_STACK,
-  height = "500px",
+  height = "260px",
   className = "",
 }: HalftoneWordmarkFooterProps) {
+  const renderedLinks: FooterLink[] =
+    links || (columns ? columns.flatMap((c) => c.links) : DEFAULT_LINKS);
   const colors = { ...(PRESETS[preset] || PRESETS.night), ...(palette || {}) }
   const rootRef = React.useRef(null as HTMLElement | null)
   const canvasRef = React.useRef(null as HTMLCanvasElement | null)
@@ -259,8 +231,8 @@ export default function HalftoneWordmarkFooter({
     let dots = new Float32Array(0)
     let count = 0
     let grainTile = null as HTMLCanvasElement | null
-    const ink = hwfHex(opts.current.colors.ink) || [93, 79, 145]
-    const warm = hwfHex(opts.current.colors.warm) || [216, 180, 254]
+    const ink = hwfHex(opts.current.colors.ink) || [45, 39, 70]
+    const warm = hwfHex(opts.current.colors.warm) || [192, 132, 252]
 
     const layout = () => {
       const o = opts.current
@@ -280,16 +252,16 @@ export default function HalftoneWordmarkFooter({
       const face = o.fontWeight + " 100px " + o.fontFamily
       m.font = face
       const word = o.wordmark || " "
-      const targetWidth = Math.min(w * 0.88, 1180)
+      const targetWidth = Math.min(w * 0.72, 780)
       const fit = hwfFitSize(m.measureText(word).width, targetWidth)
       m.font = o.fontWeight + " " + fit + "px " + o.fontFamily
       const box = m.measureText(word)
       const cap = box.actualBoundingBoxAscent || fit * 0.72
+      const c = Math.max(0, Math.min(0.6, o.crop))
       m.fillStyle = "#000"
       m.textBaseline = "alphabetic"
-      // Ground the wordmark cleanly near the bottom so all letters are completely visible
-      const baselineY = h - Math.max(16, Math.round(cap * 0.06))
-      m.fillText(word, (w - box.width) / 2, baselineY)
+      // Position wordmark cleanly centered with room below the top rule
+      m.fillText(word, (w - box.width) / 2, h + cap * (c + 0.02))
       const img = m.getImageData(0, 0, w, h).data
 
       const gap = Math.max(3, o.dotGap)
@@ -492,7 +464,6 @@ export default function HalftoneWordmarkFooter({
       className={"hwf-root " + className}
       style={
         {
-          minHeight: height,
           height,
           "--hwf-bg": colors.background,
           "--hwf-ink": colors.ink,
@@ -502,65 +473,47 @@ export default function HalftoneWordmarkFooter({
     >
       <style>{HWF_CSS}</style>
 
-      {/* Interactive Halftone Canvas */}
+      {/* Subtle ambient violet glow rising from bottom matching Hero & Editor */}
+      <div
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_75%_55%_at_50%_100%,rgba(139,92,246,0.12)_0%,rgba(109,40,217,0.04)_45%,transparent_75%)]"
+        aria-hidden="true"
+      />
+
       <canvas ref={canvasRef} aria-hidden="true" />
-
-      {/* Luminous ambient violet glow rising from bottom matching Hero & Editor */}
-      <div
-        className="pointer-events-none absolute inset-0 z-[2] bg-[radial-gradient(ellipse_80%_60%_at_50%_100%,rgba(139,92,246,0.22)_0%,rgba(109,40,217,0.08)_50%,transparent_80%)]"
-        aria-hidden="true"
-      />
-      {/* Hairline ambient glow along the top edge */}
-      <div
-        className="pointer-events-none absolute inset-0 z-[2] bg-[radial-gradient(ellipse_60%_30%_at_50%_0%,rgba(139,92,246,0.14)_0%,transparent_70%)]"
-        aria-hidden="true"
-      />
-
       <span className="hwf-sr">{wordmark}</span>
 
       <div className="hwf-container">
-        <div
-          className="hwf-top"
-          style={{ "--hwf-cols": columns.length } as React.CSSProperties}
-        >
+        <div className="hwf-bar">
           <div className="hwf-brand">
             <strong>
-              <ZaiZubLogo size={24} />
+              <ZaiZubLogo size={22} />
               <span>{label}</span>
             </strong>
-            {meta ? <span>{meta}</span> : null}
+            <span className="hwf-copy">
+              © {new Date().getFullYear()} {label}. Built for creators worldwide.
+            </span>
           </div>
-          {columns.map((col) => (
-            <nav className="hwf-col" key={col.title} aria-label={col.title}>
-              <h3>{col.title}</h3>
-              <ul>
-                {col.links.map((l) => (
-                  <li key={l.label}>
-                    <a
-                      href={l.href || "#"}
-                      onClick={(e) => {
-                        if (!l.href || l.href === "#") {
-                          e.preventDefault();
-                        }
-                      }}
-                    >
-                      {l.label}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-          ))}
-        </div>
-        <div className="hwf-rule">
-          <span className="hwf-rule-copy">
-            © {new Date().getFullYear()} Zaizub. Built for creators worldwide.
-          </span>
-          {backToTop ? (
-            <button type="button" className="hwf-up" onClick={toTop}>
-              Back to top ↑
-            </button>
-          ) : null}
+
+          <nav className="hwf-nav" aria-label="Footer links">
+            {renderedLinks.map((l) => (
+              <a
+                key={l.label}
+                href={l.href || "#"}
+                onClick={(e) => {
+                  if (!l.href || l.href === "#") {
+                    e.preventDefault();
+                  }
+                }}
+              >
+                {l.label}
+              </a>
+            ))}
+            {backToTop ? (
+              <button type="button" className="hwf-up" onClick={toTop}>
+                Back to top ↑
+              </button>
+            ) : null}
+          </nav>
         </div>
       </div>
     </footer>

@@ -560,15 +560,27 @@ export const pricingCopy = {
 export const footerCopy = {
   en: {
     tagline: "Zaizub. Made for creators in Thailand & worldwide.",
+    product: "Product",
+    legal: "Legal",
+    social: "Social",
+    contact: "Contact",
     privacy: "Privacy",
     terms: "Terms",
-    contact: "Contact",
+    instagram: "Instagram",
+    discord: "Discord",
+    support: "Support",
   },
   th: {
     tagline: "Zaizub. สร้างขึ้นเพื่อครีเอเตอร์ในไทยและทั่วโลก",
+    product: "ผลิตภัณฑ์",
+    legal: "กฎหมาย",
+    social: "โซเชียล",
+    contact: "ติดต่อ",
     privacy: "นโยบายความเป็นส่วนตัว",
     terms: "ข้อกำหนดการใช้งาน",
-    contact: "ติดต่อเรา",
+    instagram: "Instagram",
+    discord: "Discord",
+    support: "ฝ่ายสนับสนุน",
   },
 };
 

@@ -1,25 +1,20 @@
 "use client"
 
-// Halftone Wordmark Footer — a site footer whose wordmark is set enormous and
-// cropped by the bottom edge, printed as a field of halftone dots. Each dot is
-// sized by how much of the letter covers its cell, so the type keeps its edges
-// at any scale. Move across it and the dots part around the pointer on springs,
-// warming in colour as they are pushed off their place; click and a shock ring
-// runs through the word. Above it sit the studio line, tracked link columns and
-// a back-to-top, separated by a hairline, all over a fine print grain.
-//
-// One file, React only. A 2D canvas for the dots and the grain, real anchors
-// for the links. Every rule in the scoped <style> is .hwf- prefixed and nothing
-// is fetched: the faces come from the host page or the fallback stacks.
+// Halftone Wordmark Footer — Zaizub Edition
+// A site footer featuring the signature "zaizub" wordmark printed as an interactive
+// field of halftone dots on an obsidian dark canvas. Moving the cursor pushes the dots
+// on elastic springs while warming into luminous Zaizub violet; clicking sends a shockwave
+// ripple through the letters. Framed with clean modern SaaS typography and ambient violet glow.
 
 import * as React from "react"
+import ZaiZubLogo from "@/components/logo/Logo-v3"
 
 export interface HalftonePalette {
   /** The footer background. */
   background: string
-  /** The dots at rest, and the text. */
+  /** The dots at rest. */
   ink: string
-  /** The colour a dot warms toward as it is pushed off its place. */
+  /** The colour a dot warms toward as it is pushed or shocked. */
   warm: string
 }
 
@@ -52,11 +47,11 @@ export interface HalftoneWordmarkFooterProps {
   palette?: { background?: string; ink?: string; warm?: string }
   /** Distance between dot centres, in CSS px. Defaults to 6. */
   dotGap?: number
-  /** How far the pointer pushes, in CSS px. Defaults to 80. */
+  /** How far the pointer pushes, in CSS px. Defaults to 85. */
   radius?: number
-  /** How much of the word's cap height hangs below the bottom edge, 0–0.6. Defaults to 0.2. */
+  /** How much of the word's cap height hangs below the bottom edge, 0–0.6. Defaults to 0.18. */
   crop?: number
-  /** Print grain over everything, 0–1. Defaults to 0.5. */
+  /** Print grain over everything, 0–1. Defaults to 0.25. */
   grain?: number
   /** Pointer and click response. Defaults to true. */
   interactive?: boolean
@@ -73,10 +68,10 @@ export interface HalftoneWordmarkFooterProps {
 }
 
 const PRESETS: { [K in HalftonePreset]: HalftonePalette } = {
-  night: { background: "#07060a", ink: "#f4f2f8", warm: "#8b5cf6" },
-  paper: { background: "#efebe3", ink: "#17150f", warm: "#8b5cf6" },
-  ember: { background: "#160a06", ink: "#f2c48c", warm: "#ff5a1f" },
-  cobalt: { background: "#0d1b4d", ink: "#dfe7ff", warm: "#a78bfa" },
+  night: { background: "#07060a", ink: "#2d2746", warm: "#c084fc" },
+  paper: { background: "#efebe3", ink: "#3c3832", warm: "#8b5cf6" },
+  ember: { background: "#160a06", ink: "#361b14", warm: "#ff7a3d" },
+  cobalt: { background: "#0a0e27", ink: "#1d2a54", warm: "#818cf8" },
 }
 
 const DEFAULT_COLUMNS: FooterColumn[] = [
@@ -85,22 +80,27 @@ const DEFAULT_COLUMNS: FooterColumn[] = [
     links: [
       { label: "Editor", href: "/editor" },
       { label: "Features", href: "#features" },
-      { label: "How It Works", href: "#how-it-works" },
+      { label: "Workflow", href: "#how-it-works" },
     ],
   },
   {
     title: "Legal",
     links: [
-      { label: "Privacy Policy", href: "#" },
-      { label: "Terms of Service", href: "#" },
-      { label: "Security", href: "#" },
+      { label: "Privacy", href: "#" },
+      { label: "Terms", href: "#" },
+    ],
+  },
+  {
+    title: "Social",
+    links: [
+      { label: "Instagram", href: "#" },
+      { label: "Discord", href: "#" },
     ],
   },
   {
     title: "Contact",
     links: [
-      { label: "contact@zaizub.com", href: "mailto:contact@zaizub.com" },
-      { label: "Support", href: "mailto:support@zaizub.com" },
+      { label: "Support", href: "#" },
     ],
   },
 ]
@@ -109,7 +109,7 @@ const SANS_STACK = 'Geist, "Inter Tight", "Inter Variable", "Inter", "Helvetica 
 const MONO_STACK = '"Geist Mono", "JetBrains Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace'
 
 // #region halftone
-// Pure helpers, lifted out and executed by tests/halftone-wordmark-footer.test.mjs.
+// Pure helpers
 
 /** Hex → [r, g, b] in 0–255, or null for anything that isn't #rgb / #rrggbb. */
 export function hwfHex(hex: string) {
@@ -127,8 +127,7 @@ export function hwfRadius(coverage: number, gap: number) {
 
 /**
  * One step of a dot's spring back to home, plus the push from a pointer at
- * (px, py) within radius r. Returns [x, y, vx, vy]. Away from the pointer a
- * displaced dot always heads home and comes to rest.
+ * (px, py) within radius r. Returns [x, y, vx, vy].
  */
 export function hwfStep(
   x: number, y: number, vx: number, vy: number,
@@ -163,36 +162,56 @@ export function hwfFitSize(measured: number, width: number) {
 const HWF_CSS = `
 .hwf-root {
   position: relative; width: 100%; overflow: hidden; isolation: isolate;
-  background: var(--hwf-bg); color: var(--hwf-ink); -webkit-font-smoothing: antialiased;
+  background: var(--hwf-bg); color: #f4f2f8; -webkit-font-smoothing: antialiased;
 }
 .hwf-root canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; max-width: none; }
+.hwf-container {
+  position: relative; z-index: 1; max-width: 80rem; margin: 0 auto;
+  padding: 0 1.25rem;
+}
+@media (min-width: 640px) { .hwf-container { padding: 0 1.5rem; } }
+@media (min-width: 1024px) { .hwf-container { padding: 0 2.5rem; } }
+
 .hwf-top {
-  position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1.25fr) repeat(3, minmax(0, 1fr));
-  gap: 24px; padding: clamp(22px, 3.4vw, 40px) clamp(20px, 3.4vw, 44px) 0;
-  font-family: var(--hwf-mono); font-size: 10.5px; letter-spacing: .18em; text-transform: uppercase; line-height: 1.75;
+  display: grid; grid-template-columns: minmax(0, 1.4fr) repeat(var(--hwf-cols, 4), minmax(0, 1fr));
+  gap: 32px; padding-top: 40px;
+  font-family: var(--font-display), Geist, -apple-system, sans-serif;
 }
-.hwf-brand strong { display: block; font-weight: 500; }
-.hwf-brand span { opacity: .45; }
-.hwf-col h3 { margin: 0; font: inherit; opacity: .4; font-weight: 500; }
-.hwf-col ul { list-style: none; margin: 0; padding: 0; }
-.hwf-col a, .hwf-up {
-  color: inherit; text-decoration: none; opacity: .78; background: none; border: 0; padding: 0;
-  font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer;
-  background-image: linear-gradient(currentColor, currentColor); background-size: 0% 1px;
-  background-repeat: no-repeat; background-position: 0 100%; transition: opacity .25s ease, background-size .35s cubic-bezier(.2,.7,.1,1);
+.hwf-brand { display: flex; flex-direction: column; gap: 8px; }
+.hwf-brand strong { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; color: #ffffff; letter-spacing: -0.02em; }
+.hwf-brand span { font-size: 13px; color: #a19cb0; line-height: 1.6; max-width: 280px; }
+.hwf-col h3 {
+  margin: 0 0 14px 0; font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.12em; color: #a78bfa; font-family: var(--hwf-mono);
 }
-.hwf-col a:hover, .hwf-up:hover { opacity: 1; background-size: 100% 1px; }
-.hwf-col a:focus-visible, .hwf-up:focus-visible { outline: 1px solid currentColor; outline-offset: 3px; opacity: 1; }
+.hwf-col ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.hwf-col a {
+  color: #a19cb0; text-decoration: none; font-size: 13.5px; font-weight: 400;
+  transition: color 0.2s ease;
+}
+.hwf-col a:hover { color: #ffffff; }
+.hwf-col a:focus-visible { outline: 1px solid #a78bfa; outline-offset: 3px; }
 .hwf-rule {
-  position: relative; z-index: 1; display: flex; justify-content: flex-end; align-items: center; gap: 16px;
-  margin: clamp(18px, 2.6vw, 30px) clamp(20px, 3.4vw, 44px) 0; padding-top: 12px;
-  border-top: 0.5px solid color-mix(in srgb, var(--hwf-ink) 16%, transparent);
-  font-family: var(--hwf-mono); font-size: 10.5px; letter-spacing: .18em; text-transform: uppercase;
+  display: flex; justify-content: space-between; align-items: center; gap: 16px;
+  margin-top: 36px; padding: 18px 0 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: var(--hwf-mono); font-size: 11.5px; color: #6b6779;
 }
+.hwf-rule-copy { font-size: 11.5px; color: #71717a; }
+.hwf-up {
+  color: #a19cb0; background: none; border: 0; padding: 4px 8px; border-radius: 6px;
+  font-size: 11.5px; font-family: var(--hwf-mono); cursor: pointer;
+  transition: all 0.2s ease;
+}
+.hwf-up:hover { color: #a78bfa; background: rgba(139, 92, 246, 0.08); }
 .hwf-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-@media (max-width: 720px) {
-  .hwf-top { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); row-gap: 18px; }
+@media (max-width: 960px) {
+  .hwf-top { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 28px; }
   .hwf-brand { grid-column: 1 / -1; }
+  .hwf-rule { flex-direction: column; align-items: flex-start; gap: 12px; }
+}
+@media (max-width: 560px) {
+  .hwf-top { grid-template-columns: 1fr; row-gap: 24px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .hwf-col a, .hwf-up { transition: none; }
@@ -202,20 +221,20 @@ const HWF_CSS = `
 export default function HalftoneWordmarkFooter({
   wordmark = "zaizub",
   label = "Zaizub",
-  meta = "©2026 · AI Video Subtitle Studio",
+  meta = "AI Video Subtitle & Timeline Studio",
   columns = DEFAULT_COLUMNS,
   backToTop = true,
   preset = "night",
   palette,
   dotGap = 6,
-  radius = 80,
-  crop = 0.2,
-  grain = 0.5,
+  radius = 85,
+  crop = 0.18,
+  grain = 0.25,
   interactive = true,
   fontFamily = SANS_STACK,
   fontWeight = 800,
   monoFamily = MONO_STACK,
-  height = "560px",
+  height = "500px",
   className = "",
 }: HalftoneWordmarkFooterProps) {
   const colors = { ...(PRESETS[preset] || PRESETS.night), ...(palette || {}) }
@@ -246,8 +265,8 @@ export default function HalftoneWordmarkFooter({
     let dots = new Float32Array(0)
     let count = 0
     let grainTile = null as HTMLCanvasElement | null
-    const ink = hwfHex(opts.current.colors.ink) || [244, 242, 248]
-    const warm = hwfHex(opts.current.colors.warm) || [139, 92, 246]
+    const ink = hwfHex(opts.current.colors.ink) || [45, 39, 70]
+    const warm = hwfHex(opts.current.colors.warm) || [192, 132, 252]
 
     const layout = () => {
       const o = opts.current
@@ -258,7 +277,7 @@ export default function HalftoneWordmarkFooter({
       canvas.width = Math.round(w * dpr)
       canvas.height = Math.round(h * dpr)
 
-      // Set the word once, at a size that fills the width, on a 1x mask.
+      // Set the word at a refined scale (max 1180px or 88% width) so it never slams into the top edge
       const mask = document.createElement("canvas")
       mask.width = w
       mask.height = h
@@ -267,14 +286,16 @@ export default function HalftoneWordmarkFooter({
       const face = o.fontWeight + " 100px " + o.fontFamily
       m.font = face
       const word = o.wordmark || " "
-      const fit = hwfFitSize(m.measureText(word).width, w * 1.02)
+      const targetWidth = Math.min(w * 0.88, 1180)
+      const fit = hwfFitSize(m.measureText(word).width, targetWidth)
       m.font = o.fontWeight + " " + fit + "px " + o.fontFamily
       const box = m.measureText(word)
       const cap = box.actualBoundingBoxAscent || fit * 0.72
       const c = Math.max(0, Math.min(0.6, o.crop))
       m.fillStyle = "#000"
       m.textBaseline = "alphabetic"
-      m.fillText(word, (w - box.width) / 2, h + cap * c)
+      // Position wordmark cleanly centered with room below the top rule
+      m.fillText(word, (w - box.width) / 2, h + cap * (c + 0.05))
       const img = m.getImageData(0, 0, w, h).data
 
       const gap = Math.max(3, o.dotGap)
@@ -380,7 +401,7 @@ export default function HalftoneWordmarkFooter({
       }
 
       if (grainTile && o.grain > 0) {
-        ctx.globalAlpha = Math.min(1, o.grain) * 0.09
+        ctx.globalAlpha = Math.min(1, o.grain) * 0.07
         ctx.globalCompositeOperation = "overlay"
         const pattern = ctx.createPattern(grainTile, "repeat")
         if (pattern) {
@@ -485,32 +506,51 @@ export default function HalftoneWordmarkFooter({
       }
     >
       <style>{HWF_CSS}</style>
+
+      {/* Subtle ambient violet glow rising from bottom matching Hero & Editor */}
+      <div
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_75%_55%_at_50%_100%,rgba(139,92,246,0.12)_0%,rgba(109,40,217,0.04)_45%,transparent_75%)]"
+        aria-hidden="true"
+      />
+
       <canvas ref={canvasRef} aria-hidden="true" />
       <span className="hwf-sr">{wordmark}</span>
-      <div className="hwf-top">
-        <div className="hwf-brand">
-          <strong>{label}</strong>
-          <span>{meta}</span>
+
+      <div className="hwf-container">
+        <div
+          className="hwf-top"
+          style={{ "--hwf-cols": columns.length } as React.CSSProperties}
+        >
+          <div className="hwf-brand">
+            <strong>
+              <ZaiZubLogo size={24} />
+              <span>{label}</span>
+            </strong>
+            <span>{meta}</span>
+          </div>
+          {columns.map((col) => (
+            <nav className="hwf-col" key={col.title} aria-label={col.title}>
+              <h3>{col.title}</h3>
+              <ul>
+                {col.links.map((l) => (
+                  <li key={l.label}>
+                    <a href={l.href || "#"}>{l.label}</a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          ))}
         </div>
-        {columns.map((col) => (
-          <nav className="hwf-col" key={col.title} aria-label={col.title}>
-            <h3>{col.title}</h3>
-            <ul>
-              {col.links.map((l) => (
-                <li key={l.label}>
-                  <a href={l.href || "#"}>{l.label}</a>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        ))}
-      </div>
-      <div className="hwf-rule">
-        {backToTop ? (
-          <button type="button" className="hwf-up" onClick={toTop}>
-            Back to top ↑
-          </button>
-        ) : null}
+        <div className="hwf-rule">
+          <span className="hwf-rule-copy">
+            © {new Date().getFullYear()} Zaizub. Built for creators worldwide.
+          </span>
+          {backToTop ? (
+            <button type="button" className="hwf-up" onClick={toTop}>
+              Back to top ↑
+            </button>
+          ) : null}
+        </div>
       </div>
     </footer>
   )

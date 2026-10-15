@@ -8,7 +8,7 @@ export default function Footer({ lang = "en" }: { lang?: Lang }) {
 
   const columns = [
     {
-      title: lang === "th" ? "ผลิตภัณฑ์" : "Product",
+      title: t.product,
       links: [
         { label: lang === "th" ? "โปรแกรมตัดต่อ" : "Editor", href: "/editor" },
         { label: lang === "th" ? "ฟีเจอร์" : "Features", href: "/#features" },
@@ -16,18 +16,23 @@ export default function Footer({ lang = "en" }: { lang?: Lang }) {
       ],
     },
     {
-      title: lang === "th" ? "กฎหมาย" : "Legal",
+      title: t.legal,
       links: [
         { label: t.privacy, href: "#" },
         { label: t.terms, href: "#" },
-        { label: lang === "th" ? "ความปลอดภัย" : "Security", href: "#" },
       ],
     },
     {
-      title: lang === "th" ? "ติดต่อ" : "Contact",
+      title: t.social,
       links: [
-        { label: "contact@zaizub.com", href: "mailto:contact@zaizub.com" },
-        { label: lang === "th" ? "สนับสนุน" : "Support", href: "mailto:support@zaizub.com" },
+        { label: "Instagram", href: "#" },
+        { label: "Discord", href: "#" },
+      ],
+    },
+    {
+      title: t.contact,
+      links: [
+        { label: t.support, href: "#" },
       ],
     },
   ];
@@ -41,10 +46,10 @@ export default function Footer({ lang = "en" }: { lang?: Lang }) {
       preset="night"
       palette={{
         background: "#07060a",
-        ink: "#f4f2f8",
-        warm: "#8b5cf6",
+        ink: "#2d2746",
+        warm: "#c084fc",
       }}
-      height="520px"
+      height="500px"
     />
   );
 }

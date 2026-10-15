@@ -8,14 +8,6 @@ export default function Footer({ lang = "en" }: { lang?: Lang }) {
 
   const columns = [
     {
-      title: t.product,
-      links: [
-        { label: lang === "th" ? "โปรแกรมตัดต่อ" : "Editor", href: "/editor" },
-        { label: lang === "th" ? "ฟีเจอร์" : "Features", href: "/#features" },
-        { label: lang === "th" ? "วิธีใช้งาน" : "Workflow", href: "/#how-it-works" },
-      ],
-    },
-    {
       title: t.legal,
       links: [
         { label: t.privacy, href: "#" },
@@ -41,7 +33,6 @@ export default function Footer({ lang = "en" }: { lang?: Lang }) {
     <HalftoneWordmarkFooter
       wordmark="zaizub"
       label="Zaizub"
-      meta={`©${new Date().getFullYear()} · ${t.tagline}`}
       columns={columns}
       preset="night"
       palette={{

@@ -76,14 +76,6 @@ const PRESETS: { [K in HalftonePreset]: HalftonePalette } = {
 
 const DEFAULT_COLUMNS: FooterColumn[] = [
   {
-    title: "Product",
-    links: [
-      { label: "Editor", href: "/editor" },
-      { label: "Features", href: "#features" },
-      { label: "Workflow", href: "#how-it-works" },
-    ],
-  },
-  {
     title: "Legal",
     links: [
       { label: "Privacy", href: "#" },
@@ -221,7 +213,7 @@ const HWF_CSS = `
 export default function HalftoneWordmarkFooter({
   wordmark = "zaizub",
   label = "Zaizub",
-  meta = "AI Video Subtitle & Timeline Studio",
+  meta = "",
   columns = DEFAULT_COLUMNS,
   backToTop = true,
   preset = "night",
@@ -526,7 +518,7 @@ export default function HalftoneWordmarkFooter({
               <ZaiZubLogo size={24} />
               <span>{label}</span>
             </strong>
-            <span>{meta}</span>
+            {meta ? <span>{meta}</span> : null}
           </div>
           {columns.map((col) => (
             <nav className="hwf-col" key={col.title} aria-label={col.title}>
@@ -534,7 +526,16 @@ export default function HalftoneWordmarkFooter({
               <ul>
                 {col.links.map((l) => (
                   <li key={l.label}>
-                    <a href={l.href || "#"}>{l.label}</a>
+                    <a
+                      href={l.href || "#"}
+                      onClick={(e) => {
+                        if (!l.href || l.href === "#") {
+                          e.preventDefault();
+                        }
+                      }}
+                    >
+                      {l.label}
+                    </a>
                   </li>
                 ))}
               </ul>

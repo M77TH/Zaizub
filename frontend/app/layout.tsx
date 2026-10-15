@@ -39,6 +39,10 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
+          href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
+        <link
           href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;600;700&family=Athiti:wght@400;600;700&family=Bai+Jamjuree:wght@400;600;700&family=Chakra+Petch:wght@400;600;700&family=Charm:wght@400;700&family=Chonburi&family=Itim&family=Kanit:ital,wght@0,400;0,600;0,700;1,400&family=Krub:wght@400;600;700&family=Mali:wght@400;600;700&family=Mitr:wght@400;600&family=Noto+Sans+Thai:wght@400;600;700&family=Pattaya&family=Pridi:wght@400;600;700&family=Prompt:ital,wght@0,400;0,600;0,700;1,400&family=Sarabun:ital,wght@0,400;0,600;0,700;1,400&family=Trirong:wght@400;600;700&display=swap"
           rel="stylesheet"
         />

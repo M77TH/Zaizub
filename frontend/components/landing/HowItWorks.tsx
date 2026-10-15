@@ -1,48 +1,23 @@
 "use client";
 
-import { howItWorksCopy, type Lang } from "./copy";
+import type { Lang } from "./copy";
+import { HairlineWorkflowShowcase } from "@/components/ui/hairline-workflow";
 
 export default function HowItWorks({ lang = "en" }: { lang?: Lang }) {
-  const t = howItWorksCopy[lang];
-
   return (
-    <section id="how-it-works" className="border-t border-line py-24 relative overflow-hidden">
-      {/* Subtle glow background */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-accent/5 rounded-full blur-3xl pointer-events-none" aria-hidden />
+    <section
+      id="how-it-works"
+      className="border-t border-line min-h-[calc(100svh-3.75rem)] min-h-[calc(100dvh-3.75rem)] min-h-[calc(100vh-3.75rem)] flex flex-col justify-center py-8 sm:py-10 lg:py-12 relative overflow-hidden bg-bg scroll-mt-16"
+    >
+      {/* Background ambient lighting matching Hero and EditorMockup */}
+      <div
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_35%,rgba(139,92,246,0.06)_0%,rgba(124,58,237,0.02)_40%,transparent_70%)]"
+        aria-hidden="true"
+      />
 
-      <div className="relative mx-auto max-w-7xl px-6 lg:px-10">
-        <div className="max-w-2xl">
-          <h2 className="font-display text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
-            {t.title}
-          </h2>
-          <p className="mt-3 text-sm text-ink-muted sm:text-base">
-            {t.subtitle}
-          </p>
-        </div>
-
-        <div className="mt-14 grid grid-cols-1 gap-10 sm:grid-cols-3 sm:gap-8">
-          {t.steps.map((s, i) => (
-            <div
-              key={s.n}
-              className="group relative rounded-2xl border border-white/[0.04] bg-surface/30 p-7 backdrop-blur-sm transition-all duration-300 hover:border-accent/30 hover:bg-surface/60 hover:-translate-y-1"
-            >
-              <div className="flex items-center justify-between">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent/15 font-mono text-sm font-semibold text-accent-soft border border-accent/20 group-hover:scale-110 transition-transform">
-                  {s.n}
-                </span>
-                <span className="text-[11px] font-medium text-ink-faint uppercase tracking-wider">
-                  Step {i + 1}
-                </span>
-              </div>
-              <h3 className="mt-5 font-display text-xl font-semibold text-ink group-hover:text-white transition-colors">
-                {s.title}
-              </h3>
-              <p className="mt-2.5 text-sm leading-relaxed text-ink-muted">
-                {s.body}
-              </p>
-            </div>
-          ))}
-        </div>
+      <div className="relative mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 w-full">
+        {/* 3-Row Interactive Isometric Hairline Workflow Showcase */}
+        <HairlineWorkflowShowcase lang={lang} intensity={1} />
       </div>
     </section>
   );

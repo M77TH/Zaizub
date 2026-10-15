@@ -893,7 +893,7 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
     <section
       id="editor-mockup"
       ref={sectionRef}
-      className="relative overflow-visible overflow-x-clip pt-12 sm:pt-16 lg:pt-20 pb-16 sm:pb-24 lg:pb-28"
+      className="relative overflow-visible overflow-x-clip min-h-[calc(100svh-3.75rem)] min-h-[calc(100dvh-3.75rem)] min-h-[calc(100vh-3.75rem)] flex flex-col justify-center py-6 sm:py-8 lg:py-10 scroll-mt-16"
     >
       {/* Background ambient lighting - static native CSS background glow */}
       <div
@@ -901,7 +901,7 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
         aria-hidden
       />
 
-      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="relative mx-auto max-w-5xl lg:max-w-[1080px] xl:max-w-6xl 2xl:max-w-7xl px-4 sm:px-6 lg:px-8 w-full">
         {/* RELATIVE WRAPPER FOR EDITOR + SURROUNDING FLOATING CARDS */}
         <div
           ref={containerRef}
@@ -915,7 +915,7 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
           {/* 3. FLOATING CARD 1: Video File & AI Transcription Status (Top-Left Wing: Pre-Upload & Uploaded Stages) */}
           <div
             ref={card1Ref}
-            className="hidden md:block absolute -top-8 -left-3 lg:-top-11 lg:-left-5 xl:-left-7 z-30 will-change-transform [transform-style:preserve-3d]"
+            className="hidden md:block absolute -top-6 -left-2 lg:-top-8 lg:-left-3 xl:-top-10 xl:-left-6 z-30 will-change-transform [transform-style:preserve-3d]"
           >
             <div className="anim-float-1">
               <div
@@ -936,7 +936,7 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
                     ? (lang === "th" ? "กำลังอัปโหลดวิดีโอ..." : "Uploading video...")
                     : (lang === "th" ? "คลิกเพื่อรีเซ็ตกลับสู่หน้าอัปโหลด" : "Click to reset to pre-upload")
                 }
-                className="relative flex flex-col w-64 lg:w-72 h-[88px] rounded-2xl bg-[#0e0c19]/95 border border-white/[0.12] p-2.5 shadow-[0_24px_55px_rgba(0,0,0,0.85),0_0_24px_rgba(124,58,237,0.18)] backdrop-blur-2xl transition-all duration-300 hover:scale-[1.025] hover:border-white/[0.22] hover:shadow-[0_28px_60px_rgba(0,0,0,0.9),0_0_28px_rgba(124,58,237,0.25)] select-none group cursor-pointer justify-center overflow-hidden"
+                className="relative flex flex-col w-56 lg:w-60 xl:w-68 h-[76px] lg:h-[82px] xl:h-[88px] rounded-2xl bg-[#0e0c19]/95 border border-white/[0.12] p-2 sm:p-2.5 shadow-[0_24px_55px_rgba(0,0,0,0.85),0_0_24px_rgba(124,58,237,0.18)] backdrop-blur-2xl transition-all duration-300 hover:scale-[1.025] hover:border-white/[0.22] hover:shadow-[0_28px_60px_rgba(0,0,0,0.9),0_0_28px_rgba(124,58,237,0.25)] select-none group cursor-pointer justify-center overflow-hidden"
               >
                 {/* Black blur overlay matching mockup blur */}
                 <div
@@ -1027,10 +1027,10 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
           {/* 4. FLOATING CARD 2: Normalized Mini Player Controller (Positioned Over Bottom-Left of Mockup) */}
           <div
             ref={card2Ref}
-            className="hidden md:block absolute -bottom-2.5 left-4 lg:-bottom-3.5 lg:left-5 xl:-bottom-4 xl:left-6 z-30 will-change-transform [transform-style:preserve-3d]"
+            className="hidden md:block absolute -bottom-2 left-3 lg:-bottom-2.5 lg:left-4 xl:-bottom-3 xl:left-5 z-30 will-change-transform [transform-style:preserve-3d]"
           >
             <div className="anim-float-2">
-              <div className="relative overflow-hidden flex items-center gap-3 w-64 lg:w-72 rounded-2xl bg-[#0e0c19]/95 border border-white/[0.12] p-2.5 shadow-[0_24px_55px_rgba(0,0,0,0.85),0_0_24px_rgba(124,58,237,0.18)] backdrop-blur-2xl transition-all duration-300 hover:scale-[1.025] hover:border-white/[0.22] hover:shadow-[0_28px_60px_rgba(0,0,0,0.9),0_0_28px_rgba(124,58,237,0.25)] select-none group">
+              <div className="relative overflow-hidden flex items-center gap-2.5 sm:gap-3 w-56 lg:w-60 xl:w-68 rounded-2xl bg-[#0e0c19]/95 border border-white/[0.12] p-2 sm:p-2.5 shadow-[0_24px_55px_rgba(0,0,0,0.85),0_0_24px_rgba(124,58,237,0.18)] backdrop-blur-2xl transition-all duration-300 hover:scale-[1.025] hover:border-white/[0.22] hover:shadow-[0_28px_60px_rgba(0,0,0,0.9),0_0_28px_rgba(124,58,237,0.25)] select-none group">
                 {/* Black blur overlay matching mockup blur */}
                 <div
                   onClick={(e) => {
@@ -1104,10 +1104,10 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
           {/* 5. FLOATING CARD 3: Styles Panel (Bottom-Right Wing: Size & Color Controls) */}
           <div
             ref={card3Ref}
-            className="hidden md:block absolute -bottom-8 -right-2 lg:-bottom-12 lg:-right-5 xl:-bottom-14 xl:-right-7 z-30 will-change-transform [transform-style:preserve-3d]"
+            className="hidden md:block absolute -bottom-5 -right-2 lg:-bottom-7 lg:-right-3 xl:-bottom-10 xl:-right-5 z-30 will-change-transform [transform-style:preserve-3d]"
           >
             <div className="anim-float-3">
-              <div className="relative overflow-hidden flex flex-col w-60 lg:w-64 rounded-2xl bg-[#0e0c19]/90 border border-white/[0.12] p-3 shadow-[0_24px_55px_rgba(0,0,0,0.85),0_0_24px_rgba(124,58,237,0.18)] backdrop-blur-2xl transition-all duration-300 hover:scale-[1.025] hover:border-white/[0.22] hover:shadow-[0_28px_60px_rgba(0,0,0,0.9),0_0_28px_rgba(124,58,237,0.25)] select-none group">
+              <div className="relative overflow-hidden flex flex-col w-52 lg:w-56 xl:w-62 rounded-2xl bg-[#0e0c19]/90 border border-white/[0.12] p-2.5 sm:p-3 shadow-[0_24px_55px_rgba(0,0,0,0.85),0_0_24px_rgba(124,58,237,0.18)] backdrop-blur-2xl transition-all duration-300 hover:scale-[1.025] hover:border-white/[0.22] hover:shadow-[0_28px_60px_rgba(0,0,0,0.9),0_0_28px_rgba(124,58,237,0.25)] select-none group">
                 {/* Black blur overlay matching mockup blur */}
                 <div
                   onClick={(e) => {
@@ -1286,9 +1286,9 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
           </header>
 
           {/* 2. MAIN WORKSPACE (Authentic 3-Column Layout from EditorWorkspace.tsx) */}
-          <div className="flex flex-col lg:flex-row min-h-[500px] lg:h-[550px] relative w-full overflow-hidden">
+          <div className="flex flex-col lg:flex-row min-h-[460px] lg:h-[480px] xl:h-[510px] 2xl:h-[550px] relative w-full overflow-hidden">
             {/* LEFT COLUMN: Transcript / Subtitles Panel (Faithful replica of TranscriptPanel.tsx) */}
-            <div className="w-full lg:w-[290px] xl:w-[320px] flex-shrink-0 flex flex-col bg-[#0d0c14] border-b lg:border-b-0 lg:border-r border-[#1c1a28]">
+            <div className="w-full lg:w-[260px] xl:w-[290px] 2xl:w-[320px] flex-shrink-0 flex flex-col bg-[#0d0c14] border-b lg:border-b-0 lg:border-r border-[#1c1a28]">
               {/* Subtitle Card List */}
               <div
                 ref={cardListRef}
@@ -1459,7 +1459,7 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
             {/* CENTER COLUMN: Video Player + Transport Controls (Faithful replica of VideoPlayer.tsx & TransportControls.tsx) */}
             <div className="flex-1 flex flex-col bg-[#0a090f] overflow-hidden select-none relative">
               {/* Video Player Canvas Area */}
-              <div className="flex-1 flex items-center justify-center p-2 sm:p-3 relative overflow-hidden min-h-[350px]">
+              <div className="flex-1 flex items-center justify-center p-2 sm:p-3 relative overflow-hidden min-h-[300px] sm:min-h-[325px] lg:min-h-[345px]">
                 {/* Subtle dark canvas background grid */}
                 <div
                   className="pointer-events-none absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.03)_1px,transparent_1px)] [background-size:16px_16px]"
@@ -1477,10 +1477,10 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
                       title={isPlaying ? (lang === "th" ? "คลิกเพื่อหยุดชั่วคราว" : "Click to pause") : (lang === "th" ? "คลิกเพื่อเล่น" : "Click to play")}
                       className={`group/stage relative overflow-hidden shadow-[0_24px_55px_rgba(0,0,0,0.92),inset_0_1px_0_0_rgba(255,255,255,0.2)] hover:shadow-[0_28px_60px_rgba(0,0,0,0.94),inset_0_1px_0_0_rgba(255,255,255,0.24)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:scale-[1.004] active:scale-[0.985] flex items-center justify-center border border-white/20 hover:border-white/28 bg-[#141022] cursor-pointer select-none ${
                         aspectRatio === "9:16"
-                          ? "rounded-[2.2rem] h-[360px] w-[202px] sm:h-[430px] sm:w-[242px] lg:h-[475px] lg:w-[267px]"
+                          ? "rounded-[1.8rem] sm:rounded-[2.2rem] h-[310px] w-[174px] sm:h-[345px] sm:w-[194px] lg:h-[370px] lg:w-[208px] xl:h-[395px] xl:w-[222px] 2xl:h-[415px] 2xl:w-[233px]"
                           : aspectRatio === "16:9"
-                          ? "rounded-[1.5rem] h-[236px] w-[420px] max-w-[92vw] sm:h-[270px] sm:w-[480px] lg:h-[288px] lg:w-[512px]"
-                          : "rounded-[1.8rem] h-[290px] w-[290px] sm:h-[360px] sm:w-[360px] lg:h-[420px] lg:w-[420px]"
+                          ? "rounded-[1.5rem] h-[220px] w-[390px] max-w-[92vw] sm:h-[248px] sm:w-[440px] lg:h-[256px] lg:w-[455px] xl:h-[280px] xl:w-[498px] 2xl:h-[288px] 2xl:w-[512px]"
+                          : "rounded-[1.8rem] h-[270px] w-[270px] sm:h-[320px] sm:w-[320px] lg:h-[350px] lg:w-[350px] xl:h-[390px] xl:w-[390px] 2xl:h-[420px] 2xl:w-[420px]"
                       }`}
                     >
                   {/* Studio video player backdrop (rich visible gradient with clear contrast from canvas, no neon glow) */}
@@ -1787,7 +1787,7 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
             </div>
 
             {/* RIGHT COLUMN: Preset Templates Panel (Size & Color moved to floating card) */}
-            <div className="w-full lg:w-[320px] xl:w-[340px] flex-shrink-0 flex flex-col bg-[#0c0b11] border-t lg:border-t-0 lg:border-l border-[#1c1a28] p-2.5 overflow-hidden select-none">
+            <div className="w-full lg:w-[270px] xl:w-[305px] 2xl:w-[340px] flex-shrink-0 flex flex-col bg-[#0c0b11] border-t lg:border-t-0 lg:border-l border-[#1c1a28] p-2 sm:p-2.5 overflow-hidden select-none">
               {/* Templates List */}
               <div className="flex-1 flex flex-col justify-between gap-1.5 sm:gap-2 min-h-0 overflow-y-auto no-scrollbar">
                   {TEMPLATES_LIST.map((tpl) => {
@@ -2144,66 +2144,6 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
             </div>
           )}
         </div>
-        </div>
-
-        {/* MOBILE FEATURE CARDS (Shown below the editor on smaller screens) */}
-        <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3 md:hidden">
-          {/* Card 1: Speech-to-Text */}
-          <div className="rounded-xl bg-[#0e0c19]/90 border border-white/[0.12] p-3 shadow-md flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[9px] font-mono tracking-wider uppercase text-purple-300 font-semibold">
-                SPEECH-TO-TEXT
-              </span>
-              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-300 text-[9px] font-semibold">
-                <span className="h-1 w-1 rounded-full bg-blue-400 animate-pulse" />
-                Live
-              </span>
-            </div>
-            <p className="text-xs font-semibold text-white truncate">
-              {lang === "th" ? "ถอดเสียงพูดเป็นซับอัตโนมัติ" : "AI Speech-to-Text Sync"}
-            </p>
-            <div className="flex items-center justify-between pt-1 border-t border-white/[0.06] text-[10px] text-gray-400 font-mono">
-              <span>48kHz Audio</span>
-              <span>1080p • MP4</span>
-            </div>
-          </div>
-
-          {/* Card 2: Export Platforms */}
-          <div className="rounded-xl bg-[#0e0c19]/90 border border-white/[0.12] p-3 shadow-md flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[9px] font-mono tracking-wider uppercase text-pink-300 font-semibold">
-                READY TO POST
-              </span>
-              <span className="text-[9px] text-emerald-400 font-semibold">1.4s Render</span>
-            </div>
-            <p className="text-xs font-semibold text-white truncate">
-              {lang === "th" ? "พร้อมแชร์ลงทุกแพลตฟอร์ม" : "Ready for TikTok & Reels"}
-            </p>
-            <div className="flex items-center gap-1 pt-1 border-t border-white/[0.06]">
-              <span className="flex-1 text-center text-[9px] font-bold py-0.5 rounded bg-pink-500/15 text-pink-300">TikTok</span>
-              <span className="flex-1 text-center text-[9px] font-bold py-0.5 rounded bg-purple-500/15 text-purple-300">Reels</span>
-              <span className="flex-1 text-center text-[9px] font-bold py-0.5 rounded bg-red-500/15 text-red-300">Shorts</span>
-            </div>
-          </div>
-
-          {/* Card 3: Quality Control */}
-          <div className="rounded-xl bg-[#0e0c19]/90 border border-white/[0.12] p-3 shadow-md flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[9px] font-mono tracking-wider uppercase text-amber-300 font-semibold">
-                QUALITY CONTROL
-              </span>
-              <span className="text-[9px] text-purple-300 font-semibold">99.4% Match</span>
-            </div>
-            <div className="flex items-baseline justify-between">
-              <div>
-                <p className="text-xs font-semibold text-white">
-                  {lang === "th" ? "คะแนนความไวรัล" : "Retention Gate Score"}
-                </p>
-                <p className="text-[9px] text-gray-400">Viral hook rating</p>
-              </div>
-              <span className="text-2xl font-black font-mono text-white">96</span>
-            </div>
-          </div>
         </div>
       </div>
     </section>

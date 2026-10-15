@@ -1,42 +1,50 @@
 "use client";
 
+import HalftoneWordmarkFooter from "@/components/ui/halftone-wordmark-footer";
 import { footerCopy, type Lang } from "./copy";
 
 export default function Footer({ lang = "en" }: { lang?: Lang }) {
   const t = footerCopy[lang];
 
-  return (
-    <footer className="border-t border-line py-12 bg-bg relative">
-      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 px-6 sm:flex-row lg:px-10">
-        <div className="flex items-center gap-2">
-          <span className="font-display text-base font-semibold text-ink">Zaizub</span>
-          <span className="text-xs text-ink-faint">•</span>
-          <p className="text-xs text-ink-muted">
-            © {new Date().getFullYear()} {t.tagline}
-          </p>
-        </div>
+  const columns = [
+    {
+      title: lang === "th" ? "ผลิตภัณฑ์" : "Product",
+      links: [
+        { label: lang === "th" ? "โปรแกรมตัดต่อ" : "Editor", href: "/editor" },
+        { label: lang === "th" ? "ฟีเจอร์" : "Features", href: "/#features" },
+        { label: lang === "th" ? "วิธีใช้งาน" : "Workflow", href: "/#how-it-works" },
+      ],
+    },
+    {
+      title: lang === "th" ? "กฎหมาย" : "Legal",
+      links: [
+        { label: t.privacy, href: "#" },
+        { label: t.terms, href: "#" },
+        { label: lang === "th" ? "ความปลอดภัย" : "Security", href: "#" },
+      ],
+    },
+    {
+      title: lang === "th" ? "ติดต่อ" : "Contact",
+      links: [
+        { label: "contact@zaizub.com", href: "mailto:contact@zaizub.com" },
+        { label: lang === "th" ? "สนับสนุน" : "Support", href: "mailto:support@zaizub.com" },
+      ],
+    },
+  ];
 
-        <nav aria-label="Footer Navigation" className="flex items-center gap-6 text-xs text-ink-muted">
-          <a
-            href="#top"
-            className="hover:text-ink transition-colors focus-ring rounded"
-          >
-            {t.privacy}
-          </a>
-          <a
-            href="#top"
-            className="hover:text-ink transition-colors focus-ring rounded"
-          >
-            {t.terms}
-          </a>
-          <a
-            href="mailto:contact@zaizub.com"
-            className="hover:text-ink transition-colors focus-ring rounded"
-          >
-            {t.contact}
-          </a>
-        </nav>
-      </div>
-    </footer>
+  return (
+    <HalftoneWordmarkFooter
+      wordmark="zaizub"
+      label="Zaizub"
+      meta={`©${new Date().getFullYear()} · ${t.tagline}`}
+      columns={columns}
+      preset="night"
+      palette={{
+        background: "#07060a",
+        ink: "#f4f2f8",
+        warm: "#8b5cf6",
+      }}
+      height="520px"
+    />
   );
 }

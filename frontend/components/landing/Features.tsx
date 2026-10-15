@@ -46,7 +46,7 @@ export default function Features({ lang = "en" }: { lang?: Lang }) {
   const t = featuresCopy[lang];
 
   return (
-    <section id="features" className="border-t border-line bg-surface/20 py-24 relative">
+    <section id="features" className="border-t border-line bg-surface/20 py-24 relative scroll-mt-16">
       <div className="mx-auto max-w-7xl px-6 lg:px-10">
         <div className="max-w-xl">
           <h2 className="font-display text-3xl font-semibold tracking-tight text-ink sm:text-4xl">

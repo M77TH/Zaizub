@@ -43,9 +43,11 @@ export default function Navbar({
     const element = document.getElementById(targetId);
     if (element) {
       if (lenis) {
-        lenis.scrollTo(element, { offset: -70, duration: 1.1 });
+        // Elements have scroll-mt-16 (64px) which Lenis reads automatically from scrollMarginTop.
+        // offset: 0 aligns the section's top edge exactly at the 64px navbar bottom.
+        lenis.scrollTo(element, { offset: 0, duration: 1.1 });
       } else {
-        const top = element.getBoundingClientRect().top + window.scrollY - 70;
+        const top = element.getBoundingClientRect().top + window.scrollY - 64;
         window.scrollTo({ top, behavior: "smooth" });
       }
     }

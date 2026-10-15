@@ -282,44 +282,82 @@ export const editorMockupCopy = {
 
 export const howItWorksCopy = {
   en: {
-    title: "From raw clip to captioned in three steps",
-    subtitle: "Turn hours of tedious subtitle timing into seconds with automated AI precision.",
+    badge: "THE WORKFLOW",
+    title: "From raw video to viral captions in 3 simple steps",
+    subtitle: "See how Zaizub decomposes speech, aligns and styles every word automatically, and exports studio-grade vertical clips.",
     steps: [
       {
         n: "01",
-        title: "Drop in your footage",
-        body: "Paste a link or upload a raw clip. Zaizub pulls the audio and starts listening straight away.",
+        stepLabel: "01. UPLOAD",
+        title: "Upload & Audio Extraction",
+        body: "Drop any raw video clip or paste a link from TikTok or YouTube. Zaizub automatically isolates speech, strips background hum, and prepares 48kHz audio in seconds.",
+        meta: "48kHz PCM · Auto Vocal Isolation",
+        highlights: [
+          "Studio-grade 48kHz vocal isolation",
+          "Auto-detects speech & strips background hum",
+        ],
       },
       {
         n: "02",
-        title: "AI writes and times it",
-        body: "Speech becomes text, word by word, matched to the exact frame it's spoken on — Thai and English both.",
+        stepLabel: "02. EDITING",
+        title: "Automated AI Editing & Styling",
+        body: "AI transcribes speech word-by-word with 24fps frame accuracy, applying dynamic kinetic spring animations and karaoke glow designed for maximum retention.",
+        meta: "24.0 FPS · Whisper v3 + Thai Phonemes",
+        highlights: [
+          "Frame-accurate word timestamps (Thai + English)",
+          "Dynamic kinetic pop & karaoke glow animations",
+        ],
       },
       {
         n: "03",
-        title: "Export, ready to post",
-        body: "Pick a caption style, burn it in, and export at the crop TikTok, Reels, and Shorts actually want.",
+        stepLabel: "03. RENDER",
+        title: "Instant 1080p GPU Render & Export",
+        body: "Hardware-accelerated cloud rendering generates crisp 1080p 60fps vertical videos in under 2 seconds, auto-formatted for TikTok, Instagram Reels, and YouTube Shorts.",
+        meta: "1080 × 1920 · 60 FPS · Zero Watermark",
+        highlights: [
+          "Hardware GPU render in under 2 seconds",
+          "Auto-crops 9:16 for TikTok, Reels & Shorts",
+        ],
       },
     ],
   },
   th: {
-    title: "จากคลิปดิบสู่ซับไตเติ้ลสวยเป๊ะใน 3 ขั้นตอน",
-    subtitle: "เปลี่ยนงานตัดต่อซับที่เสียเวลาหลายชั่วโมงให้เสร็จในไม่กี่วินาทีด้วยพลัง AI",
+    badge: "กระบวนการทำงาน",
+    title: "จากคลิปดิบสู่ซับไวรัลเป๊ะใน 3 ขั้นตอนง่ายๆ",
+    subtitle: "ดูการทำงานของ Zaizub ตั้งแต่อัปโหลดคลิป สกัดเสียง ซิงค์คำพูดพร้อมแต่งสไตล์ซับ ไปจนถึงเรนเดอร์ 1080p พร้อมโพสต์ได้ทันที",
     steps: [
       {
         n: "01",
-        title: "อัปโหลดหรือแปะลิงก์คลิป",
-        body: "วางลิงก์วิดีโอหรือลากไฟล์มาใส่ Zaizub จะดึงเสียงและเริ่มประมวลผลทันที",
+        stepLabel: "01. อัปโหลด",
+        title: "อัปโหลดและสกัดเสียงพูด",
+        body: "วางลิงก์หรือลากไฟล์คลิปมาใส่ Zaizub แยกเสียงพูดคมชัดระดับสตูดิโอ 48kHz และตัดเสียงรบกวนรอบข้างให้อัตโนมัติในไม่กี่วินาที",
+        meta: "48kHz PCM · สกัดเสียงพูดคมชัด",
+        highlights: [
+          "แยกเสียงพูดคมชัดระดับสตูดิโอ 48kHz",
+          "ตัดเสียงรบกวนรอบข้างอัตโนมัติ 100%",
+        ],
       },
       {
         n: "02",
-        title: "AI ถอดเสียงและจับจังหวะเป๊ะ",
-        body: "แปลงเสียงพูดเป็นข้อความทีละคำ ซิงค์ตรงกับจังหวะพูดเป๊ะๆ ทั้งภาษาไทยและภาษาอังกฤษ",
+        stepLabel: "02. ตัดต่อและจัดสไตล์",
+        title: "AI ซิงค์คำพูดและแต่งสไตล์ไวรัล",
+        body: "AI ถอดเสียงและล็อกจังหวะคำต่อคำเป๊ะระดับ 24fps (ไทย + อังกฤษ) พร้อมใส่แอนิเมชันซับสุดฮิต ดึงดูดสายตาคนดูให้อยู่หมัดตั้งแต่ต้นจนจบ",
+        meta: "24.0 FPS · Whisper v3 + รองรับภาษาไทย",
+        highlights: [
+          "ล็อกไทม์สแตมป์คำต่อคำระดับมิลลิวินาที",
+          "ไฮไลต์คำร้องคาราโอเกะ ดันยอดดูวนซ้ำ +300%",
+        ],
       },
       {
         n: "03",
-        title: "เลือกสไตล์ แล้วพร้อมโพสต์",
-        body: "เลือกสไตล์ซับไตเติลสุดฮิต ฝังซับและดาวน์โหลดคลิปในขนาดที่เหมาะกับ TikTok, Reels และ Shorts ทันที",
+        stepLabel: "03. เรนเดอร์",
+        title: "เรนเดอร์ GPU ความละเอียด 1080p",
+        body: "เรนเดอร์ความเร็วสูงด้วยขุมพลัง GPU ความละเอียด 1080p 60fps คมชัด ไม่มีลายน้ำ พร้อมโพสต์ลง TikTok, Reels และ YouTube Shorts ทันที",
+        meta: "1080 × 1920 · 60 FPS · ไม่มีลายน้ำ",
+        highlights: [
+          "เรนเดอร์ด้วย GPU เสร็จในไม่ถึง 2 วินาที",
+          "ฟอร์แมต 9:16 สำหรับ TikTok, Reels และ Shorts",
+        ],
       },
     ],
   },

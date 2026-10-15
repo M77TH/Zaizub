@@ -64,9 +64,11 @@ const config: Config = {
         },
       },
       fontFamily: {
-        display: ["var(--font-display)", "sans-serif"],
-        body: ["var(--font-body)", "sans-serif"],
-        mono: ["var(--font-mono)", "monospace"],
+        display: ["Geist", "var(--font-display)", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        geist: ["Geist", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        space: ["'Space Grotesk'", "sans-serif"],
+        body: ["var(--font-body)", "Geist", "Inter", "-apple-system", "sans-serif"],
+        mono: ["'Geist Mono'", "var(--font-mono)", "JetBrains Mono", "monospace"],
       },
       backgroundImage: {
         "hero-glow":

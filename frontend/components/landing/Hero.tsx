@@ -401,11 +401,11 @@ export default function Hero({ lang }: { lang: Lang }) {
   };
 
   return (
-    <section id="top" className="relative overflow-visible overflow-x-clip min-h-[100svh] flex flex-col justify-center">
+    <section id="top" className="relative overflow-visible overflow-x-clip min-h-[100svh] lg:h-screen lg:max-h-[880px] flex flex-col justify-center">
       <div className="absolute inset-0 bg-hero-glow" aria-hidden />
       <InteractiveDots />
 
-      <div className="relative z-10 mx-auto grid max-w-7xl w-full grid-cols-1 items-center gap-8 px-4 pt-20 pb-8 sm:gap-12 sm:px-6 sm:pt-24 sm:pb-12 lg:grid-cols-12 lg:gap-10 xl:gap-16 lg:px-10 lg:pt-24 lg:pb-12">
+      <div className="relative z-10 mx-auto grid max-w-7xl w-full grid-cols-1 items-center gap-6 px-4 pt-16 pb-6 sm:gap-8 sm:px-6 sm:pt-20 sm:pb-8 lg:grid-cols-12 lg:gap-8 xl:gap-12 lg:px-10 lg:pt-16 lg:pb-8">
         <div className="lg:col-span-7">
           <h1
             className={`font-display font-extrabold tracking-tight text-white ${lang === "th"

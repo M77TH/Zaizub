@@ -37,10 +37,10 @@ export default function Footer({ lang = "en" }: { lang?: Lang }) {
       preset="night"
       palette={{
         background: "#07060a",
-        ink: "#2d2746",
-        warm: "#c084fc",
+        ink: "#5d4f91",
+        warm: "#d8b4fe",
       }}
-      height="500px"
+      height="540px"
     />
   );
 }

@@ -68,7 +68,7 @@ export interface HalftoneWordmarkFooterProps {
 }
 
 const PRESETS: { [K in HalftonePreset]: HalftonePalette } = {
-  night: { background: "#07060a", ink: "#2d2746", warm: "#c084fc" },
+  night: { background: "#07060a", ink: "#5d4f91", warm: "#d8b4fe" },
   paper: { background: "#efebe3", ink: "#3c3832", warm: "#8b5cf6" },
   ember: { background: "#160a06", ink: "#361b14", warm: "#ff7a3d" },
   cobalt: { background: "#0a0e27", ink: "#1d2a54", warm: "#818cf8" },
@@ -155,10 +155,12 @@ const HWF_CSS = `
 .hwf-root {
   position: relative; width: 100%; overflow: hidden; isolation: isolate;
   background: var(--hwf-bg); color: #f4f2f8; -webkit-font-smoothing: antialiased;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 -4px 30px rgba(139, 92, 246, 0.12);
 }
 .hwf-root canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; max-width: none; }
 .hwf-container {
-  position: relative; z-index: 1; max-width: 80rem; margin: 0 auto;
+  position: relative; z-index: 10; max-width: 80rem; margin: 0 auto;
   padding: 0 1.25rem;
 }
 @media (min-width: 640px) { .hwf-container { padding: 0 1.5rem; } }
@@ -174,28 +176,28 @@ const HWF_CSS = `
 .hwf-brand span { font-size: 13px; color: #a19cb0; line-height: 1.6; max-width: 280px; }
 .hwf-col h3 {
   margin: 0 0 14px 0; font-size: 11px; font-weight: 600; text-transform: uppercase;
-  letter-spacing: 0.12em; color: #a78bfa; font-family: var(--hwf-mono);
+  letter-spacing: 0.12em; color: #c084fc; font-family: var(--hwf-mono);
 }
 .hwf-col ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .hwf-col a {
-  color: #a19cb0; text-decoration: none; font-size: 13.5px; font-weight: 400;
-  transition: color 0.2s ease;
+  color: #c4c0d0; text-decoration: none; font-size: 13.5px; font-weight: 400;
+  transition: color 0.2s ease, text-shadow 0.2s ease;
 }
-.hwf-col a:hover { color: #ffffff; }
+.hwf-col a:hover { color: #ffffff; text-shadow: 0 0 12px rgba(167, 139, 250, 0.4); }
 .hwf-col a:focus-visible { outline: 1px solid #a78bfa; outline-offset: 3px; }
 .hwf-rule {
   display: flex; justify-content: space-between; align-items: center; gap: 16px;
   margin-top: 36px; padding: 18px 0 0 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  font-family: var(--hwf-mono); font-size: 11.5px; color: #6b6779;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-family: var(--hwf-mono); font-size: 11.5px; color: #8e8a9d;
 }
-.hwf-rule-copy { font-size: 11.5px; color: #71717a; }
+.hwf-rule-copy { font-size: 11.5px; color: #8e8a9d; }
 .hwf-up {
-  color: #a19cb0; background: none; border: 0; padding: 4px 8px; border-radius: 6px;
+  color: #c4c0d0; background: none; border: 0; padding: 4px 8px; border-radius: 6px;
   font-size: 11.5px; font-family: var(--hwf-mono); cursor: pointer;
   transition: all 0.2s ease;
 }
-.hwf-up:hover { color: #a78bfa; background: rgba(139, 92, 246, 0.08); }
+.hwf-up:hover { color: #d8b4fe; background: rgba(139, 92, 246, 0.15); }
 .hwf-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (max-width: 960px) {
   .hwf-top { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 28px; }
@@ -257,8 +259,8 @@ export default function HalftoneWordmarkFooter({
     let dots = new Float32Array(0)
     let count = 0
     let grainTile = null as HTMLCanvasElement | null
-    const ink = hwfHex(opts.current.colors.ink) || [45, 39, 70]
-    const warm = hwfHex(opts.current.colors.warm) || [192, 132, 252]
+    const ink = hwfHex(opts.current.colors.ink) || [93, 79, 145]
+    const warm = hwfHex(opts.current.colors.warm) || [216, 180, 254]
 
     const layout = () => {
       const o = opts.current
@@ -283,11 +285,11 @@ export default function HalftoneWordmarkFooter({
       m.font = o.fontWeight + " " + fit + "px " + o.fontFamily
       const box = m.measureText(word)
       const cap = box.actualBoundingBoxAscent || fit * 0.72
-      const c = Math.max(0, Math.min(0.6, o.crop))
       m.fillStyle = "#000"
       m.textBaseline = "alphabetic"
-      // Position wordmark cleanly centered with room below the top rule
-      m.fillText(word, (w - box.width) / 2, h + cap * (c + 0.05))
+      // Ground the wordmark cleanly near the bottom so all letters are completely visible
+      const baselineY = h - Math.max(16, Math.round(cap * 0.06))
+      m.fillText(word, (w - box.width) / 2, baselineY)
       const img = m.getImageData(0, 0, w, h).data
 
       const gap = Math.max(3, o.dotGap)
@@ -490,6 +492,7 @@ export default function HalftoneWordmarkFooter({
       className={"hwf-root " + className}
       style={
         {
+          minHeight: height,
           height,
           "--hwf-bg": colors.background,
           "--hwf-ink": colors.ink,
@@ -499,13 +502,20 @@ export default function HalftoneWordmarkFooter({
     >
       <style>{HWF_CSS}</style>
 
-      {/* Subtle ambient violet glow rising from bottom matching Hero & Editor */}
+      {/* Interactive Halftone Canvas */}
+      <canvas ref={canvasRef} aria-hidden="true" />
+
+      {/* Luminous ambient violet glow rising from bottom matching Hero & Editor */}
       <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_75%_55%_at_50%_100%,rgba(139,92,246,0.12)_0%,rgba(109,40,217,0.04)_45%,transparent_75%)]"
+        className="pointer-events-none absolute inset-0 z-[2] bg-[radial-gradient(ellipse_80%_60%_at_50%_100%,rgba(139,92,246,0.22)_0%,rgba(109,40,217,0.08)_50%,transparent_80%)]"
+        aria-hidden="true"
+      />
+      {/* Hairline ambient glow along the top edge */}
+      <div
+        className="pointer-events-none absolute inset-0 z-[2] bg-[radial-gradient(ellipse_60%_30%_at_50%_0%,rgba(139,92,246,0.14)_0%,transparent_70%)]"
         aria-hidden="true"
       />
 
-      <canvas ref={canvasRef} aria-hidden="true" />
       <span className="hwf-sr">{wordmark}</span>
 
       <div className="hwf-container">

@@ -598,7 +598,7 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
       }
 
       if (phoneCardRef.current) {
-        phoneCardRef.current.style.transform = `translate3d(${(state.currentPx * 0.2).toFixed(2)}px, ${(state.currentPy * 0.2).toFixed(2)}px, 0)`;
+        phoneCardRef.current.style.transform = `translate3d(${(state.currentPx * 0.85).toFixed(2)}px, ${(state.currentPy * 0.85).toFixed(2)}px, 18px)`;
       }
 
       if (isResting) {
@@ -1469,13 +1469,14 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
                 {/* Aspect-Ratio Adaptive Video Stage Floating Card (Click to toggle play/pause) */}
                 <div
                   ref={phoneCardRef}
-                  className="relative z-20 will-change-transform"
+                  style={{ transform: "translate3d(0px, 0px, 18px)" }}
+                  className="relative z-20 will-change-transform [transform-style:preserve-3d]"
                 >
-                  <div className="anim-float-3">
+                  <div className="anim-float-2">
                     <div
                       onClick={() => setIsPlaying((p) => !p)}
                       title={isPlaying ? (lang === "th" ? "คลิกเพื่อหยุดชั่วคราว" : "Click to pause") : (lang === "th" ? "คลิกเพื่อเล่น" : "Click to play")}
-                      className={`group/stage relative overflow-hidden shadow-[0_24px_55px_rgba(0,0,0,0.92),inset_0_1px_0_0_rgba(255,255,255,0.2)] hover:shadow-[0_28px_60px_rgba(0,0,0,0.94),inset_0_1px_0_0_rgba(255,255,255,0.24)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:scale-[1.004] active:scale-[0.985] flex items-center justify-center border border-white/20 hover:border-white/28 bg-[#141022] cursor-pointer select-none ${
+                      className={`group/stage relative overflow-hidden shadow-[0_32px_75px_rgba(0,0,0,0.95),0_0_36px_rgba(124,58,237,0.22),inset_0_1px_0_0_rgba(255,255,255,0.24)] hover:shadow-[0_38px_85px_rgba(0,0,0,0.98),0_0_48px_rgba(124,58,237,0.3),inset_0_1px_0_0_rgba(255,255,255,0.28)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:scale-[1.003] active:scale-[0.995] flex items-center justify-center border border-white/20 hover:border-white/30 bg-[#141022] cursor-pointer select-none ${
                         aspectRatio === "9:16"
                           ? "rounded-[1.8rem] sm:rounded-[2.2rem] h-[310px] w-[174px] sm:h-[345px] sm:w-[194px] lg:h-[370px] lg:w-[208px] xl:h-[395px] xl:w-[222px] 2xl:h-[415px] 2xl:w-[233px]"
                           : aspectRatio === "16:9"

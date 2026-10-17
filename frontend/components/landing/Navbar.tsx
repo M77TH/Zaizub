@@ -1,18 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useLenis } from "@/components/providers/SmoothScroll";
 import ZaiZubLogo from "@/components/logo/Logo-v3";
+import { useLanguage } from "@/components/providers/LanguageProvider";
 import type { Lang } from "./copy";
 
 export default function Navbar({
-  lang,
-  setLang,
+  lang: propLang,
+  setLang: propSetLang,
 }: {
-  lang: Lang;
-  setLang: (l: Lang) => void;
-}) {
+  lang?: Lang;
+  setLang?: (l: Lang) => void;
+} = {}) {
+  const langContext = useLanguage();
+  const lang = propLang ?? langContext.lang;
+  const setLang = propSetLang ?? langContext.setLang;
   const { lenis } = useLenis();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const links =

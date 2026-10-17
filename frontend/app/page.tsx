@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Navbar from "@/components/landing/Navbar";
 import Hero from "@/components/landing/Hero";
 import EditorMockup from "@/components/landing/EditorMockup";
@@ -8,10 +7,10 @@ import HowItWorks from "@/components/landing/HowItWorks";
 import Features from "@/components/landing/Features";
 import Footer from "@/components/landing/Footer";
 import CustomScrollbar from "@/components/ui/CustomScrollbar";
-import type { Lang } from "@/components/landing/copy";
+import { useLanguage } from "@/components/providers/LanguageProvider";
 
 export default function Home() {
-  const [lang, setLang] = useState<Lang>("en");
+  const { lang, setLang } = useLanguage();
 
   return (
     <main className="min-h-screen bg-bg">

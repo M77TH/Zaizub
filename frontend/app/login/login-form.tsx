@@ -47,36 +47,70 @@ export default function LoginForm() {
           <form action={formAction} className="space-y-4">
             <input type="hidden" name="next" value={next} />
 
+            {/* Email Input with Leading Icon */}
             <div>
               <label
                 htmlFor="email"
-                className="block text-xs font-medium text-[#d4d0e0] mb-1.5"
+                className="block text-[11px] font-medium tracking-wide text-[#9a95ab] mb-1.5"
               >
-                {lang === 'en' ? 'Email' : 'อีเมล'}
+                {lang === 'en' ? 'Email address' : 'อีเมล'}
               </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                className="w-full rounded-xl bg-[#151324]/90 border border-white/[0.09] px-3.5 py-2.5 text-sm text-white placeholder:text-[#5e5a6e] outline-none transition-all focus:border-[#8b5cf6] focus:bg-[#18152b] focus:ring-2 focus:ring-[#8b5cf6]/20"
-                placeholder={
-                  lang === 'en' ? 'Your email address' : 'กรอกอีเมลของคุณ'
-                }
-              />
+              <div className="group relative flex items-center rounded-xl bg-[#131022]/85 border border-white/[0.08] hover:border-white/[0.14] focus-within:border-[#8b5cf6]/70 focus-within:bg-[#17132b] focus-within:shadow-[0_6px_22px_-6px_rgba(139,92,246,0.28)] transition-all">
+                <span className="pl-3.5 text-[#6b6779] group-focus-within:text-[#a78bfa] transition-colors pointer-events-none">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect width="20" height="16" x="2" y="4" rx="3" />
+                    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                  </svg>
+                </span>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  className="w-full bg-transparent px-3 py-2.5 text-[13.5px] text-white placeholder:text-[#565268] outline-none"
+                  placeholder={
+                    lang === 'en' ? 'name@example.com' : 'กรอกอีเมลของคุณ'
+                  }
+                />
+              </div>
             </div>
 
+            {/* Password Input with Leading Lock Icon & Eye Toggle */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label
                   htmlFor="password"
-                  className="block text-xs font-medium text-[#d4d0e0]"
+                  className="block text-[11px] font-medium tracking-wide text-[#9a95ab]"
                 >
                   {lang === 'en' ? 'Password' : 'รหัสผ่าน'}
                 </label>
               </div>
-              <div className="relative">
+              <div className="group relative flex items-center rounded-xl bg-[#131022]/85 border border-white/[0.08] hover:border-white/[0.14] focus-within:border-[#8b5cf6]/70 focus-within:bg-[#17132b] focus-within:shadow-[0_6px_22px_-6px_rgba(139,92,246,0.28)] transition-all">
+                <span className="pl-3.5 text-[#6b6779] group-focus-within:text-[#a78bfa] transition-colors pointer-events-none">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                </span>
                 <input
                   id="password"
                   name="password"
@@ -84,7 +118,7 @@ export default function LoginForm() {
                   autoComplete="current-password"
                   required
                   minLength={8}
-                  className="w-full rounded-xl bg-[#151324]/90 border border-white/[0.09] pl-3.5 pr-10 py-2.5 text-sm text-white placeholder:text-[#5e5a6e] outline-none transition-all focus:border-[#8b5cf6] focus:bg-[#18152b] focus:ring-2 focus:ring-[#8b5cf6]/20"
+                  className="w-full bg-transparent pl-3 pr-10 py-2.5 text-[13.5px] text-white placeholder:text-[#565268] outline-none"
                   placeholder={
                     lang === 'en' ? 'Enter your password' : 'กรอกรหัสผ่านของคุณ'
                   }
@@ -92,7 +126,7 @@ export default function LoginForm() {
                 <button
                   type="button"
                   onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-[#6b6779] hover:text-white transition-colors cursor-pointer"
+                  className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-[#6b6779] hover:text-white transition-colors cursor-pointer"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? (
@@ -102,7 +136,7 @@ export default function LoginForm() {
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
-                      strokeWidth="2"
+                      strokeWidth="1.9"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                     >
@@ -117,7 +151,7 @@ export default function LoginForm() {
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
-                      strokeWidth="2"
+                      strokeWidth="1.9"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                     >
@@ -138,39 +172,45 @@ export default function LoginForm() {
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={pending}
-              className={`w-full py-2.5 px-4 rounded-xl text-sm font-semibold text-white transition-all border border-purple-400/30 shadow-[0_4px_20px_rgba(124,58,237,0.38)] ${
-                pending
-                  ? 'bg-[#6d28d9]/50 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-[#8b5cf6] via-[#7c3aed] to-[#6d28d9] hover:from-[#9333ea] hover:to-[#7c3aed] hover:shadow-[0_4px_26px_rgba(139,92,246,0.55)] active:scale-[0.99] cursor-pointer'
-              }`}
-            >
-              {pending
-                ? lang === 'en'
-                  ? 'Signing in...'
-                  : 'กำลังเข้าสู่ระบบ...'
-                : lang === 'en'
-                  ? 'Continue'
-                  : 'ดำเนินการต่อ'}
-            </button>
+            {/* Primary CTA Button with Diffused Underglow matching Reference 1 */}
+            <div className="pt-1.5">
+              <button
+                type="submit"
+                disabled={pending}
+                className={`relative w-full py-3 px-4 rounded-xl text-[13.5px] font-semibold tracking-wide text-white transition-all border border-purple-300/25 shadow-[0_10px_28px_-6px_rgba(139,92,246,0.55),0_4px_12px_rgba(109,40,217,0.35)] ${
+                  pending
+                    ? 'bg-[#6d28d9]/50 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-[#8b5cf6] via-[#7c3aed] to-[#6d28d9] hover:from-[#9333ea] hover:via-[#8b5cf6] hover:to-[#7c3aed] hover:shadow-[0_12px_32px_-4px_rgba(139,92,246,0.7)] active:scale-[0.99] cursor-pointer'
+                }`}
+              >
+                {pending
+                  ? lang === 'en'
+                    ? 'Signing in...'
+                    : 'กำลังเข้าสู่ระบบ...'
+                  : lang === 'en'
+                    ? 'Get started'
+                    : 'เข้าสู่ระบบ'}
+              </button>
+            </div>
           </form>
 
-          {/* OR Divider */}
-          <div className="flex items-center gap-3 my-5">
-            <div className="h-px flex-1 bg-white/[0.07]" />
-            <span className="font-mono text-[10.5px] uppercase tracking-widest text-[#6b6779]">
-              {lang === 'en' ? 'OR' : 'หรือ'}
-            </span>
-            <div className="h-px flex-1 bg-white/[0.07]" />
+          {/* Center-Node Divider matching Reference 1 */}
+          <div className="flex items-center gap-3 my-6">
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/[0.09] to-white/[0.12]" />
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-white/[0.08] bg-[#120f20]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#8b5cf6]/70" />
+              <span className="font-mono text-[9.5px] uppercase tracking-widest text-[#7c7691]">
+                {lang === 'en' ? 'or' : 'หรือ'}
+              </span>
+            </div>
+            <div className="h-px flex-1 bg-gradient-to-l from-transparent via-white/[0.09] to-white/[0.12]" />
           </div>
 
-          {/* Google OAuth Button matching reference dark glass style */}
+          {/* Google OAuth Button */}
           <button
             onClick={handleGoogleLogin}
             type="button"
-            className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-[#141222]/90 hover:bg-[#1c192e] border border-white/[0.1] hover:border-white/[0.18] py-2.5 px-4 text-sm font-medium text-white transition-all active:scale-[0.99] cursor-pointer"
+            className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-[#131022]/90 hover:bg-[#1b1730] border border-white/[0.09] hover:border-white/[0.18] py-2.5 px-4 text-[13px] font-medium text-[#e4e1ec] hover:text-white transition-all active:scale-[0.99] cursor-pointer"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24">
               <path
@@ -195,7 +235,7 @@ export default function LoginForm() {
             </span>
           </button>
 
-          <p className="mt-6 text-center text-xs text-[#8e899e]">
+          <p className="mt-6 text-center text-xs text-[#7c7691]">
             {lang === 'en' ? "Don't have an account?" : 'ยังไม่มีบัญชีใช่ไหม?'}{' '}
             <Link
               href={
@@ -203,7 +243,7 @@ export default function LoginForm() {
                   ? `/register?next=${encodeURIComponent(next)}`
                   : '/register'
               }
-              className="text-white hover:text-purple-300 font-semibold transition-colors"
+              className="text-white hover:text-[#c4b5fd] font-semibold transition-colors"
             >
               {lang === 'en' ? 'Sign up' : 'สมัครสมาชิก'}
             </Link>

@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Plus_Jakarta_Sans, Inter, JetBrains_Mono } from "next/font/google";
 import SmoothScroll from "@/components/providers/SmoothScroll";
+import { LanguageProvider } from "@/components/providers/LanguageProvider";
+import { cookies } from "next/headers";
+import type { Lang } from "@/components/landing/copy";
 import "./globals.css";
 
 const display = Plus_Jakarta_Sans({
@@ -28,13 +31,17 @@ export const metadata: Metadata = {
     "Zaizub turns raw footage into perfectly timed, on-brand captions in seconds. Thai and English, auto-synced, ready for TikTok, Reels, and Shorts.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: ReactNode;
 }) {
+  const cookieStore = await cookies();
+  const rawLang = cookieStore.get("zaizub_lang")?.value;
+  const initialLang: Lang = rawLang === "th" ? "th" : "en";
+
   return (
-    <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable}`}>
+    <html lang={initialLang} className={`${display.variable} ${body.variable} ${mono.variable}`}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -48,7 +55,9 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <SmoothScroll>{children}</SmoothScroll>
+        <LanguageProvider initialLang={initialLang}>
+          <SmoothScroll>{children}</SmoothScroll>
+        </LanguageProvider>
       </body>
     </html>
   );

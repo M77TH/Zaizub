@@ -11,6 +11,7 @@ function useFast3DTilt(baseRotX = 0, baseRotY = 0, maxTilt = 10) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
+  const tickRef = useRef<() => void>(() => {});
 
   const stateRef = useRef({
     targetX: 0,
@@ -50,17 +51,21 @@ function useFast3DTilt(baseRotX = 0, baseRotY = 0, maxTilt = 10) {
       Math.abs(s.targetZ - s.currentZ) > 0.04;
 
     if (stillMoving || s.isHovered) {
-      s.rafId = requestAnimationFrame(tick);
+      s.rafId = requestAnimationFrame(tickRef.current);
     } else {
       s.rafId = 0;
     }
   }, [baseRotX, baseRotY, maxTilt]);
 
+  useEffect(() => {
+    tickRef.current = tick;
+  }, [tick]);
+
   const startLoop = useCallback(() => {
     if (!stateRef.current.rafId) {
-      stateRef.current.rafId = requestAnimationFrame(tick);
+      stateRef.current.rafId = requestAnimationFrame(tickRef.current);
     }
-  }, [tick]);
+  }, []);
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
@@ -672,181 +677,380 @@ function SubtitleEditorGraphic() {
 }
 
 // ============================================================================
-// 3. VIRAL CREATOR PRESETS (Matches viral-presets.png)
-// Isometric 4-layer stacked translucent preset cards with neon typography
+// 3. 95% TRANSCRIBE ACCURACY
+// Exact 2:1 Isometric Frosted Glass Deck with 2x2 Tiles (95%, EN, TH, Waveform)
+// Matches Card 1 & Card 2 glass material, cross-grid, chevrons & wireframe style
 // ============================================================================
-function ViralPresetsGraphic() {
-  const [activeLayer, setActiveLayer] = useState<0 | 1 | 2>(1);
+type KeyId = "95" | "en" | "th" | "icon";
+
+function TranscribeAccuracyGraphic({ lang = "en" }: { lang?: Lang }) {
+  const [activeKey, setActiveKey] = useState<KeyId>("95");
+
+  // 2x2 Isometric Glass Tiles (Painter's order: North -> West & East -> South)
+  const keys: Array<{
+    id: KeyId;
+    cx: number;
+    cy: number;
+  }> = [
+    { id: "95", cx: 160, cy: 65 },
+    { id: "en", cx: 120, cy: 85 },
+    { id: "th", cx: 200, cy: 85 },
+    { id: "icon", cx: 160, cy: 105 },
+  ];
+
+  const rxTile = 34;
+  const ryTile = 17;
 
   return (
-    <div className="relative w-[270px] h-[155px] flex items-center justify-center select-none [transform-style:preserve-3d] group/iso3">
-      {/* Corner Registration Brackets */}
+    <div
+      aria-label={lang === "en" ? "95% Transcribe Accuracy (EN / TH)" : "ความแม่นยำถอดเสียง 95% (EN / TH)"}
+      className="relative w-full h-full flex items-center justify-center select-none [transform-style:preserve-3d] group/iso3"
+    >
+      {/* PLANE 0 (Z: 2px) — Identical 2:1 Isometric Cross-Grid, Chevrons & Base Glass Plate */}
       <svg
-        className="pointer-events-none absolute inset-0 w-full h-full opacity-55"
-        viewBox="0 0 270 155"
+        className="pointer-events-none absolute w-[295px] sm:w-[320px] h-auto max-h-full overflow-visible"
+        viewBox="0 0 320 185"
         fill="none"
+        style={{ transform: "translateZ(2px)" }}
       >
-        <path d="M34 86 L26 90 L34 94" stroke="#a78bfa" strokeWidth="1.3" strokeLinecap="round" />
-        <path d="M238 78 L246 82 L238 86" stroke="#a78bfa" strokeWidth="1.3" strokeLinecap="round" />
-        <path d="M90 132 L96 136 L104 132" stroke="#a78bfa" strokeWidth="1.3" strokeLinecap="round" />
-      </svg>
+        <defs>
+          <radialGradient id="iso3FloorGlow" cx="50%" cy="52%" r="46%">
+            <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.22" />
+            <stop offset="60%" stopColor="#6d28d9" stopOpacity="0.06" />
+            <stop offset="100%" stopColor="#07060a" stopOpacity="0" />
+          </radialGradient>
 
-      {/* Isometric Tilted Preset Card Stack */}
-      <div
-        className="relative w-[205px] h-[115px] [transform-style:preserve-3d]"
-        style={{
-          transform: "rotateX(32deg) rotateY(14deg) rotateZ(-22deg)",
-        }}
-      >
-        {/* Base Layer 0: Dark Foundation Glass Plate */}
-        <div
-          className="absolute left-3 top-7 w-[178px] h-[82px] rounded-2xl border border-white/[0.15] bg-[#0d0a1a]/90 shadow-[0_18px_34px_rgba(0,0,0,0.9)]"
-          style={{ transform: "translateZ(0px)" }}
+          <linearGradient id="iso3BaseFill" x1="62" y1="45" x2="258" y2="143" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#1b1630" stopOpacity="0.82" />
+            <stop offset="50%" stopColor="#110e1f" stopOpacity="0.92" />
+            <stop offset="100%" stopColor="#161228" stopOpacity="0.88" />
+          </linearGradient>
+          <linearGradient id="iso3BaseStroke" x1="62" y1="45" x2="258" y2="143" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.18" />
+            <stop offset="50%" stopColor="#a78bfa" stopOpacity="0.52" />
+            <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.24" />
+          </linearGradient>
+        </defs>
+
+        {/* Ambient Violet Floor Glow */}
+        <ellipse cx="160" cy="96" rx="138" ry="66" fill="url(#iso3FloorGlow)" />
+
+        {/* Identical 2:1 Isometric Floor Cross-Grid as Card 1 & Card 2 */}
+        <g stroke="rgba(255, 255, 255, 0.05)" strokeWidth="1">
+          <line x1="36" y1="138" x2="216" y2="48" />
+          <line x1="64" y1="152" x2="244" y2="62" />
+          <line x1="92" y1="166" x2="272" y2="76" />
+          <line x1="120" y1="180" x2="300" y2="90" />
+
+          <line x1="284" y1="138" x2="104" y2="48" />
+          <line x1="256" y1="152" x2="76" y2="62" />
+          <line x1="228" y1="166" x2="48" y2="76" />
+          <line x1="200" y1="180" x2="20" y2="90" />
+        </g>
+
+        {/* Identical 4 Isometric Corner Chevrons (< > ^ v) */}
+        <path
+          d="M 42 91 L 35 94.5 L 42 98"
+          stroke="#a78bfa"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity="0.55"
+        />
+        <path
+          d="M 278 91 L 285 94.5 L 278 98"
+          stroke="#a78bfa"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity="0.55"
+        />
+        <path
+          d="M 155 21 L 160 17.5 L 165 21"
+          stroke="#a78bfa"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity="0.50"
+        />
+        <path
+          d="M 155 168 L 160 171.5 L 165 168"
+          stroke="#a78bfa"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity="0.65"
         />
 
-        {/* Layer 1: Cyan Glass Card (Karaoke Glow) */}
-        <div
-          onClick={() => setActiveLayer(2)}
-          className={`absolute left-2 top-4 w-[178px] h-[78px] rounded-2xl border transition-all duration-300 cursor-pointer flex items-end px-3.5 pb-2.5 ${
-            activeLayer === 2
-              ? "border-cyan-300/80 bg-gradient-to-br from-cyan-500/25 via-[#122230]/90 to-[#0e1525]/95 shadow-[0_0_24px_rgba(34,211,238,0.3)]"
-              : "border-cyan-300/45 bg-gradient-to-br from-cyan-400/15 via-[#131c2e]/85 to-[#0e1222]/90 hover:border-cyan-300/70"
-          }`}
-          style={{
-            transform: `translateZ(${activeLayer === 2 ? "22px" : "12px"})`,
-          }}
-        >
-          <div className="rounded-lg border border-emerald-400/45 bg-[#08221e]/90 px-2.5 py-0.5 shadow-[0_0_12px_rgba(16,185,129,0.25)]">
-            <span className="text-[11px] font-extrabold tracking-tight text-emerald-300 drop-shadow-[0_0_8px_rgba(52,211,153,0.6)]">
-              Karaoke Glow
-            </span>
-          </div>
-        </div>
+        {/* Deep Shadow under Lower Obsidian Glass Plate */}
+        <path
+          d={isoRhombusPath(160, 106, 96, 48, 0.12)}
+          fill="rgba(2, 1, 6, 0.85)"
+        />
 
-        {/* Layer 2: Upper Purple Glass Card (MrBeast Badge / MrBeast Viral) */}
-        <div
-          onClick={() => setActiveLayer(1)}
-          className={`absolute left-5 -top-1 w-[176px] h-[74px] rounded-2xl border transition-all duration-300 cursor-pointer p-3 flex flex-col justify-between ${
-            activeLayer === 1
-              ? "border-purple-300/80 bg-gradient-to-br from-purple-400/25 via-[#22173e]/92 to-[#130d26]/95 shadow-[0_12px_28px_rgba(0,0,0,0.75),0_0_22px_rgba(168,85,247,0.35)]"
-              : "border-purple-300/50 bg-gradient-to-br from-purple-400/15 via-[#1c1433]/88 to-[#120d22]/90 hover:border-purple-300/75"
-          }`}
-          style={{
-            transform: `translateZ(${activeLayer === 1 ? "30px" : "24px"})`,
-          }}
-        >
-          <span className="text-[12px] font-extrabold tracking-tight text-cyan-300 drop-shadow-[0_0_10px_rgba(34,211,238,0.55)]">
-            MrBeast Badge
-          </span>
-          <div className="self-start rounded-lg border border-purple-400/40 bg-[#1a1033]/95 px-2.5 py-0.5 shadow-inner">
-            <span className="text-[10.5px] font-bold tracking-tight text-purple-300">
-              MrBeast Viral
-            </span>
-          </div>
-        </div>
+        {/* Lower Stacked Obsidian Glass Plate (Matches Card 1 Bottom Plate) */}
+        <path
+          d={isoRhombusPath(160, 100.5, 96, 48, 0.12)}
+          fill="rgba(14, 12, 25, 0.9)"
+          stroke="rgba(139, 92, 246, 0.22)"
+          strokeWidth="1"
+        />
+        <path
+          d={isoRhombusPath(160, 98, 96, 48, 0.12)}
+          fill="url(#iso3BaseFill)"
+          stroke="url(#iso3BaseStroke)"
+          strokeWidth="1.3"
+        />
+      </svg>
 
-        {/* Layer 3: Top-Left Floating Tab Badge (TikTok Viral) */}
-        <div
-          onClick={() => setActiveLayer(0)}
-          className={`absolute -left-1 -top-4 rounded-xl border px-3 py-1 cursor-pointer transition-all duration-300 ${
-            activeLayer === 0
-              ? "border-amber-300/80 bg-[#23122b] shadow-[0_0_20px_rgba(250,204,21,0.4)] scale-105"
-              : "border-pink-400/50 bg-[#1c1026]/95 shadow-[0_8px_18px_rgba(0,0,0,0.8)] hover:border-amber-300/65"
-          }`}
-          style={{
-            transform: `translateZ(${activeLayer === 0 ? "42px" : "36px"})`,
-          }}
-        >
-          <span className="text-[11px] font-extrabold tracking-tight text-[#fde047] drop-shadow-[0_0_8px_rgba(250,204,21,0.5)]">
-            TikTok Viral
-          </span>
-        </div>
-      </div>
+      {/* PLANE 1 (Z: 18px) — Upper Frosted Glass Tray & 2x2 Translucent Glass Tiles */}
+      <svg
+        className="w-[295px] sm:w-[320px] h-auto max-h-full overflow-visible"
+        viewBox="0 0 320 185"
+        fill="none"
+        style={{ transform: "translateZ(18px)" }}
+      >
+        <defs>
+          {/* Upper Frosted Glass Tray (Matches Card 1 Top Plate) */}
+          <radialGradient id="iso3TrayFill" cx="50%" cy="50%" r="54%">
+            <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.22" />
+            <stop offset="50%" stopColor="#1b1532" stopOpacity="0.78" />
+            <stop offset="100%" stopColor="#110d20" stopOpacity="0.90" />
+          </radialGradient>
+          <linearGradient id="iso3TrayStroke" x1="64" y1="38" x2="256" y2="134" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.24" />
+            <stop offset="50%" stopColor="#ddd6fe" stopOpacity="0.75" />
+            <stop offset="100%" stopColor="#a78bfa" stopOpacity="0.35" />
+          </linearGradient>
+
+          {/* Inactive Translucent Obsidian Tile */}
+          <linearGradient id="iso3TileStd" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#1f1838" stopOpacity="0.92" />
+            <stop offset="100%" stopColor="#110d22" stopOpacity="0.96" />
+          </linearGradient>
+          <linearGradient id="iso3TileStdRim" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#e9d5ff" stopOpacity="0.48" />
+            <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.22" />
+          </linearGradient>
+
+          {/* Active Highlighted Frosted Violet Tile (Matches Card 2 Active Card) */}
+          <linearGradient id="iso3TileAct" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#352563" stopOpacity="0.95" />
+            <stop offset="50%" stopColor="#241947" stopOpacity="0.95" />
+            <stop offset="100%" stopColor="#171030" stopOpacity="0.98" />
+          </linearGradient>
+          <linearGradient id="iso3TileActRim" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.92" />
+            <stop offset="50%" stopColor="#ddd6fe" stopOpacity="0.80" />
+            <stop offset="100%" stopColor="#a78bfa" stopOpacity="0.55" />
+          </linearGradient>
+        </defs>
+
+        {/* Upper Glass Tray 3px Thickness Edge */}
+        <path
+          d={isoRhombusPath(160, 90, 94, 47, 0.12)}
+          fill="rgba(109, 40, 217, 0.18)"
+          stroke="rgba(167, 139, 250, 0.32)"
+          strokeWidth="1.1"
+        />
+
+        {/* Upper Frosted Glass Tray Surface */}
+        <path
+          d={isoRhombusPath(160, 87, 94, 47, 0.12)}
+          fill="url(#iso3TrayFill)"
+          stroke="url(#iso3TrayStroke)"
+          strokeWidth="1.4"
+        />
+
+        {/* Inner Dashed Frame (Matches Card 1 & Card 4 Dashed Frame) */}
+        <path
+          d={isoRhombusPath(160, 87, 82, 41, 0.12)}
+          stroke="rgba(196, 181, 253, 0.25)"
+          strokeWidth="1"
+          strokeDasharray="2.5 3"
+        />
+
+        {/* 2x2 Translucent Glass Tiles (95%, EN, TH, Waveform) */}
+        {keys.map((k) => {
+          const isSelected = activeKey === k.id;
+          const cyTop = isSelected ? k.cy - 2.5 : k.cy;
+          const cyEdge = cyTop + 3;
+
+          return (
+            <g
+              key={k.id}
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveKey(k.id);
+              }}
+              className="cursor-pointer"
+            >
+              {/* Soft Shadow Cast onto Glass Tray */}
+              <path
+                d={isoRhombusPath(k.cx, k.cy + 4.5, rxTile * 0.96, ryTile * 0.96, 0.16)}
+                fill="rgba(4, 2, 10, 0.75)"
+              />
+
+              {/* 3px Extruded Glass Thickness Rim */}
+              <path
+                d={isoRhombusPath(k.cx, cyEdge, rxTile, ryTile, 0.16)}
+                fill={isSelected ? "rgba(139, 92, 246, 0.38)" : "rgba(30, 22, 56, 0.85)"}
+                stroke={isSelected ? "rgba(221, 214, 254, 0.55)" : "rgba(167, 139, 250, 0.25)"}
+                strokeWidth="1"
+              />
+
+              {/* Top Frosted Glass Tile Face */}
+              <path
+                d={isoRhombusPath(k.cx, cyTop, rxTile, ryTile, 0.16)}
+                fill={isSelected ? "url(#iso3TileAct)" : "url(#iso3TileStd)"}
+                stroke={isSelected ? "url(#iso3TileActRim)" : "url(#iso3TileStdRim)"}
+                strokeWidth={isSelected ? "1.45" : "1.15"}
+              />
+
+              {/* Foreshortened Isometric Legend: Crisp vector text & icons without blur/glow */}
+              <g
+                transform={`translate(${k.cx}, ${cyTop}) scale(1, 0.52) rotate(-45)`}
+                textRendering="geometricPrecision"
+                shapeRendering="geometricPrecision"
+              >
+                {k.id === "95" && (
+                  <text
+                    x="0"
+                    y="5"
+                    textAnchor="middle"
+                    fill={isSelected ? "#ffffff" : "#c4b5fd"}
+                    fontSize="14.5"
+                    fontWeight="800"
+                    fontFamily="var(--font-mono), monospace"
+                    letterSpacing="-0.5"
+                  >
+                    95%
+                  </text>
+                )}
+
+                {k.id === "en" && (
+                  <text
+                    x="0"
+                    y="5"
+                    textAnchor="middle"
+                    fill={isSelected ? "#ffffff" : "rgba(221, 214, 254, 0.85)"}
+                    fontSize="14.5"
+                    fontWeight="700"
+                    fontFamily="var(--font-mono), monospace"
+                    letterSpacing="0.5"
+                  >
+                    EN
+                  </text>
+                )}
+
+                {k.id === "th" && (
+                  <text
+                    x="0"
+                    y="5"
+                    textAnchor="middle"
+                    fill={isSelected ? "#ffffff" : "rgba(221, 214, 254, 0.85)"}
+                    fontSize="14.5"
+                    fontWeight="700"
+                    fontFamily="var(--font-mono), monospace"
+                    letterSpacing="0.5"
+                  >
+                    TH
+                  </text>
+                )}
+
+                {k.id === "icon" && (
+                  <g
+                    stroke={isSelected ? "#ffffff" : "rgba(221, 214, 254, 0.85)"}
+                    strokeWidth="2.4"
+                    strokeLinecap="round"
+                  >
+                    <line x1="-11" y1="3.5" x2="-11" y2="-3.5" />
+                    <line x1="-5.5" y1="8.5" x2="-5.5" y2="-8.5" />
+                    <line x1="0" y1="11.5" x2="0" y2="-11.5" />
+                    <line x1="5.5" y1="7" x2="5.5" y2="-7" />
+                    <line x1="11" y1="3.5" x2="11" y2="-3.5" />
+                  </g>
+                )}
+              </g>
+            </g>
+          );
+        })}
+      </svg>
     </div>
   );
 }
 
 // ============================================================================
-// 4. 9:16, 16:9 & 1:1 PREVIEW (1:1 Isometric Reconstruction of multi-ratio.png)
-// 3 Standing Vertical Isometric Glass Slabs (skewY -26.5°) stepped in 3D depth
+// 4. 9:16, 16:9 & 1:1 PREVIEW
+// Unified with Card 1, 2, 3: Same Floor Cross-Grid, Chevrons & Glass Material
 // ============================================================================
 function MultiRatioGraphic() {
-  const [selectedRatio, setSelectedRatio] = useState<"9:16" | "1:1" | "16:9" | null>(null);
+  const [selectedRatio, setSelectedRatio] = useState<"9:16" | "1:1" | "16:9">("16:9");
 
   return (
     <div className="relative w-full h-full flex items-center justify-center select-none [transform-style:preserve-3d] group/iso4">
-      {/* PLANE 0 (Z: 2px) — Isometric Floor Grid & Outer Floating Crop Brackets */}
+      {/* PLANE 0 (Z: 2px) — Identical 2:1 Isometric Floor Cross-Grid & 4 Chevrons */}
       <svg
-        className="pointer-events-none w-[265px] sm:w-[285px] h-auto max-h-full overflow-visible"
-        viewBox="0 0 302 210"
+        className="pointer-events-none absolute w-[295px] sm:w-[320px] h-auto max-h-full overflow-visible"
+        viewBox="0 0 320 185"
         fill="none"
         style={{ transform: "translateZ(2px)" }}
       >
         <defs>
-          <radialGradient id="iso4Ambient" cx="38%" cy="38%" r="52%">
+          <radialGradient id="iso4Ambient" cx="50%" cy="52%" r="46%">
             <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.22" />
-            <stop offset="60%" stopColor="#4c1d95" stopOpacity="0.06" />
+            <stop offset="60%" stopColor="#6d28d9" stopOpacity="0.06" />
             <stop offset="100%" stopColor="#07060a" stopOpacity="0" />
           </radialGradient>
         </defs>
 
-        <ellipse cx="145" cy="105" rx="135" ry="85" fill="url(#iso4Ambient)" />
+        <ellipse cx="160" cy="96" rx="138" ry="66" fill="url(#iso4Ambient)" />
 
-        {/* Isometric Floor Grid beneath the 3 standing screens */}
-        <g stroke="rgba(167, 139, 250, 0.12)" strokeWidth="0.9">
-          {/* Upward-right lines (-26.5° slope) */}
-          <line x1="28" y1="162" x2="178" y2="87" />
-          <line x1="48" y1="174" x2="198" y2="99" />
-          <line x1="68" y1="186" x2="218" y2="111" />
-          <line x1="88" y1="198" x2="238" y2="123" />
-          <line x1="108" y1="208" x2="258" y2="133" />
-          {/* Downward-right lines (+26.5° slope) */}
-          <line x1="42" y1="128" x2="182" y2="198" />
-          <line x1="66" y1="116" x2="206" y2="186" />
-          <line x1="90" y1="104" x2="230" y2="174" />
-          <line x1="114" y1="92" x2="254" y2="162" />
+        {/* Identical 2:1 Isometric Floor Cross-Grid as Cards 1, 2, 3 */}
+        <g stroke="rgba(255, 255, 255, 0.05)" strokeWidth="1">
+          <line x1="36" y1="138" x2="216" y2="48" />
+          <line x1="64" y1="152" x2="244" y2="62" />
+          <line x1="92" y1="166" x2="272" y2="76" />
+          <line x1="120" y1="180" x2="300" y2="90" />
+
+          <line x1="284" y1="138" x2="104" y2="48" />
+          <line x1="256" y1="152" x2="76" y2="62" />
+          <line x1="228" y1="166" x2="48" y2="76" />
+          <line x1="200" y1="180" x2="20" y2="90" />
         </g>
 
-        {/* Outer Isometric Crop Marks matching Image 2 */}
-        {/* Top-left bracket outside 9:16 screen */}
+        {/* Identical 4 Isometric Corner Chevrons (< > ^ v) */}
         <path
-          d="M 55 58 V 43 L 67 37"
-          stroke="rgba(216, 180, 254, 0.55)"
-          strokeWidth="1.2"
+          d="M 42 91 L 35 94.5 L 42 98"
+          stroke="#a78bfa"
+          strokeWidth="1.4"
           strokeLinecap="round"
           strokeLinejoin="round"
+          opacity="0.55"
         />
-        {/* Top-right bracket above 9:16 screen */}
         <path
-          d="M 134 15 L 146 9 V 24"
-          stroke="rgba(216, 180, 254, 0.55)"
-          strokeWidth="1.2"
+          d="M 278 91 L 285 94.5 L 278 98"
+          stroke="#a78bfa"
+          strokeWidth="1.4"
           strokeLinecap="round"
           strokeLinejoin="round"
+          opacity="0.55"
         />
-        {/* Bottom-left bracket below 9:16 screen */}
         <path
-          d="M 55 152 V 167 L 67 161"
-          stroke="rgba(216, 180, 254, 0.55)"
-          strokeWidth="1.2"
+          d="M 155 21 L 160 17.5 L 165 21"
+          stroke="#a78bfa"
+          strokeWidth="1.4"
           strokeLinecap="round"
           strokeLinejoin="round"
+          opacity="0.50"
         />
-        {/* Bottom-left bracket below 16:9 screen */}
         <path
-          d="M 134 185 V 198 L 146 192"
-          stroke="rgba(216, 180, 254, 0.65)"
-          strokeWidth="1.2"
+          d="M 155 168 L 160 171.5 L 165 168"
+          stroke="#a78bfa"
+          strokeWidth="1.4"
           strokeLinecap="round"
           strokeLinejoin="round"
-        />
-        {/* Top-right bracket outside 16:9 screen */}
-        <path
-          d="M 255 62 L 266 56.5 V 70"
-          stroke="rgba(216, 180, 254, 0.65)"
-          strokeWidth="1.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+          opacity="0.65"
         />
       </svg>
 
@@ -856,36 +1060,44 @@ function MultiRatioGraphic() {
         viewBox="0 0 302 210"
         fill="none"
         style={{
-          transform: `translateZ(${selectedRatio === "9:16" ? "20px" : "10px"})`,
+          transform: `translateZ(${selectedRatio === "9:16" ? "22px" : "10px"})`,
         }}
       >
         <defs>
-          <linearGradient id="iso4Glass1" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#c4b5fd" stopOpacity="0.22" />
-            <stop offset="45%" stopColor="#2e1d59" stopOpacity="0.48" />
-            <stop offset="100%" stopColor="#0f0b1e" stopOpacity="0.78" />
+          <linearGradient id="iso4StdGlass" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#1e1736" stopOpacity="0.90" />
+            <stop offset="100%" stopColor="#100c1e" stopOpacity="0.94" />
           </linearGradient>
-          <linearGradient id="iso4Rim1" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#f3e8ff" stopOpacity="0.72" />
-            <stop offset="50%" stopColor="#a78bfa" stopOpacity="0.45" />
-            <stop offset="100%" stopColor="#6d28d9" stopOpacity="0.30" />
+          <linearGradient id="iso4ActGlass" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#352563" stopOpacity="0.94" />
+            <stop offset="50%" stopColor="#221742" stopOpacity="0.95" />
+            <stop offset="100%" stopColor="#140e29" stopOpacity="0.97" />
+          </linearGradient>
+          <linearGradient id="iso4StdRim" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#e9d5ff" stopOpacity="0.50" />
+            <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.24" />
+          </linearGradient>
+          <linearGradient id="iso4ActRim" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.92" />
+            <stop offset="50%" stopColor="#ddd6fe" stopOpacity="0.78" />
+            <stop offset="100%" stopColor="#a78bfa" stopOpacity="0.50" />
           </linearGradient>
         </defs>
 
         <g
-          onClick={() => setSelectedRatio((r) => (r === "9:16" ? null : "9:16"))}
+          onClick={() => setSelectedRatio("9:16")}
           className="pointer-events-auto cursor-pointer"
           transform="translate(68, 56) skewY(-26.5)"
         >
-          {/* 3D Extruded Back/Left Glass Thickness Slab (-4px X, -2px Y) */}
+          {/* 3D Extruded Glass Thickness Slab */}
           <rect
-            x="-4"
+            x="-3.5"
             y="-2"
             width="64"
-            height="112"
-            rx="8"
-            fill="rgba(30, 20, 58, 0.55)"
-            stroke="rgba(196, 181, 253, 0.35)"
+            height="110"
+            rx="7"
+            fill={selectedRatio === "9:16" ? "rgba(139, 92, 246, 0.35)" : "rgba(24, 16, 46, 0.80)"}
+            stroke={selectedRatio === "9:16" ? "rgba(221, 214, 254, 0.55)" : "rgba(167, 139, 250, 0.25)"}
             strokeWidth="1"
           />
           {/* Main Front Standing Glass Face */}
@@ -893,56 +1105,44 @@ function MultiRatioGraphic() {
             x="0"
             y="0"
             width="64"
-            height="112"
-            rx="8"
-            fill="url(#iso4Glass1)"
-            stroke={selectedRatio === "9:16" ? "#ddd6fe" : "url(#iso4Rim1)"}
-            strokeWidth={selectedRatio === "9:16" ? "1.6" : "1.2"}
+            height="110"
+            rx="7"
+            fill={selectedRatio === "9:16" ? "url(#iso4ActGlass)" : "url(#iso4StdGlass)"}
+            stroke={selectedRatio === "9:16" ? "url(#iso4ActRim)" : "url(#iso4StdRim)"}
+            strokeWidth={selectedRatio === "9:16" ? "1.5" : "1.15"}
           />
-          {/* Speaker Notch Line */}
-          <line
-            x1="22"
-            y1="8"
-            x2="42"
-            y2="8"
-            stroke="rgba(255, 255, 255, 0.45)"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-          />
-          {/* Center Dashed Badge */}
+          {/* Inner Dashed Frame */}
           <rect
-            x="8"
-            y="42"
-            width="48"
-            height="28"
+            x="7"
+            y="9"
+            width="50"
+            height="92"
             rx="4"
-            fill="rgba(36, 22, 70, 0.78)"
-            stroke="rgba(196, 181, 253, 0.55)"
+            stroke="rgba(196, 181, 253, 0.28)"
             strokeWidth="1"
-            strokeDasharray="2.5 2.5"
+            strokeDasharray="2.5 3"
           />
+          {/* Single Crisp Ratio Label */}
           <text
             x="32"
-            y="54"
+            y="56"
             textAnchor="middle"
-            fill="#e9d5ff"
-            fontSize="8.5"
-            fontWeight="600"
-            fontFamily="var(--font-mono), monospace"
-          >
-            9:16
-          </text>
-          <text
-            x="32"
-            y="64"
-            textAnchor="middle"
-            fill="#ffffff"
-            fontSize="8.5"
+            fill={selectedRatio === "9:16" ? "#ffffff" : "rgba(221, 214, 254, 0.72)"}
+            fontSize="10.5"
             fontWeight="800"
             fontFamily="var(--font-mono), monospace"
           >
             9:16
           </text>
+          {/* Bottom Wireframe Subtitle Bar */}
+          <rect
+            x="16"
+            y="86"
+            width="32"
+            height="4"
+            rx="2"
+            fill={selectedRatio === "9:16" ? "rgba(221, 214, 254, 0.75)" : "rgba(255, 255, 255, 0.22)"}
+          />
         </g>
       </svg>
 
@@ -955,21 +1155,8 @@ function MultiRatioGraphic() {
           transform: `translateZ(${selectedRatio === "1:1" ? "34px" : "24px"})`,
         }}
       >
-        <defs>
-          <linearGradient id="iso4Glass2" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#ddd6fe" stopOpacity="0.24" />
-            <stop offset="40%" stopColor="#2a1b52" stopOpacity="0.58" />
-            <stop offset="100%" stopColor="#0d0a1a" stopOpacity="0.82" />
-          </linearGradient>
-          <linearGradient id="iso4Rim2" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.78" />
-            <stop offset="50%" stopColor="#c4b5fd" stopOpacity="0.52" />
-            <stop offset="100%" stopColor="#7c3aed" stopOpacity="0.35" />
-          </linearGradient>
-        </defs>
-
         <g
-          onClick={() => setSelectedRatio((r) => (r === "1:1" ? null : "1:1"))}
+          onClick={() => setSelectedRatio("1:1")}
           className="pointer-events-auto cursor-pointer"
           transform="translate(104, 78) skewY(-26.5)"
         >
@@ -977,75 +1164,65 @@ function MultiRatioGraphic() {
           <rect
             x="-8"
             y="4"
-            width="86"
-            height="90"
-            rx="8"
-            fill="rgba(4, 2, 10, 0.55)"
+            width="84"
+            height="88"
+            rx="7"
+            fill="rgba(4, 2, 10, 0.70)"
           />
-          {/* 3D Extruded Left/Top Glass Thickness Slab */}
+          {/* 3D Extruded Glass Thickness Slab */}
           <rect
-            x="-4"
+            x="-3.5"
             y="-2"
-            width="86"
-            height="90"
-            rx="8"
-            fill="rgba(36, 24, 68, 0.60)"
-            stroke="rgba(216, 180, 254, 0.40)"
+            width="84"
+            height="88"
+            rx="7"
+            fill={selectedRatio === "1:1" ? "rgba(139, 92, 246, 0.35)" : "rgba(24, 16, 46, 0.85)"}
+            stroke={selectedRatio === "1:1" ? "rgba(221, 214, 254, 0.55)" : "rgba(167, 139, 250, 0.25)"}
             strokeWidth="1"
           />
           {/* Main Front Standing Square Glass Face */}
           <rect
             x="0"
             y="0"
-            width="86"
-            height="90"
-            rx="8"
-            fill="url(#iso4Glass2)"
-            stroke={selectedRatio === "1:1" ? "#f5f3ff" : "url(#iso4Rim2)"}
-            strokeWidth={selectedRatio === "1:1" ? "1.6" : "1.25"}
+            width="84"
+            height="88"
+            rx="7"
+            fill={selectedRatio === "1:1" ? "url(#iso4ActGlass)" : "url(#iso4StdGlass)"}
+            stroke={selectedRatio === "1:1" ? "url(#iso4ActRim)" : "url(#iso4StdRim)"}
+            strokeWidth={selectedRatio === "1:1" ? "1.5" : "1.15"}
           />
-          {/* Inner Corner Crop Ticks */}
-          <path
-            d="M 7 16 V 7 H 16 M 70 7 H 79 V 16 M 7 74 V 83 H 16"
-            stroke="rgba(233, 213, 255, 0.55)"
-            strokeWidth="1.1"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          {/* Center Dashed Badge: 1:1 square / 1:1 */}
+          {/* Inner Dashed Frame */}
           <rect
-            x="14"
-            y="29"
-            width="58"
-            height="32"
-            rx="4.5"
-            fill="rgba(38, 24, 74, 0.82)"
-            stroke="rgba(196, 181, 253, 0.62)"
+            x="8"
+            y="8"
+            width="68"
+            height="72"
+            rx="4"
+            stroke="rgba(196, 181, 253, 0.28)"
             strokeWidth="1"
-            strokeDasharray="2.5 2.5"
+            strokeDasharray="2.5 3"
           />
+          {/* Single Crisp Ratio Label */}
           <text
-            x="43"
-            y="42"
+            x="42"
+            y="46"
             textAnchor="middle"
-            fill="#d8b4fe"
-            fontSize="8"
-            fontWeight="600"
-            fontFamily="var(--font-mono), monospace"
-          >
-            1:1 square
-          </text>
-          <text
-            x="43"
-            y="54"
-            textAnchor="middle"
-            fill="#ffffff"
-            fontSize="10"
+            fill={selectedRatio === "1:1" ? "#ffffff" : "rgba(221, 214, 254, 0.75)"}
+            fontSize="11"
             fontWeight="800"
             fontFamily="var(--font-mono), monospace"
           >
             1:1
           </text>
+          {/* Bottom Wireframe Subtitle Bar */}
+          <rect
+            x="22"
+            y="66"
+            width="40"
+            height="4"
+            rx="2"
+            fill={selectedRatio === "1:1" ? "rgba(221, 214, 254, 0.75)" : "rgba(255, 255, 255, 0.22)"}
+          />
         </g>
       </svg>
 
@@ -1055,24 +1232,11 @@ function MultiRatioGraphic() {
         viewBox="0 0 302 210"
         fill="none"
         style={{
-          transform: `translateZ(${selectedRatio === "16:9" ? "48px" : "38px"})`,
+          transform: `translateZ(${selectedRatio === "16:9" ? "46px" : "36px"})`,
         }}
       >
-        <defs>
-          <linearGradient id="iso4Glass3" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#ede9fe" stopOpacity="0.26" />
-            <stop offset="38%" stopColor="#2e1d59" stopOpacity="0.62" />
-            <stop offset="100%" stopColor="#0d0a1a" stopOpacity="0.88" />
-          </linearGradient>
-          <linearGradient id="iso4Rim3" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.85" />
-            <stop offset="50%" stopColor="#c4b5fd" stopOpacity="0.60" />
-            <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.42" />
-          </linearGradient>
-        </defs>
-
         <g
-          onClick={() => setSelectedRatio((r) => (r === "16:9" ? null : "16:9"))}
+          onClick={() => setSelectedRatio("16:9")}
           className="pointer-events-auto cursor-pointer"
           transform="translate(142, 118) skewY(-26.5)"
         >
@@ -1080,75 +1244,66 @@ function MultiRatioGraphic() {
           <rect
             x="-8"
             y="4"
-            width="108"
-            height="72"
-            rx="8"
-            fill="rgba(4, 2, 10, 0.60)"
+            width="106"
+            height="70"
+            rx="7"
+            fill="rgba(4, 2, 10, 0.78)"
           />
-          {/* 3D Extruded Left/Top Glass Thickness Slab */}
+          {/* 3D Extruded Glass Thickness Slab */}
           <rect
-            x="-4"
+            x="-3.5"
             y="-2"
-            width="108"
-            height="72"
-            rx="8"
-            fill="rgba(42, 28, 78, 0.65)"
-            stroke="rgba(221, 214, 254, 0.45)"
+            width="106"
+            height="70"
+            rx="7"
+            fill={selectedRatio === "16:9" ? "rgba(139, 92, 246, 0.38)" : "rgba(24, 16, 46, 0.85)"}
+            stroke={selectedRatio === "16:9" ? "rgba(221, 214, 254, 0.58)" : "rgba(167, 139, 250, 0.25)"}
             strokeWidth="1"
           />
           {/* Main Front Standing 16:9 Widescreen Glass Face */}
           <rect
             x="0"
             y="0"
-            width="108"
-            height="72"
-            rx="8"
-            fill="url(#iso4Glass3)"
-            stroke={selectedRatio === "16:9" ? "#ffffff" : "url(#iso4Rim3)"}
-            strokeWidth={selectedRatio === "16:9" ? "1.7" : "1.3"}
+            width="106"
+            height="70"
+            rx="7"
+            fill={selectedRatio === "16:9" ? "url(#iso4ActGlass)" : "url(#iso4StdGlass)"}
+            stroke={selectedRatio === "16:9" ? "url(#iso4ActRim)" : "url(#iso4StdRim)"}
+            strokeWidth={selectedRatio === "16:9" ? "1.5" : "1.15"}
           />
-          {/* 4 Inner Corner Crop Marks */}
-          <path
-            d="M 7 15 V 7 H 15 M 93 7 H 101 V 15 M 7 57 V 65 H 15 M 93 65 H 101 V 57"
-            stroke="rgba(233, 213, 255, 0.62)"
-            strokeWidth="1.15"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          {/* Center Dashed Badge: safe-zone / 16:9 */}
+          {/* Inner Dashed Safe-Zone Frame (Matches Card 1 & Card 3) */}
           <rect
-            x="22"
-            y="19"
-            width="64"
-            height="34"
-            rx="4.5"
-            fill="rgba(40, 25, 78, 0.86)"
-            stroke="rgba(196, 181, 253, 0.68)"
+            x="8"
+            y="8"
+            width="90"
+            height="54"
+            rx="4"
+            fill={selectedRatio === "16:9" ? "rgba(139, 92, 246, 0.08)" : "transparent"}
+            stroke={selectedRatio === "16:9" ? "rgba(255, 255, 255, 0.45)" : "rgba(196, 181, 253, 0.28)"}
             strokeWidth="1.1"
-            strokeDasharray="2.5 2.5"
+            strokeDasharray="2.5 3"
           />
+          {/* Single Crisp Ratio Label */}
           <text
-            x="54"
-            y="32"
+            x="53"
+            y="36"
             textAnchor="middle"
-            fill="#d8b4fe"
-            fontSize="8"
-            fontWeight="600"
-            fontFamily="var(--font-mono), monospace"
-          >
-            safe-zone
-          </text>
-          <text
-            x="54"
-            y="45"
-            textAnchor="middle"
-            fill="#ffffff"
-            fontSize="10.5"
+            fill={selectedRatio === "16:9" ? "#ffffff" : "rgba(221, 214, 254, 0.78)"}
+            fontSize="11.5"
             fontWeight="800"
             fontFamily="var(--font-mono), monospace"
           >
             16:9
           </text>
+          {/* Glowing Wireframe Active Subtitle Bar at Bottom */}
+          <rect
+            x="29"
+            y="48"
+            width="48"
+            height="4.5"
+            rx="2.25"
+            fill={selectedRatio === "16:9" ? "#ddd6fe" : "rgba(255, 255, 255, 0.25)"}
+          />
         </g>
       </svg>
     </div>
@@ -1156,139 +1311,196 @@ function MultiRatioGraphic() {
 }
 
 // ============================================================================
-// 5. FONT SIZE & HIGHLIGHT COLORS (Matches styles-colors.png)
-// Isometric 3D glass control deck with spectral slider, T Size slider & 6 orbs
+// 5. FONT SIZE & HIGHLIGHT COLORS
+// Exact 2:1 Isometric Plane (rotateX 60deg rotateZ -45deg), Same Cross-Grid,
+// Same Chevrons, Same Obsidian-Violet Glass & Wireframe Abstraction as Card 1 & 2
 // ============================================================================
-const ORB_COLORS = [
-  { hex: "#facc15", name: "Yellow" },
-  { hex: "#ffffff", name: "White" },
-  { hex: "#22d3ee", name: "Cyan" },
-  { hex: "#ef4444", name: "Red" },
-  { hex: "#22c55e", name: "Green" },
-  { hex: "#ec4899", name: "Pink" },
+const THEME_SWATCHES = [
+  { fill: "#ffffff", glow: "rgba(255, 255, 255, 0.65)", pill: "from-[#ffffff] via-[#f5f3ff] to-[#ddd6fe]" },
+  { fill: "#ddd6fe", glow: "rgba(221, 214, 254, 0.75)", pill: "from-[#ede9fe] via-[#c4b5fd] to-[#a78bfa]" },
+  { fill: "#a78bfa", glow: "rgba(167, 139, 250, 0.85)", pill: "from-[#c4b5fd] via-[#a78bfa] to-[#8b5cf6]" },
+  { fill: "#7c3aed", glow: "rgba(124, 58, 237, 0.85)", pill: "from-[#a78bfa] via-[#8b5cf6] to-[#6d28d9]" },
 ] as const;
 
 function StyleColorsGraphic() {
-  const [activeOrb, setActiveOrb] = useState(0);
-  const [sizeVal, setSizeVal] = useState(64);
+  const [activeColorIdx, setActiveColorIdx] = useState(2);
+  const [activeSize, setActiveSize] = useState<"S" | "M" | "L">("M");
 
-  const handleTrackClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    e.stopPropagation();
-    const rect = e.currentTarget.getBoundingClientRect();
-    const pct = Math.max(18, Math.min(92, Math.round(((e.clientX - rect.left) / rect.width) * 100)));
-    setSizeVal(pct);
-  };
+  const selectedSwatch = THEME_SWATCHES[activeColorIdx] || THEME_SWATCHES[2];
 
   return (
-    <div className="relative w-[270px] h-[155px] flex items-center justify-center select-none [transform-style:preserve-3d] group/iso5">
-      {/* Isometric Background Grid & Corner Brackets */}
+    <div className="relative w-full h-full flex items-center justify-center select-none [transform-style:preserve-3d] group/iso5">
+      {/* Identical 2:1 Isometric Floor Cross-Grid & 4 Chevrons as Cards 1, 2, 3, 4 */}
       <svg
-        className="pointer-events-none absolute inset-0 w-full h-full opacity-50"
-        viewBox="0 0 270 155"
+        className="pointer-events-none absolute w-[295px] sm:w-[320px] h-auto max-h-full overflow-visible"
+        viewBox="0 0 320 185"
         fill="none"
+        style={{ transform: "translateZ(2px)" }}
       >
-        <g stroke="rgba(167,139,250,0.14)" strokeWidth="1">
-          <line x1="40" y1="120" x2="200" y2="35" />
-          <line x1="80" y1="140" x2="240" y2="55" />
-          <line x1="230" y1="120" x2="70" y2="35" />
-          <line x1="190" y1="140" x2="30" y2="55" />
+        <defs>
+          <radialGradient id="iso5Ambient" cx="50%" cy="52%" r="46%">
+            <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.22" />
+            <stop offset="60%" stopColor="#6d28d9" stopOpacity="0.06" />
+            <stop offset="100%" stopColor="#07060a" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+
+        <ellipse cx="160" cy="96" rx="138" ry="66" fill="url(#iso5Ambient)" />
+
+        {/* Identical 2:1 Isometric Floor Cross-Grid */}
+        <g stroke="rgba(255, 255, 255, 0.05)" strokeWidth="1">
+          <line x1="36" y1="138" x2="216" y2="48" />
+          <line x1="64" y1="152" x2="244" y2="62" />
+          <line x1="92" y1="166" x2="272" y2="76" />
+          <line x1="120" y1="180" x2="300" y2="90" />
+
+          <line x1="284" y1="138" x2="104" y2="48" />
+          <line x1="256" y1="152" x2="76" y2="62" />
+          <line x1="228" y1="166" x2="48" y2="76" />
+          <line x1="200" y1="180" x2="20" y2="90" />
         </g>
-        <path d="M35 72 L28 76 L35 80" stroke="#a78bfa" strokeWidth="1.3" strokeLinecap="round" />
-        <path d="M238 80 L245 84 L238 88" stroke="#a78bfa" strokeWidth="1.3" strokeLinecap="round" />
-        <path d="M84 134 L90 138 L98 134" stroke="#a78bfa" strokeWidth="1.3" strokeLinecap="round" />
+
+        {/* Identical 4 Isometric Corner Chevrons (< > ^ v) */}
+        <path
+          d="M 42 91 L 35 94.5 L 42 98"
+          stroke="#a78bfa"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity="0.55"
+        />
+        <path
+          d="M 278 91 L 285 94.5 L 278 98"
+          stroke="#a78bfa"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity="0.55"
+        />
+        <path
+          d="M 155 21 L 160 17.5 L 165 21"
+          stroke="#a78bfa"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity="0.50"
+        />
+        <path
+          d="M 155 168 L 160 171.5 L 165 168"
+          stroke="#a78bfa"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity="0.65"
+        />
       </svg>
 
-      {/* Isometric Tilted Control Deck */}
+      {/* True 2:1 Isometric Plane (rotateX 60deg rotateZ -45deg — identical to Card 2!) */}
       <div
-        className="relative w-[206px] h-[106px] [transform-style:preserve-3d]"
+        className="relative w-[196px] sm:w-[206px] h-[118px] [transform-style:preserve-3d]"
         style={{
-          transform: "rotateX(32deg) rotateY(14deg) rotateZ(-22deg)",
+          transform: "rotateX(60deg) rotateZ(-45deg)",
         }}
       >
-        {/* Bottom Shadow Glass Plate (Z: 0px) */}
+        {/* Layer 0: Lower Stacked Obsidian Glass Plate (Matches Card 1 & Card 3) */}
         <div
-          className="absolute left-2 top-3 w-full h-full rounded-2xl border border-white/[0.14] bg-[#0c0919]/90 shadow-[0_20px_36px_rgba(0,0,0,0.9)]"
-          style={{ transform: "translateZ(0px)" }}
+          className="pointer-events-none absolute inset-0 rounded-[9px] border border-white/[0.12] bg-[#110d20]/92"
+          style={{
+            transform: "translate3d(-4px, 4px, 4px)",
+            boxShadow:
+              "-3px 3px 0px rgba(139, 92, 246, 0.20), -10px 10px 24px rgba(0, 0, 0, 0.88)",
+          }}
         />
 
-        {/* Top Interactive Control Board (Z: 22px) */}
+        {/* Layer 1: Elevated Active Frosted Violet-Obsidian Glass Deck (Matches Card 2 Active Card) */}
         <div
-          className="absolute inset-0 rounded-2xl border border-white/25 bg-gradient-to-br from-[#211a3a]/95 via-[#151129]/95 to-[#0e0b1c]/95 p-3.5 flex flex-col justify-between shadow-[0_12px_28px_rgba(0,0,0,0.75),inset_0_1px_1px_rgba(255,255,255,0.25)]"
-          style={{ transform: "translateZ(22px)" }}
+          className="relative w-full h-full rounded-[9px] border border-purple-300/75 bg-gradient-to-r from-[#231a42]/95 via-[#181330]/95 to-[#140f28]/95 p-3 flex flex-col justify-between"
+          style={{
+            transform: "translateZ(18px)",
+            boxShadow:
+              "-3px 3px 0px rgba(139, 92, 246, 0.55), -12px 12px 28px rgba(0, 0, 0, 0.92), 0 0 24px rgba(139, 92, 246, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.30)",
+          }}
         >
-          {/* Row 1: Spectral Color Bar with Glowing Thumb */}
-          <div
-            onClick={handleTrackClick}
-            className="flex items-center gap-2 cursor-pointer"
-            title="Click to adjust spectral slider"
-          >
-            <span className="font-mono text-[10px] font-bold text-purple-300/90 leading-none">
-              //
-            </span>
-            <div className="relative flex-1 h-2 rounded-full bg-white/10 flex items-center">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-purple-500 via-cyan-300 to-yellow-300 shadow-[0_0_10px_rgba(56,189,248,0.45)] transition-all duration-200"
-                style={{ width: `${sizeVal}%` }}
-              />
+          {/* Upper Row: Typography Badge + Wireframe Caption Word Highlight Track */}
+          <div className="flex items-center gap-2.5 w-full h-[46px] rounded-[6px] border border-white/[0.10] bg-[#0b0816]/75 px-2.5">
+            {/* Left 'Aa' Squircle Badge (Matches Card 2 Left Squircle) */}
+            <div className="h-8 w-8 rounded-[5px] shrink-0 flex items-center justify-center border border-purple-300/65 bg-purple-500/25 shadow-[0_0_12px_rgba(139,92,246,0.4)]">
+              <span className="font-mono text-[10.5px] font-extrabold text-purple-100 tracking-tight">
+                Aa
+              </span>
+            </div>
+
+            {/* Right Wireframe Word Bars with Active Highlighted Word */}
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <span className="h-3 w-8 rounded-[3px] bg-white/30 shrink-0" />
               <span
-                className="absolute h-3.5 w-3.5 -ml-1.5 rounded-full bg-white border-2 border-purple-200 shadow-[0_0_10px_#ffffff] transition-all duration-200"
-                style={{ left: `${sizeVal}%` }}
+                className={`${
+                  activeSize === "S"
+                    ? "h-3.5 w-12"
+                    : activeSize === "M"
+                    ? "h-4 w-14"
+                    : "h-5 w-16"
+                } rounded-[3.5px] bg-gradient-to-r ${selectedSwatch.pill} transition-all duration-300 shrink-0`}
+                style={{
+                  boxShadow: `0 0 14px ${selectedSwatch.glow}`,
+                }}
               />
+              <span className="h-3 w-7 rounded-[3px] bg-white/30 shrink-0" />
             </div>
           </div>
 
-          {/* Row 2: T Size Label + Purple Slider Track */}
-          <div
-            onClick={handleTrackClick}
-            className="flex items-center gap-2.5 cursor-pointer"
-            title="Click to adjust T Size"
-          >
-            <span className="text-[10.5px] font-semibold text-white tracking-tight whitespace-nowrap flex items-center gap-1">
-              <span className="font-mono text-purple-300 font-bold">T</span>
-              <span>Size</span>
-            </span>
-            <div className="relative flex-1 h-1.5 rounded-full bg-white/10 flex items-center">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-purple-500 to-violet-300 transition-all duration-200"
-                style={{ width: `${Math.max(20, sizeVal - 12)}%` }}
-              />
-              <span
-                className="absolute h-3 w-3 -ml-1.5 rounded-full bg-purple-200 border-2 border-white shadow-[0_0_8px_#c084fc] transition-all duration-200"
-                style={{ left: `${Math.max(20, sizeVal - 12)}%` }}
-              />
-            </div>
-          </div>
-
-          {/* Row 3: 6 Glowing 3D Color Orbs */}
-          <div className="flex items-center justify-between pt-0.5">
-            {ORB_COLORS.map((orb, idx) => {
-              const isSelected = idx === activeOrb;
-              return (
-                <button
-                  type="button"
-                  key={orb.hex}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setActiveOrb(idx);
-                  }}
-                  className="p-0.5 rounded-full cursor-pointer transition-transform duration-150 hover:scale-125 active:scale-95"
-                  aria-label={`Select ${orb.name}`}
-                >
-                  <span
-                    className="block h-3.5 w-3.5 rounded-full transition-all duration-200"
-                    style={{
-                      backgroundColor: orb.hex,
-                      boxShadow: isSelected
-                        ? `0 0 12px ${orb.hex}, 0 0 4px #ffffff`
-                        : `0 0 6px ${orb.hex}66`,
-                      transform: isSelected ? "scale(1.2)" : "scale(1)",
-                      outline: isSelected ? "1.5px solid #ffffff" : "none",
-                      outlineOffset: "1.5px",
+          {/* Lower Row: Interactive S/M/L Size Tiles & Monochromatic Violet Swatches */}
+          <div className="flex items-center justify-between pt-1">
+            {/* Size Presets (S / M / L) */}
+            <div className="flex items-center gap-1.5">
+              {(["S", "M", "L"] as const).map((sz) => {
+                const isSelected = activeSize === sz;
+                return (
+                  <button
+                    key={sz}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveSize(sz);
                     }}
+                    className={`h-6 w-6 rounded-[4px] font-mono text-[9.5px] font-bold cursor-pointer transition-all border flex items-center justify-center ${
+                      isSelected
+                        ? "bg-purple-500/30 border-purple-300/80 text-white shadow-[0_0_10px_rgba(139,92,246,0.45)]"
+                        : "bg-white/[0.04] border-white/[0.10] text-purple-200/50 hover:text-white"
+                    }`}
+                  >
+                    {sz}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Cohesive Violet-Lavender Theme Swatches */}
+            <div className="flex items-center gap-2">
+              {THEME_SWATCHES.map((sw, idx) => {
+                const isSelected = idx === activeColorIdx;
+                return (
+                  <button
+                    key={sw.fill}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveColorIdx(idx);
+                    }}
+                    style={{
+                      backgroundColor: sw.fill,
+                      boxShadow: isSelected ? `0 0 10px ${sw.glow}` : undefined,
+                    }}
+                    className={`h-4 w-4 rounded-full transition-all cursor-pointer ${
+                      isSelected
+                        ? "ring-2 ring-purple-200 ring-offset-2 ring-offset-[#181330] scale-110"
+                        : "opacity-55 hover:opacity-90"
+                    }`}
+                    aria-label={`Highlight swatch ${idx + 1}`}
                   />
-                </button>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
@@ -1330,7 +1542,7 @@ function FeatureCard({
       onPointerMove={handlePointerMove}
       onPointerEnter={handlePointerEnter}
       onPointerLeave={handlePointerLeave}
-      className={`group relative flex flex-col justify-between overflow-hidden rounded-[18px] sm:rounded-[20px] lg:rounded-[18px] xl:rounded-[22px] border border-white/[0.08] bg-[#0b0916] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-purple-400/40 hover:shadow-[0_12px_36px_-8px_rgba(139,92,246,0.22)] ${className}`}
+      className={`group relative flex flex-col justify-start overflow-hidden rounded-[18px] sm:rounded-[20px] lg:rounded-[18px] xl:rounded-[22px] border border-white/[0.08] bg-[#0b0916] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-purple-400/40 hover:shadow-[0_12px_36px_-8px_rgba(139,92,246,0.22)] ${className}`}
       style={{
         boxShadow:
           "inset 0 1px 0 0 rgba(255, 255, 255, 0.08), 0 16px 36px -12px rgba(0, 0, 0, 0.75)",
@@ -1349,7 +1561,7 @@ function FeatureCard({
 
       {/* Upper: Volumetric 3D Isometric Interactive Visual Stage */}
       <div
-        className={`relative w-full ${stageHeight} flex items-center justify-center overflow-hidden select-none`}
+        className={`relative w-full shrink-0 ${stageHeight} flex items-center justify-center overflow-hidden select-none`}
         style={{ perspective: "1000px" }}
       >
         <div
@@ -1361,8 +1573,8 @@ function FeatureCard({
         </div>
       </div>
 
-      {/* Bottom Typography: Seamless flow with zero horizontal divider lines */}
-      <div className="relative z-10 flex flex-col justify-start px-4.5 pb-3.5 pt-2 sm:px-5 sm:pb-4 sm:pt-2.5 lg:px-5 lg:pb-3.5 lg:pt-2 [@media(max-height:760px)]:pb-2.5 [@media(max-height:760px)]:pt-1.5">
+      {/* Bottom Typography: Aligned top baseline across every card on the same row */}
+      <div className="relative z-10 flex flex-1 flex-col justify-start px-4.5 pb-3.5 pt-2 sm:px-5 sm:pb-4 sm:pt-2.5 lg:px-5 lg:pb-3.5 lg:pt-2 [@media(max-height:760px)]:pb-2.5 [@media(max-height:760px)]:pt-1.5">
         <h3 className="text-[15.5px] sm:text-[17px] lg:text-[16px] xl:text-[17.5px] font-semibold tracking-tight text-white leading-snug antialiased transition-colors duration-300 group-hover:text-purple-200">
           {title}
         </h3>
@@ -1424,16 +1636,18 @@ export default function Features({ lang = "en" }: { lang?: Lang }) {
 
         {/* Bottom Row: 3 Equal Cards */}
         <div className="mt-3.5 sm:mt-4 lg:mt-3.5 xl:mt-4.5 [@media(max-height:760px)]:mt-2.5 grid grid-cols-1 gap-3.5 sm:gap-4 lg:gap-3.5 xl:gap-4.5 [@media(max-height:760px)]:gap-2.5 md:grid-cols-3">
-          {/* Card 3: Viral Creator Presets */}
+          {/* Card 3: 95% Transcribe Accuracy */}
           <FeatureCard
             stageHeight="h-[145px] sm:h-[160px] lg:h-[150px] xl:h-[180px] [@media(max-height:760px)]:h-[135px]"
-            title={items[2]?.title || "Viral Creator Presets"}
+            title={items[2]?.title || (lang === "en" ? "95% Transcribe Accuracy" : "ถอดเสียงแม่นยำ 95%")}
             description={
               items[2]?.body ||
-              "One-click presets: TikTok Viral, MrBeast Badge, and Karaoke Glow."
+              (lang === "en"
+                ? "High-precision AI speech recognition for Thai and English. Accurately captures fast speech, slang, and context."
+                : "แปลงเสียงพูดเป็นข้อความแม่นยำสูง รองรับทั้งภาษาไทยและอังกฤษ ตัดคำถูกต้องแม้พูดเร็ว")
             }
           >
-            <ViralPresetsGraphic />
+            <TranscribeAccuracyGraphic lang={lang} />
           </FeatureCard>
 
           {/* Card 4: 9:16, 16:9 & 1:1 Preview */}

@@ -381,10 +381,10 @@ export const featuresCopy = {
         body: "Numbered caption cards synchronized with live video playback.",
       },
       {
-        id: "templates",
-        tag: "Templates",
-        title: "Viral Creator Presets",
-        body: "One-click presets: TikTok Viral, MrBeast Badge, and Karaoke Glow.",
+        id: "accuracy",
+        tag: "Accuracy",
+        title: "95% Transcribe Accuracy",
+        body: "High-precision AI speech recognition for Thai and English. Accurately captures fast speech, slang, and context.",
       },
       {
         id: "aspect",
@@ -417,10 +417,10 @@ export const featuresCopy = {
         body: "การ์ดซับเรียงตามลำดับเวลา ซิงค์ตรงกับวิดีโอ แก้ไขและพรีวิวได้ทันที",
       },
       {
-        id: "templates",
-        tag: "เทมเพลตซับ",
-        title: "เทมเพลตสไตล์ยอดฮิต",
-        body: "สไตล์สำเร็จรูปในคลิกเดียว: TikTok Viral, MrBeast Badge, Karaoke Glow",
+        id: "accuracy",
+        tag: "ความแม่นยำสูง",
+        title: "ถอดเสียงแม่นยำ 95%",
+        body: "แปลงเสียงพูดเป็นข้อความแม่นยำสูง รองรับทั้งภาษาไทยและอังกฤษ ตัดคำถูกต้องแม้พูดเร็ว",
       },
       {
         id: "aspect",

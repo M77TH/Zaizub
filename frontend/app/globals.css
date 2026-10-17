@@ -19,6 +19,15 @@
   100% { opacity: 0; transform: scale(0.85); }
 }
 
+@keyframes wireframeProgress {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+
+.animate-wireframe-progress {
+  animation: wireframeProgress 2100ms linear forwards;
+}
+
 @keyframes equalizer {
   0%, 100% { height: 3px; }
   50% { height: 12px; }

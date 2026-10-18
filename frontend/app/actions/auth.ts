@@ -146,3 +146,29 @@ export async function updateProfile(
 
   return { success: true, message: 'Profile updated.' }
 }
+
+export async function resetPassword(
+  _prev: AuthActionState,
+  formData: FormData
+): Promise<AuthActionState> {
+  const emailRaw = formData.get('email')
+  if (typeof emailRaw !== 'string' || !emailRaw.trim()) {
+    return { error: 'Please enter your email address.' }
+  }
+  const email = emailRaw.trim().toLowerCase()
+  const supabase = await createClient()
+  const emailRedirectTo = await getEmailRedirectTo()
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: emailRedirectTo,
+  })
+
+  if (error) {
+    return { error: toUserFacingAuthError(error) }
+  }
+
+  return {
+    success: true,
+    message: 'Check your email for the password reset instructions.',
+  }
+}

@@ -7,11 +7,14 @@ import { featuresCopy, type Lang } from "./copy";
 // ULTRA-FAST GPU 3D TILT HOOK (Zero React Re-renders on Pointer Move)
 // Uses requestAnimationFrame + direct DOM style mutation for 120fps smoothness
 // ============================================================================
-function useFast3DTilt(baseRotX = 0, baseRotY = 0, maxTilt = 10) {
+export const FeatureCardHoverContext = React.createContext<boolean>(false);
+
+function useFast3DTilt(baseRotX = 0, baseRotY = 0, maxTilt = 2.5) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
   const tickRef = useRef<() => void>(() => {});
+  const rectRef = useRef<DOMRect | null>(null);
 
   const stateRef = useRef({
     targetX: 0,
@@ -26,7 +29,7 @@ function useFast3DTilt(baseRotX = 0, baseRotY = 0, maxTilt = 10) {
 
   const tick = useCallback(() => {
     const s = stateRef.current;
-    const ease = 0.14;
+    const ease = 0.12;
 
     s.currentX += (s.targetX - s.currentX) * ease;
     s.currentY += (s.targetY - s.currentY) * ease;
@@ -40,15 +43,15 @@ function useFast3DTilt(baseRotX = 0, baseRotY = 0, maxTilt = 10) {
     }
 
     if (glowRef.current) {
-      const gx = 24 + (s.currentX + 1) * 18;
-      const gy = 20 + (s.currentY + 1) * 16;
-      glowRef.current.style.background = `radial-gradient(80% 75% at ${gx.toFixed(1)}% ${gy.toFixed(1)}%, rgba(139, 92, 246, ${s.isHovered ? "0.24" : "0.16"}) 0%, rgba(76, 29, 149, 0.05) 55%, #0b0916 100%)`;
+      const gx = 28 + (s.currentX + 1) * 10;
+      const gy = 24 + (s.currentY + 1) * 8;
+      glowRef.current.style.background = `radial-gradient(80% 75% at ${gx.toFixed(1)}% ${gy.toFixed(1)}%, rgba(139, 92, 246, ${s.isHovered ? "0.20" : "0.14"}) 0%, rgba(76, 29, 149, 0.04) 55%, #0b0916 100%)`;
     }
 
     const stillMoving =
-      Math.abs(s.targetX - s.currentX) > 0.004 ||
-      Math.abs(s.targetY - s.currentY) > 0.004 ||
-      Math.abs(s.targetZ - s.currentZ) > 0.04;
+      Math.abs(s.targetX - s.currentX) > 0.002 ||
+      Math.abs(s.targetY - s.currentY) > 0.002 ||
+      Math.abs(s.targetZ - s.currentZ) > 0.02;
 
     if (stillMoving || s.isHovered) {
       s.rafId = requestAnimationFrame(tickRef.current);
@@ -71,7 +74,7 @@ function useFast3DTilt(baseRotX = 0, baseRotY = 0, maxTilt = 10) {
     (e: React.PointerEvent<HTMLDivElement>) => {
       const el = containerRef.current;
       if (!el) return;
-      const rect = el.getBoundingClientRect();
+      const rect = rectRef.current || (rectRef.current = el.getBoundingClientRect());
       if (rect.width === 0 || rect.height === 0) return;
 
       const nx = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
@@ -79,7 +82,7 @@ function useFast3DTilt(baseRotX = 0, baseRotY = 0, maxTilt = 10) {
 
       stateRef.current.targetX = Math.max(-1, Math.min(1, nx));
       stateRef.current.targetY = Math.max(-1, Math.min(1, ny));
-      stateRef.current.targetZ = 8;
+      stateRef.current.targetZ = 2.5;
       stateRef.current.isHovered = true;
       startLoop();
     },
@@ -87,12 +90,16 @@ function useFast3DTilt(baseRotX = 0, baseRotY = 0, maxTilt = 10) {
   );
 
   const handlePointerEnter = useCallback(() => {
+    if (containerRef.current) {
+      rectRef.current = containerRef.current.getBoundingClientRect();
+    }
     stateRef.current.isHovered = true;
-    stateRef.current.targetZ = 8;
+    stateRef.current.targetZ = 2.5;
     startLoop();
   }, [startLoop]);
 
   const handlePointerLeave = useCallback(() => {
+    rectRef.current = null;
     stateRef.current.isHovered = false;
     stateRef.current.targetX = 0;
     stateRef.current.targetY = 0;
@@ -170,9 +177,9 @@ function UploadTranscribeGraphic() {
       className="relative w-full h-full flex items-center justify-center select-none cursor-pointer [transform-style:preserve-3d] group/iso1"
       title="Click to interact with 3D upload stack"
     >
-      {/* PLANE 0 (Z: 2px) — Subtle Isometric Grid, Chevrons & Bottom Obsidian Glass Plate */}
+      {/* PLANE 0 (Z: 2px) — Subtle Isometric Grid & Bottom Obsidian Glass Plate */}
       <svg
-        className="w-[370px] sm:w-[400px] h-auto max-h-full overflow-visible pointer-events-none"
+        className="w-[370px] sm:w-[400px] xl:w-[430px] h-auto max-h-full overflow-visible pointer-events-none"
         viewBox="0 0 436 225"
         fill="none"
         style={{ transform: "translateZ(2px)" }}
@@ -214,40 +221,6 @@ function UploadTranscribeGraphic() {
           <line x1="288" y1="207" x2="48" y2="87" />
         </g>
 
-        {/* 4 Isometric Corner Chevrons (< > ^ v) */}
-        <path
-          d="M 74 114 L 66 118.5 L 74 123"
-          stroke="#a78bfa"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.55"
-        />
-        <path
-          d="M 362 114 L 370 118.5 L 362 123"
-          stroke="#a78bfa"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.55"
-        />
-        <path
-          d="M 212 31 L 218 27 L 224 31"
-          stroke="#a78bfa"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.50"
-        />
-        <path
-          d="M 211 209 L 218 213.5 L 225 209"
-          stroke="#a78bfa"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.65"
-        />
-
         {/* Deep Shadow under Bottom Plate */}
         <path
           d={isoRhombusPath(cx, yBottom + 8, rx * 0.98, ry * 0.98, 0.14)}
@@ -271,7 +244,7 @@ function UploadTranscribeGraphic() {
 
       {/* PLANE 1 (Z: 14px) — Middle Translucent Violet-Obsidian Glass Plate */}
       <svg
-        className="pointer-events-none absolute w-[370px] sm:w-[400px] h-auto max-h-full overflow-visible transition-transform duration-500 ease-out"
+        className="pointer-events-none absolute w-[370px] sm:w-[400px] xl:w-[430px] h-auto max-h-full overflow-visible transition-transform duration-500 ease-out"
         viewBox="0 0 436 225"
         fill="none"
         style={{
@@ -309,7 +282,7 @@ function UploadTranscribeGraphic() {
 
       {/* PLANE 2 (Z: 28px) — Top Frosted Dark-Glass Plate + Dashed Dropzone + 3D Upload Icon */}
       <svg
-        className="pointer-events-none absolute w-[370px] sm:w-[400px] h-auto max-h-full overflow-visible transition-transform duration-500 ease-out"
+        className="pointer-events-none absolute w-[370px] sm:w-[400px] xl:w-[430px] h-auto max-h-full overflow-visible transition-transform duration-500 ease-out"
         viewBox="0 0 436 225"
         fill="none"
         style={{
@@ -428,12 +401,12 @@ interface DemoCardTemplate {
 }
 
 const CARD_TEMPLATES: DemoCardTemplate[] = [
-  { id: 0, headerWidth: "w-14", wordWidths: ["w-14", "w-20", "w-14"] },
-  { id: 1, headerWidth: "w-16", wordWidths: ["w-16", "w-14", "w-20"] },
-  { id: 2, headerWidth: "w-12", wordWidths: ["w-12", "w-24", "w-14"] },
-  { id: 3, headerWidth: "w-16", wordWidths: ["w-20", "w-14", "w-16"] },
-  { id: 4, headerWidth: "w-14", wordWidths: ["w-14", "w-20", "w-12"] },
-  { id: 5, headerWidth: "w-16", wordWidths: ["w-16", "w-16", "w-16"] },
+  { id: 0, headerWidth: "w-16", wordWidths: ["w-14", "w-22", "w-16"] },
+  { id: 1, headerWidth: "w-20", wordWidths: ["w-18", "w-16", "w-24"] },
+  { id: 2, headerWidth: "w-14", wordWidths: ["w-12", "w-28", "w-16"] },
+  { id: 3, headerWidth: "w-18", wordWidths: ["w-22", "w-16", "w-20"] },
+  { id: 4, headerWidth: "w-16", wordWidths: ["w-16", "w-24", "w-14"] },
+  { id: 5, headerWidth: "w-20", wordWidths: ["w-18", "w-18", "w-20"] },
 ];
 
 interface ConveyorItem {
@@ -456,6 +429,12 @@ const SLOT_STYLES: Array<{
 ];
 
 function SubtitleEditorGraphic() {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const isCardHovered = React.useContext(FeatureCardHoverContext);
+  const [isSelfHovered, setIsSelfHovered] = useState(false);
+  const isHovered = isCardHovered || isSelfHovered;
+
+  const [isInView, setIsInView] = useState(false);
   const nextUidRef = useRef(6);
   const [items, setItems] = useState<ConveyorItem[]>(() =>
     CARD_TEMPLATES.slice(0, 6).map((template, idx) => ({
@@ -464,6 +443,22 @@ function SubtitleEditorGraphic() {
     }))
   );
   const [activeTokenIdx, setActiveTokenIdx] = useState(1);
+
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") {
+      setIsInView(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        setIsInView(Boolean(entries[0]?.isIntersecting));
+      },
+      { rootMargin: "150px 0px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const advanceConveyor = useCallback(() => {
     setItems((prev) => {
@@ -474,11 +469,13 @@ function SubtitleEditorGraphic() {
     setActiveTokenIdx(0);
   }, []);
 
-  // Step the highlighted word squircle inside the 2nd card, then scroll the list up
+  // Step the highlighted word squircle inside the 2nd card, then scroll the list up ONLY when hovered
   useEffect(() => {
+    if (!isInView || !isHovered) return;
+
     const tokenTimer = window.setInterval(() => {
       setActiveTokenIdx((prev) => (prev < 2 ? prev + 1 : prev));
-    }, 520);
+    }, 480);
 
     const scrollTimer = window.setInterval(() => {
       advanceConveyor();
@@ -488,10 +485,13 @@ function SubtitleEditorGraphic() {
       window.clearInterval(tokenTimer);
       window.clearInterval(scrollTimer);
     };
-  }, [advanceConveyor]);
+  }, [advanceConveyor, isInView, isHovered]);
 
   return (
     <div
+      ref={rootRef}
+      onPointerEnter={() => setIsSelfHovered(true)}
+      onPointerLeave={() => setIsSelfHovered(false)}
       onClick={advanceConveyor}
       role="button"
       tabIndex={0}
@@ -501,79 +501,51 @@ function SubtitleEditorGraphic() {
           advanceConveyor();
         }
       }}
-      className="relative w-full h-full flex items-center justify-center select-none cursor-pointer [transform-style:preserve-3d]"
+      className="relative w-full h-full flex items-center justify-center select-none cursor-pointer [transform-style:preserve-3d] group/iso2"
       title="Click to advance caption card list"
     >
-      {/* Exact Same 2:1 Isometric Floor Cross-Grid, Ambient Glow & 4 Chevrons (< > ^ v) as Card 1 */}
+      {/* PLANE 0 (Z: -80px) — Identical 2:1 Isometric Floor Cross-Grid & Ambient Violet Glow (Behind conveyor) */}
       <svg
-        className="pointer-events-none absolute w-[390px] sm:w-[430px] h-auto max-h-full overflow-visible"
-        viewBox="0 0 436 225"
+        className="pointer-events-none absolute w-[440px] sm:w-[490px] xl:w-[540px] h-auto max-h-full overflow-visible -translate-y-2.5 sm:-translate-y-3"
+        viewBox="0 0 540 230"
         fill="none"
-        style={{ transform: "translateZ(2px)" }}
+        style={{ transform: "translateZ(-80px)" }}
       >
         <defs>
-          <radialGradient id="iso2Glow" cx="50%" cy="52%" r="46%">
+          {/* Ambient Violet Floor Glow */}
+          <radialGradient id="iso2FloorGlow" cx="50%" cy="52%" r="48%">
             <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.22" />
             <stop offset="60%" stopColor="#6d28d9" stopOpacity="0.06" />
             <stop offset="100%" stopColor="#07060a" stopOpacity="0" />
           </radialGradient>
         </defs>
 
-        <ellipse cx="218" cy="118" rx="165" ry="76" fill="url(#iso2Glow)" />
+        {/* Soft Ambient Glow beneath conveyor */}
+        <ellipse cx="270" cy="115" rx="210" ry="90" fill="url(#iso2FloorGlow)" />
 
-        {/* Identical 2:1 Isometric Floor Cross Lines as Card 1 */}
+        {/* Subtle Hairline Isometric Floor Grid */}
         <g stroke="rgba(255, 255, 255, 0.05)" strokeWidth="1">
-          <line x1="58" y1="162" x2="298" y2="42" />
-          <line x1="88" y1="177" x2="328" y2="57" />
-          <line x1="118" y1="192" x2="358" y2="72" />
-          <line x1="148" y1="207" x2="388" y2="87" />
+          <line x1="55" y1="148" x2="335" y2="8" />
+          <line x1="85" y1="163" x2="365" y2="23" />
+          <line x1="115" y1="178" x2="395" y2="38" />
+          <line x1="145" y1="193" x2="425" y2="53" />
+          <line x1="175" y1="208" x2="455" y2="68" />
+          <line x1="205" y1="223" x2="485" y2="83" />
 
-          <line x1="378" y1="162" x2="138" y2="42" />
-          <line x1="348" y1="177" x2="108" y2="57" />
-          <line x1="318" y1="192" x2="78" y2="72" />
-          <line x1="288" y1="207" x2="48" y2="87" />
+          <line x1="485" y1="148" x2="205" y2="8" />
+          <line x1="455" y1="163" x2="175" y2="23" />
+          <line x1="425" y1="178" x2="145" y2="38" />
+          <line x1="395" y1="193" x2="115" y2="53" />
+          <line x1="365" y1="208" x2="85" y2="68" />
+          <line x1="335" y1="223" x2="55" y2="83" />
         </g>
-
-        {/* 4 Isometric Corner Chevrons (< > ^ v) matching Card 1 */}
-        <path
-          d="M 64 114 L 56 118.5 L 64 123"
-          stroke="#a78bfa"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.55"
-        />
-        <path
-          d="M 372 114 L 380 118.5 L 372 123"
-          stroke="#a78bfa"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.55"
-        />
-        <path
-          d="M 212 24 L 218 20 L 224 24"
-          stroke="#a78bfa"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.50"
-        />
-        <path
-          d="M 211 209 L 218 213.5 L 225 209"
-          stroke="#a78bfa"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.65"
-        />
       </svg>
 
-      {/* True 2:1 Isometric Plane (rotateX 60deg rotateZ -45deg — parallel to floor cross lines!) */}
+      {/* True 2:1 Isometric Plane (Elevated in Z, calibrated width, perfectly centered with no clipping) */}
       <div
-        className="relative w-[265px] sm:w-[285px] h-[290px] [transform-style:preserve-3d]"
+        className="relative w-[280px] sm:w-[305px] xl:w-[325px] h-[290px] [transform-style:preserve-3d] -translate-y-2.5 sm:-translate-y-3"
         style={{
-          transform: "rotateX(60deg) rotateZ(-45deg)",
+          transform: "translateZ(40px) rotateX(60deg) rotateZ(-45deg)",
         }}
       >
         {/* Masked Viewport Frame so top exiting card & bottom entering card fade smoothly */}
@@ -585,7 +557,7 @@ function SubtitleEditorGraphic() {
             return (
               <div
                 key={item.uid}
-                className={`absolute inset-x-1 h-[64px] rounded-[7px] border px-3.5 flex items-center justify-between gap-3 will-change-transform transition-all duration-600 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                className={`absolute inset-x-1 h-[64px] sm:h-[66px] rounded-[7px] border px-3.5 flex items-center justify-between gap-3 will-change-transform transition-all duration-600 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                   isSecondCard
                     ? "border-purple-300/80 bg-gradient-to-r from-[#231a42]/95 via-[#181330]/95 to-[#140f28]/95"
                     : "border-white/[0.12] bg-[#100d1e]/92"
@@ -706,9 +678,9 @@ function TranscribeAccuracyGraphic({ lang = "en" }: { lang?: Lang }) {
       aria-label={lang === "en" ? "95% Transcribe Accuracy (EN / TH)" : "ความแม่นยำถอดเสียง 95% (EN / TH)"}
       className="relative w-full h-full flex items-center justify-center select-none [transform-style:preserve-3d] group/iso3"
     >
-      {/* PLANE 0 (Z: 2px) — Identical 2:1 Isometric Cross-Grid, Chevrons & Base Glass Plate */}
+      {/* PLANE 0 (Z: 2px) — Identical 2:1 Isometric Cross-Grid & Base Glass Plate */}
       <svg
-        className="pointer-events-none absolute w-[295px] sm:w-[320px] h-auto max-h-full overflow-visible"
+        className="pointer-events-none absolute w-[295px] sm:w-[320px] xl:w-[340px] h-auto max-h-full overflow-visible"
         viewBox="0 0 320 185"
         fill="none"
         style={{ transform: "translateZ(2px)" }}
@@ -748,40 +720,6 @@ function TranscribeAccuracyGraphic({ lang = "en" }: { lang?: Lang }) {
           <line x1="200" y1="180" x2="20" y2="90" />
         </g>
 
-        {/* Identical 4 Isometric Corner Chevrons (< > ^ v) */}
-        <path
-          d="M 42 91 L 35 94.5 L 42 98"
-          stroke="#a78bfa"
-          strokeWidth="1.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.55"
-        />
-        <path
-          d="M 278 91 L 285 94.5 L 278 98"
-          stroke="#a78bfa"
-          strokeWidth="1.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.55"
-        />
-        <path
-          d="M 155 21 L 160 17.5 L 165 21"
-          stroke="#a78bfa"
-          strokeWidth="1.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.50"
-        />
-        <path
-          d="M 155 168 L 160 171.5 L 165 168"
-          stroke="#a78bfa"
-          strokeWidth="1.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.65"
-        />
-
         {/* Deep Shadow under Lower Obsidian Glass Plate */}
         <path
           d={isoRhombusPath(160, 106, 96, 48, 0.12)}
@@ -805,7 +743,7 @@ function TranscribeAccuracyGraphic({ lang = "en" }: { lang?: Lang }) {
 
       {/* PLANE 1 (Z: 18px) — Upper Frosted Glass Tray & 2x2 Translucent Glass Tiles */}
       <svg
-        className="w-[295px] sm:w-[320px] h-auto max-h-full overflow-visible"
+        className="w-[295px] sm:w-[320px] xl:w-[340px] h-auto max-h-full overflow-visible"
         viewBox="0 0 320 185"
         fill="none"
         style={{ transform: "translateZ(18px)" }}
@@ -989,9 +927,9 @@ function MultiRatioGraphic() {
 
   return (
     <div className="relative w-full h-full flex items-center justify-center select-none [transform-style:preserve-3d] group/iso4">
-      {/* PLANE 0 (Z: 2px) — Identical 2:1 Isometric Floor Cross-Grid & 4 Chevrons */}
+      {/* PLANE 0 (Z: 2px) — Identical 2:1 Isometric Floor Cross-Grid */}
       <svg
-        className="pointer-events-none absolute w-[295px] sm:w-[320px] h-auto max-h-full overflow-visible"
+        className="pointer-events-none absolute w-[295px] sm:w-[320px] xl:w-[340px] h-auto max-h-full overflow-visible"
         viewBox="0 0 320 185"
         fill="none"
         style={{ transform: "translateZ(2px)" }}
@@ -1018,45 +956,11 @@ function MultiRatioGraphic() {
           <line x1="228" y1="166" x2="48" y2="76" />
           <line x1="200" y1="180" x2="20" y2="90" />
         </g>
-
-        {/* Identical 4 Isometric Corner Chevrons (< > ^ v) */}
-        <path
-          d="M 42 91 L 35 94.5 L 42 98"
-          stroke="#a78bfa"
-          strokeWidth="1.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.55"
-        />
-        <path
-          d="M 278 91 L 285 94.5 L 278 98"
-          stroke="#a78bfa"
-          strokeWidth="1.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.55"
-        />
-        <path
-          d="M 155 21 L 160 17.5 L 165 21"
-          stroke="#a78bfa"
-          strokeWidth="1.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.50"
-        />
-        <path
-          d="M 155 168 L 160 171.5 L 165 168"
-          stroke="#a78bfa"
-          strokeWidth="1.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.65"
-        />
       </svg>
 
       {/* PLANE 1 (Z: 12px) — Back-Left Standing Screen: 9:16 Vertical */}
       <svg
-        className="pointer-events-none absolute w-[265px] sm:w-[285px] h-auto max-h-full overflow-visible transition-transform duration-300 ease-out"
+        className="pointer-events-none absolute w-[265px] sm:w-[285px] xl:w-[300px] h-auto max-h-full overflow-visible transition-transform duration-300 ease-out"
         viewBox="0 0 302 210"
         fill="none"
         style={{
@@ -1148,7 +1052,7 @@ function MultiRatioGraphic() {
 
       {/* PLANE 2 (Z: 24px) — Middle Standing Screen: 1:1 Square */}
       <svg
-        className="pointer-events-none absolute w-[265px] sm:w-[285px] h-auto max-h-full overflow-visible transition-transform duration-300 ease-out"
+        className="pointer-events-none absolute w-[265px] sm:w-[285px] xl:w-[300px] h-auto max-h-full overflow-visible transition-transform duration-300 ease-out"
         viewBox="0 0 302 210"
         fill="none"
         style={{
@@ -1228,7 +1132,7 @@ function MultiRatioGraphic() {
 
       {/* PLANE 3 (Z: 38px) — Front-Right Standing Screen: 16:9 Widescreen */}
       <svg
-        className="pointer-events-none absolute w-[265px] sm:w-[285px] h-auto max-h-full overflow-visible transition-transform duration-300 ease-out"
+        className="pointer-events-none absolute w-[265px] sm:w-[285px] xl:w-[300px] h-auto max-h-full overflow-visible transition-transform duration-300 ease-out"
         viewBox="0 0 302 210"
         fill="none"
         style={{
@@ -1330,9 +1234,9 @@ function StyleColorsGraphic() {
 
   return (
     <div className="relative w-full h-full flex items-center justify-center select-none [transform-style:preserve-3d] group/iso5">
-      {/* Identical 2:1 Isometric Floor Cross-Grid & 4 Chevrons as Cards 1, 2, 3, 4 */}
+      {/* Identical 2:1 Isometric Floor Cross-Grid as Cards 1, 2, 3, 4 */}
       <svg
-        className="pointer-events-none absolute w-[295px] sm:w-[320px] h-auto max-h-full overflow-visible"
+        className="pointer-events-none absolute w-[295px] sm:w-[320px] xl:w-[340px] h-auto max-h-full overflow-visible"
         viewBox="0 0 320 185"
         fill="none"
         style={{ transform: "translateZ(2px)" }}
@@ -1359,45 +1263,11 @@ function StyleColorsGraphic() {
           <line x1="228" y1="166" x2="48" y2="76" />
           <line x1="200" y1="180" x2="20" y2="90" />
         </g>
-
-        {/* Identical 4 Isometric Corner Chevrons (< > ^ v) */}
-        <path
-          d="M 42 91 L 35 94.5 L 42 98"
-          stroke="#a78bfa"
-          strokeWidth="1.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.55"
-        />
-        <path
-          d="M 278 91 L 285 94.5 L 278 98"
-          stroke="#a78bfa"
-          strokeWidth="1.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.55"
-        />
-        <path
-          d="M 155 21 L 160 17.5 L 165 21"
-          stroke="#a78bfa"
-          strokeWidth="1.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.50"
-        />
-        <path
-          d="M 155 168 L 160 171.5 L 165 168"
-          stroke="#a78bfa"
-          strokeWidth="1.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.65"
-        />
       </svg>
 
       {/* True 2:1 Isometric Plane (rotateX 60deg rotateZ -45deg — identical to Card 2!) */}
       <div
-        className="relative w-[196px] sm:w-[206px] h-[118px] [transform-style:preserve-3d]"
+        className="relative w-[196px] sm:w-[206px] xl:w-[218px] h-[118px] [transform-style:preserve-3d]"
         style={{
           transform: "rotateX(60deg) rotateZ(-45deg)",
         }}
@@ -1526,6 +1396,7 @@ function FeatureCard({
   className = "",
   stageHeight = "h-[165px] sm:h-[180px] lg:h-[175px] xl:h-[200px]",
 }: FeatureCardProps) {
+  const [isHovered, setIsHovered] = useState(false);
   const {
     containerRef,
     stageRef,
@@ -1534,55 +1405,67 @@ function FeatureCard({
     handlePointerMove,
     handlePointerEnter,
     handlePointerLeave,
-  } = useFast3DTilt(0, 0, 10);
+  } = useFast3DTilt(0, 0, 2.5);
+
+  const onEnter = useCallback(() => {
+    setIsHovered(true);
+    handlePointerEnter();
+  }, [handlePointerEnter]);
+
+  const onLeave = useCallback(() => {
+    setIsHovered(false);
+    handlePointerLeave();
+  }, [handlePointerLeave]);
 
   return (
-    <div
-      ref={containerRef}
-      onPointerMove={handlePointerMove}
-      onPointerEnter={handlePointerEnter}
-      onPointerLeave={handlePointerLeave}
-      className={`group relative flex flex-col justify-start overflow-hidden rounded-[18px] sm:rounded-[20px] lg:rounded-[18px] xl:rounded-[22px] border border-white/[0.08] bg-[#0b0916] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-purple-400/40 hover:shadow-[0_12px_36px_-8px_rgba(139,92,246,0.22)] ${className}`}
-      style={{
-        boxShadow:
-          "inset 0 1px 0 0 rgba(255, 255, 255, 0.08), 0 16px 36px -12px rgba(0, 0, 0, 0.75)",
-      }}
-    >
-      {/* Dynamic Pointer-Tracked Radial Glow matching reference cards */}
+    <FeatureCardHoverContext.Provider value={isHovered}>
       <div
-        ref={glowRef}
-        className="pointer-events-none absolute inset-0"
+        ref={containerRef}
+        onPointerMove={handlePointerMove}
+        onPointerEnter={onEnter}
+        onPointerLeave={onLeave}
+        className={`group relative flex flex-col justify-start overflow-hidden rounded-[18px] sm:rounded-[20px] lg:rounded-[18px] xl:rounded-[22px] border border-white/[0.08] bg-[#0b0916] transition-all duration-300 ease-out hover:-translate-y-[1px] hover:border-purple-400/40 hover:shadow-[0_12px_36px_-8px_rgba(139,92,246,0.22)] ${className}`}
         style={{
-          background:
-            "radial-gradient(80% 75% at 24% 20%, rgba(139, 92, 246, 0.16) 0%, rgba(76, 29, 149, 0.05) 55%, #0b0916 100%)",
+          boxShadow:
+            "inset 0 1px 0 0 rgba(255, 255, 255, 0.08), 0 16px 36px -12px rgba(0, 0, 0, 0.75)",
         }}
-        aria-hidden="true"
-      />
-
-      {/* Upper: Volumetric 3D Isometric Interactive Visual Stage */}
-      <div
-        className={`relative w-full shrink-0 ${stageHeight} flex items-center justify-center overflow-hidden select-none`}
-        style={{ perspective: "1000px" }}
       >
+        {/* Dynamic Pointer-Tracked Radial Glow matching reference cards */}
         <div
-          ref={stageRef}
-          className="w-full h-full will-change-transform [transform-style:preserve-3d] flex items-center justify-center"
-          style={{ transform: initialTransform }}
+          ref={glowRef}
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(80% 75% at 24% 20%, rgba(139, 92, 246, 0.16) 0%, rgba(76, 29, 149, 0.05) 55%, #0b0916 100%)",
+          }}
+          aria-hidden="true"
+        />
+
+        {/* Upper: Volumetric 3D Isometric Interactive Visual Stage */}
+        <div
+          className={`relative w-full shrink-0 ${stageHeight} flex items-center justify-center overflow-hidden select-none`}
+          style={{ perspective: "1000px" }}
         >
-          {children}
+          <div
+            ref={stageRef}
+            className="w-full h-full will-change-transform [transform-style:preserve-3d] flex items-center justify-center"
+            style={{ transform: initialTransform }}
+          >
+            {children}
+          </div>
+        </div>
+
+        {/* Bottom Typography: Aligned top baseline across every card on the same row */}
+        <div className="relative z-10 flex flex-1 flex-col justify-start px-4.5 pb-3.5 pt-2 sm:px-5 sm:pb-4 sm:pt-2.5 lg:px-5 lg:pb-3.5 lg:pt-2 [@media(max-height:760px)]:pb-2.5 [@media(max-height:760px)]:pt-1.5">
+          <h3 className="text-[15.5px] sm:text-[17px] lg:text-[16px] xl:text-[17.5px] font-semibold tracking-tight text-white leading-snug antialiased transition-colors duration-300 group-hover:text-purple-200">
+            {title}
+          </h3>
+          <p className="mt-1 text-[12px] sm:text-[13px] lg:text-[12.5px] xl:text-[13px] text-slate-400 leading-relaxed font-normal antialiased">
+            {description}
+          </p>
         </div>
       </div>
-
-      {/* Bottom Typography: Aligned top baseline across every card on the same row */}
-      <div className="relative z-10 flex flex-1 flex-col justify-start px-4.5 pb-3.5 pt-2 sm:px-5 sm:pb-4 sm:pt-2.5 lg:px-5 lg:pb-3.5 lg:pt-2 [@media(max-height:760px)]:pb-2.5 [@media(max-height:760px)]:pt-1.5">
-        <h3 className="text-[15.5px] sm:text-[17px] lg:text-[16px] xl:text-[17.5px] font-semibold tracking-tight text-white leading-snug antialiased transition-colors duration-300 group-hover:text-purple-200">
-          {title}
-        </h3>
-        <p className="mt-1 text-[12px] sm:text-[13px] lg:text-[12.5px] xl:text-[13px] text-slate-400 leading-relaxed font-normal antialiased">
-          {description}
-        </p>
-      </div>
-    </div>
+    </FeatureCardHoverContext.Provider>
   );
 }
 
@@ -1604,13 +1487,13 @@ export default function Features({ lang = "en" }: { lang?: Lang }) {
         aria-hidden="true"
       />
 
-      <div className="relative mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 w-full">
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 xl:px-10 w-full">
         {/* Top Row: 40% / 60% Bento Split */}
-        <div className="grid grid-cols-1 gap-3.5 sm:gap-4 lg:gap-3.5 xl:gap-4.5 [@media(max-height:760px)]:gap-2.5 lg:grid-cols-12">
+        <div className="grid grid-cols-1 gap-3.5 sm:gap-4 lg:gap-4 xl:gap-5 [@media(max-height:760px)]:gap-2.5 lg:grid-cols-12">
           {/* Card 1: Drop & Auto-Transcribe (40% width) */}
           <FeatureCard
             className="lg:col-span-5"
-            stageHeight="h-[165px] sm:h-[185px] lg:h-[175px] xl:h-[205px] [@media(max-height:760px)]:h-[150px]"
+            stageHeight="h-[165px] sm:h-[185px] lg:h-[185px] xl:h-[215px] [@media(max-height:760px)]:h-[150px]"
             title={items[0]?.title || "Drop & Auto-Transcribe"}
             description={
               items[0]?.body ||
@@ -1623,7 +1506,7 @@ export default function Features({ lang = "en" }: { lang?: Lang }) {
           {/* Card 2: Card-by-Card Subtitle Editor (60% width) */}
           <FeatureCard
             className="lg:col-span-7"
-            stageHeight="h-[165px] sm:h-[185px] lg:h-[175px] xl:h-[205px] [@media(max-height:760px)]:h-[150px]"
+            stageHeight="h-[165px] sm:h-[185px] lg:h-[185px] xl:h-[215px] [@media(max-height:760px)]:h-[150px]"
             title={items[1]?.title || "Card-by-Card Subtitle Editor"}
             description={
               items[1]?.body ||
@@ -1635,10 +1518,10 @@ export default function Features({ lang = "en" }: { lang?: Lang }) {
         </div>
 
         {/* Bottom Row: 3 Equal Cards */}
-        <div className="mt-3.5 sm:mt-4 lg:mt-3.5 xl:mt-4.5 [@media(max-height:760px)]:mt-2.5 grid grid-cols-1 gap-3.5 sm:gap-4 lg:gap-3.5 xl:gap-4.5 [@media(max-height:760px)]:gap-2.5 md:grid-cols-3">
+        <div className="mt-3.5 sm:mt-4 lg:mt-4 xl:mt-5 [@media(max-height:760px)]:mt-2.5 grid grid-cols-1 gap-3.5 sm:gap-4 lg:gap-4 xl:gap-5 [@media(max-height:760px)]:gap-2.5 md:grid-cols-3">
           {/* Card 3: 95% Transcribe Accuracy */}
           <FeatureCard
-            stageHeight="h-[145px] sm:h-[160px] lg:h-[150px] xl:h-[180px] [@media(max-height:760px)]:h-[135px]"
+            stageHeight="h-[145px] sm:h-[160px] lg:h-[155px] xl:h-[185px] [@media(max-height:760px)]:h-[135px]"
             title={items[2]?.title || (lang === "en" ? "95% Transcribe Accuracy" : "ถอดเสียงแม่นยำ 95%")}
             description={
               items[2]?.body ||
@@ -1652,7 +1535,7 @@ export default function Features({ lang = "en" }: { lang?: Lang }) {
 
           {/* Card 4: 9:16, 16:9 & 1:1 Preview */}
           <FeatureCard
-            stageHeight="h-[145px] sm:h-[160px] lg:h-[150px] xl:h-[180px] [@media(max-height:760px)]:h-[135px]"
+            stageHeight="h-[145px] sm:h-[160px] lg:h-[155px] xl:h-[185px] [@media(max-height:760px)]:h-[135px]"
             title={items[3]?.title || "9:16, 16:9 & 1:1 Preview"}
             description={
               items[3]?.body ||
@@ -1664,7 +1547,7 @@ export default function Features({ lang = "en" }: { lang?: Lang }) {
 
           {/* Card 5: Font Size & Highlight Colors */}
           <FeatureCard
-            stageHeight="h-[145px] sm:h-[160px] lg:h-[150px] xl:h-[180px] [@media(max-height:760px)]:h-[135px]"
+            stageHeight="h-[145px] sm:h-[160px] lg:h-[155px] xl:h-[185px] [@media(max-height:760px)]:h-[135px]"
             title={items[4]?.title || "Font Size & Highlight Colors"}
             description={
               items[4]?.body ||

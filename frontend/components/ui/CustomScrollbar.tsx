@@ -9,7 +9,7 @@ type CustomScrollbarProps = {
 
 export default function CustomScrollbar({ scrollRef }: CustomScrollbarProps) {
   const { lenis } = useLenis();
-  const [thumb, setThumb] = useState({ height: 0, top: 0 });
+  const [hasScrollbar, setHasScrollbar] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
   const thumbRef = useRef<HTMLDivElement>(null);
@@ -17,6 +17,38 @@ export default function CustomScrollbar({ scrollRef }: CustomScrollbarProps) {
   const isDraggingRef = useRef(false);
   const thumbStateRef = useRef({ height: 0, top: 0, maxScroll: 0, maxThumbTop: 0 });
 
+  const applyThumbTransform = useCallback((top: number, height?: number) => {
+    const thumbEl = thumbRef.current;
+    if (!thumbEl) return;
+    if (height !== undefined) {
+      thumbEl.style.height = `${height}px`;
+    }
+    thumbEl.style.transform = `translate3d(0, ${top}px, 0)`;
+    if (trackRef.current) {
+      trackRef.current.setAttribute("aria-valuenow", String(Math.round(top)));
+    }
+  }, []);
+
+  // Fast scroll-only update: reads only scrollY/scrollTop, zero layout reflow, zero React re-renders
+  const updatePosition = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const { maxScroll, maxThumbTop, height } = thumbStateRef.current;
+    if (maxScroll <= 0 || height <= 0) return;
+
+    const scrollElement = scrollRef?.current;
+    const currentScrollY = scrollElement
+      ? scrollElement.scrollTop
+      : lenis
+      ? lenis.scroll
+      : window.scrollY;
+    const progress = Math.min(Math.max(currentScrollY / maxScroll, 0), 1);
+    const top = progress * maxThumbTop;
+
+    thumbStateRef.current.top = top;
+    applyThumbTransform(top);
+  }, [scrollRef, lenis, applyThumbTransform]);
+
+  // Dimension measurement: only runs on mount / ResizeObserver / window resize
   const updateGeometry = useCallback(() => {
     if (typeof window === "undefined") return;
 
@@ -26,8 +58,8 @@ export default function CustomScrollbar({ scrollRef }: CustomScrollbarProps) {
     const maxScroll = Math.max(docHeight - viewportHeight, 0);
 
     if (maxScroll <= 0) {
-      setThumb({ height: 0, top: 0 });
       thumbStateRef.current = { height: 0, top: 0, maxScroll: 0, maxThumbTop: 0 };
+      setHasScrollbar(false);
       return;
     }
 
@@ -37,37 +69,55 @@ export default function CustomScrollbar({ scrollRef }: CustomScrollbarProps) {
       56
     );
     const maxThumbTop = Math.max(trackHeight - height, 0);
-    const currentScrollY = scrollElement?.scrollTop ?? window.scrollY;
+    const currentScrollY = scrollElement
+      ? scrollElement.scrollTop
+      : lenis
+      ? lenis.scroll
+      : window.scrollY;
     const progress = Math.min(Math.max(currentScrollY / maxScroll, 0), 1);
     const top = progress * maxThumbTop;
 
     thumbStateRef.current = { height, top, maxScroll, maxThumbTop };
-    setThumb({ height, top });
-  }, [scrollRef]);
+    setHasScrollbar(true);
+    applyThumbTransform(top, height);
+  }, [scrollRef, lenis, applyThumbTransform]);
+
+  // Sync initial style when thumb mounts after hasScrollbar becomes true
+  useEffect(() => {
+    if (hasScrollbar) {
+      const { top, height } = thumbStateRef.current;
+      applyThumbTransform(top, height);
+    }
+  }, [hasScrollbar, applyThumbTransform]);
 
   useEffect(() => {
     const handleScroll = () => {
       if (isDraggingRef.current) return;
-      updateGeometry();
+      updatePosition();
     };
 
     const initialUpdate = window.requestAnimationFrame(updateGeometry);
 
     const scrollElement = scrollRef?.current;
-    if (scrollElement) scrollElement.addEventListener("scroll", handleScroll, { passive: true });
-    else window.addEventListener("scroll", handleScroll, { passive: true });
-    window.addEventListener("resize", updateGeometry);
-
     let lenisUnsubscribe: (() => void) | undefined;
-    if (lenis) {
+
+    if (scrollElement) {
+      scrollElement.addEventListener("scroll", handleScroll, { passive: true });
+    } else if (lenis) {
       lenis.on("scroll", handleScroll);
       lenisUnsubscribe = () => lenis.off("scroll", handleScroll);
+    } else {
+      window.addEventListener("scroll", handleScroll, { passive: true });
     }
 
+    window.addEventListener("resize", updateGeometry, { passive: true });
+
     const observer = new ResizeObserver(updateGeometry);
-    observer.observe(document.documentElement);
-    observer.observe(document.body);
-    if (scrollElement) observer.observe(scrollElement);
+    if (scrollElement) {
+      observer.observe(scrollElement);
+    } else {
+      observer.observe(document.documentElement);
+    }
 
     return () => {
       window.cancelAnimationFrame(initialUpdate);
@@ -77,7 +127,7 @@ export default function CustomScrollbar({ scrollRef }: CustomScrollbarProps) {
       lenisUnsubscribe?.();
       observer.disconnect();
     };
-  }, [updateGeometry, lenis, scrollRef]);
+  }, [updateGeometry, updatePosition, lenis, scrollRef]);
 
   // Handle thumb dragging
   const handleThumbPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -103,8 +153,8 @@ export default function CustomScrollbar({ scrollRef }: CustomScrollbarProps) {
       const progress = maxThumbTop > 0 ? targetTop / maxThumbTop : 0;
       const targetScrollY = progress * maxScroll;
 
-      setThumb((prev) => ({ ...prev, top: targetTop }));
       thumbStateRef.current.top = targetTop;
+      applyThumbTransform(targetTop);
 
       const scrollElement = scrollRef?.current;
       if (scrollElement) {
@@ -126,7 +176,7 @@ export default function CustomScrollbar({ scrollRef }: CustomScrollbarProps) {
       window.removeEventListener("pointerup", handlePointerUp);
       window.removeEventListener("pointercancel", handlePointerUp);
 
-      updateGeometry();
+      updatePosition();
     };
 
     window.addEventListener("pointermove", handlePointerMove);
@@ -156,14 +206,14 @@ export default function CustomScrollbar({ scrollRef }: CustomScrollbarProps) {
     }
   };
 
-  if (thumb.height === 0) return null;
+  if (!hasScrollbar) return null;
 
   return (
     <div
       ref={trackRef}
       role="scrollbar"
       aria-controls="main-content"
-      aria-valuenow={Math.round(thumb.top)}
+      aria-valuenow={Math.round(thumbStateRef.current.top)}
       aria-valuemin={0}
       aria-orientation="vertical"
       onClick={handleTrackClick}
@@ -174,8 +224,8 @@ export default function CustomScrollbar({ scrollRef }: CustomScrollbarProps) {
         ref={thumbRef}
         onPointerDown={handleThumbPointerDown}
         style={{
-          height: `${thumb.height}px`,
-          transform: `translate3d(0, ${thumb.top}px, 0)`,
+          height: `${thumbStateRef.current.height}px`,
+          transform: `translate3d(0, ${thumbStateRef.current.top}px, 0)`,
         }}
         className={`relative w-[3px] rounded-full touch-none cursor-grab active:cursor-grabbing will-change-transform ${
           isDragging

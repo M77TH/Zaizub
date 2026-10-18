@@ -1,13 +1,15 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Navbar from "@/components/landing/Navbar";
 import Hero from "@/components/landing/Hero";
-import EditorMockup from "@/components/landing/EditorMockup";
-import HowItWorks from "@/components/landing/HowItWorks";
-import Features from "@/components/landing/Features";
-import Footer from "@/components/landing/Footer";
 import CustomScrollbar from "@/components/ui/CustomScrollbar";
 import { useLanguage } from "@/components/providers/LanguageProvider";
+
+const EditorMockup = dynamic(() => import("@/components/landing/EditorMockup"));
+const HowItWorks = dynamic(() => import("@/components/landing/HowItWorks"));
+const Features = dynamic(() => import("@/components/landing/Features"));
+const Footer = dynamic(() => import("@/components/landing/Footer"));
 
 export default function Home() {
   const { lang, setLang } = useLanguage();
@@ -24,3 +26,4 @@ export default function Home() {
     </main>
   );
 }
+

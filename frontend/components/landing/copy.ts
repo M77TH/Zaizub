@@ -287,37 +287,22 @@ export const howItWorksCopy = {
     subtitle: "See how Zaizub decomposes speech, aligns and styles every word automatically, and exports studio-grade vertical clips.",
     steps: [
       {
-        n: "01",
-        stepLabel: "01. UPLOAD",
-        title: "Upload & Audio Extraction",
-        body: "Drop any raw video clip or paste a link from TikTok or YouTube. Zaizub automatically isolates speech, strips background hum, and prepares 48kHz audio in seconds.",
-        meta: "48kHz PCM · Auto Vocal Isolation",
-        highlights: [
-          "Studio-grade 48kHz vocal isolation",
-          "Auto-detects speech & strips background hum",
-        ],
+        num: "01",
+        title: "UPLOAD",
+        description:
+          "Upload vertical 9:16 shorts, 16:9 videos, or 1:1 square clips up to 50 MB. Our AI speech-to-text engine extracts word-level timestamps and generates your editable subtitle timeline in seconds.",
       },
       {
-        n: "02",
-        stepLabel: "02. EDITING",
-        title: "Automated AI Editing & Styling",
-        body: "AI transcribes speech word-by-word with 24fps frame accuracy, applying dynamic kinetic spring animations and karaoke glow designed for maximum retention.",
-        meta: "24.0 FPS · Whisper v3 + Thai Phonemes",
-        highlights: [
-          "Frame-accurate word timestamps (Thai + English)",
-          "Dynamic kinetic pop & karaoke glow animations",
-        ],
+        num: "02",
+        title: "EDITING",
+        description:
+          "Switch between battle-tested presets like TikTok Viral, MrBeast Badge, and Karaoke Glow in one click. Fine-tune font scale, word-by-word active highlight colors, and dynamic pop animations in real time.",
       },
       {
-        n: "03",
-        stepLabel: "03. RENDER",
-        title: "Instant 1080p GPU Render & Export",
-        body: "Hardware-accelerated cloud rendering generates crisp 1080p 60fps vertical videos in under 2 seconds, auto-formatted for TikTok, Instagram Reels, and YouTube Shorts.",
-        meta: "1080 × 1920 · 60 FPS · Zero Watermark",
-        highlights: [
-          "Hardware GPU render in under 2 seconds",
-          "Auto-crops 9:16 for TikTok, Reels & Shorts",
-        ],
+        num: "03",
+        title: "RENDER",
+        description:
+          "Preview your synced captions at 60 FPS with live playback scrubbing. Hit Render to burn crisp, lag-free animated subtitles directly into your MP4—ready to post straight to TikTok, Reels, and Shorts.",
       },
     ],
   },
@@ -327,37 +312,22 @@ export const howItWorksCopy = {
     subtitle: "ดูการทำงานของ Zaizub ตั้งแต่อัปโหลดคลิป สกัดเสียง ซิงค์คำพูดพร้อมแต่งสไตล์ซับ ไปจนถึงเรนเดอร์ 1080p พร้อมโพสต์ได้ทันที",
     steps: [
       {
-        n: "01",
-        stepLabel: "01. อัปโหลด",
-        title: "อัปโหลดและสกัดเสียงพูด",
-        body: "วางลิงก์หรือลากไฟล์คลิปมาใส่ Zaizub แยกเสียงพูดคมชัดระดับสตูดิโอ 48kHz และตัดเสียงรบกวนรอบข้างให้อัตโนมัติในไม่กี่วินาที",
-        meta: "48kHz PCM · สกัดเสียงพูดคมชัด",
-        highlights: [
-          "แยกเสียงพูดคมชัดระดับสตูดิโอ 48kHz",
-          "ตัดเสียงรบกวนรอบข้างอัตโนมัติ 100%",
-        ],
+        num: "01",
+        title: "อัปโหลด",
+        description:
+          "รองรับวิดีโอ 9:16, 16:9 และ 1:1 ไฟล์ MP4 ขนาดไม่เกิน 50 MB ระบบ AI สกัดเสียงพูดคมชัดระดับสตูดิโอ พร้อมล็อกไทม์สแตมป์คำต่อคำระดับมิลลิวินาทีให้ทันที",
       },
       {
-        n: "02",
-        stepLabel: "02. ตัดต่อและจัดสไตล์",
-        title: "AI ซิงค์คำพูดและแต่งสไตล์ไวรัล",
-        body: "AI ถอดเสียงและล็อกจังหวะคำต่อคำเป๊ะระดับ 24fps (ไทย + อังกฤษ) พร้อมใส่แอนิเมชันซับสุดฮิต ดึงดูดสายตาคนดูให้อยู่หมัดตั้งแต่ต้นจนจบ",
-        meta: "24.0 FPS · Whisper v3 + รองรับภาษาไทย",
-        highlights: [
-          "ล็อกไทม์สแตมป์คำต่อคำระดับมิลลิวินาที",
-          "ไฮไลต์คำร้องคาราโอเกะ ดันยอดดูวนซ้ำ +300%",
-        ],
+        num: "02",
+        title: "ปรับแต่ง",
+        description:
+          "เลือกพรีเซ็ตยอดฮิตอย่าง TikTok Viral, MrBeast Badge หรือ Karaoke Glow ได้ในคลิกเดียว ปรับขนาดฟอนต์ สีไฮไลต์ตามจังหวะคำพูด และเอฟเฟกต์เด้งได้อย่างอิสระ",
       },
       {
-        n: "03",
-        stepLabel: "03. เรนเดอร์",
-        title: "เรนเดอร์ GPU ความละเอียด 1080p",
-        body: "เรนเดอร์ความเร็วสูงด้วยขุมพลัง GPU ความละเอียด 1080p 60fps คมชัด ไม่มีลายน้ำ พร้อมโพสต์ลง TikTok, Reels และ YouTube Shorts ทันที",
-        meta: "1080 × 1920 · 60 FPS · ไม่มีลายน้ำ",
-        highlights: [
-          "เรนเดอร์ด้วย GPU เสร็จในไม่ถึง 2 วินาที",
-          "ฟอร์แมต 9:16 สำหรับ TikTok, Reels และ Shorts",
-        ],
+        num: "03",
+        title: "เรนเดอร์",
+        description:
+          "พรีวิวซับพร้อมคลิปแบบ 60 FPS ลื่นไหลไม่มีสะดุด กด Render เพื่อฝังซับไตเติลคุณภาพสูง 1080p เข้ากับคลิป พร้อมนำไปโพสต์ลง TikTok, Reels และ Shorts ได้ทันที",
       },
     ],
   },

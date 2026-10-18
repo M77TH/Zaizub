@@ -116,13 +116,12 @@ export default function Navbar({
             {lang === "en" ? "Log in" : "เข้าสู่ระบบ"}
           </Link>
 
-          <a
-            href="#top"
-            onClick={(e) => scrollToSection(e, "generate")}
+          <Link
+            href="/register"
             className="group focus-ring rounded-full bg-gradient-to-r from-[#8b5cf6] via-[#7c3aed] to-[#6d28d9] hover:from-[#9333ea] hover:to-[#7c3aed] border border-purple-400/30 px-4 py-1.5 text-xs font-semibold text-white shadow-[0_0_14px_rgba(139,92,246,0.22)] hover:shadow-[0_0_20px_rgba(139,92,246,0.35)] hover:scale-[1.02] active:scale-95 transition-all duration-200"
           >
             <span>{lang === "en" ? "Try it free" : "ทดลองใช้ฟรี"}</span>
-          </a>
+          </Link>
 
           {/* Mobile Hamburger Toggle Button */}
           <button
@@ -186,12 +185,22 @@ export default function Navbar({
               </div>
             </div>
 
-            <Link
-              href="/login"
-              className="mt-2 text-sm text-center text-zinc-300 py-2.5 rounded-full border border-white/[0.08] bg-white/[0.02] hover:text-white hover:bg-white/[0.06] font-semibold transition-colors"
-            >
-              {lang === "en" ? "Log in" : "เข้าสู่ระบบ"}
-            </Link>
+            <div className="mt-3 flex flex-col gap-2">
+              <Link
+                href="/register"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full text-sm text-center font-semibold text-white py-2.5 rounded-full bg-gradient-to-r from-[#8b5cf6] via-[#7c3aed] to-[#6d28d9] shadow-[0_0_16px_rgba(139,92,246,0.25)] transition-all"
+              >
+                {lang === "en" ? "Try it free" : "ทดลองใช้ฟรี"}
+              </Link>
+              <Link
+                href="/login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full text-sm text-center text-zinc-300 py-2.5 rounded-full border border-white/[0.08] bg-white/[0.02] hover:text-white hover:bg-white/[0.06] font-semibold transition-colors"
+              >
+                {lang === "en" ? "Log in" : "เข้าสู่ระบบ"}
+              </Link>
+            </div>
           </div>
         </div>
       )}

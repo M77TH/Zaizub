@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     WHISPER_MODEL: str = "Vinxscribe/biodatlab-whisper-th-large-v3-faster"
     # Primes Whisper's spelling/vocabulary; add your channel's recurring names and jargon. "" disables it.
     WHISPER_PROMPT: str = "สวัสดีครับ วันนี้เรามาคุยกันเรื่องต่าง ๆ ด้วยภาษาไทยที่ถูกต้อง ใช้เครื่องหมายวรรคตอนครบถ้วน"
+    # Netscape cookies.txt for yt-dlp, used only as a fallback when YouTube blocks anonymous downloads; ignored if missing
+    YTDLP_COOKIES: str = "~/cookies.txt"
     MODEL: str = "whisperx"  # "whisperx" or "groq"
 
     # ตั้งค่าให้ไปดึงข้อมูลมาจากไฟล์ .env

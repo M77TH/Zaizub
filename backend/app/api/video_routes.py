@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from fastapi import APIRouter, UploadFile, File, Form, Request, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse
 from app.utils.ass_generator import generate_ass_content, compute_canvas_dimensions
+from app.core.config import settings
 from app.core.supabase_client import upload_to_supabase_storage, delete_from_supabase_storage
 import yt_dlp
 from starlette.concurrency import run_in_threadpool
@@ -410,6 +411,35 @@ async def render_video(
 
 
 
+# One YouTube request at a time: bursts of parallel downloads are what get a server IP flagged
+_dl_lock = asyncio.Semaphore(1)
+
+def _download(url: str, out_path: str) -> dict:
+    """Blocking yt-dlp download. Anonymous first; cookies only as a fallback if YouTube blocks/asks to sign in."""
+    base = {
+        'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4',
+        'outtmpl': out_path,
+        'quiet': True,
+        'no_warnings': True,
+        'retries': 3,
+        'extractor_retries': 2,
+        'socket_timeout': 20,
+        # Default clients only see 360p from some IPs (SABR-only rollout); these still serve 1080p.
+        # YouTube changes this often: check `yt-dlp -F <url>` with player_client=<name> if downloads drop to 360p.
+        # Also keep yt-dlp current (`pip install -U yt-dlp`): most "blocked" errors are fixed upstream within days.
+        'extractor_args': {'youtube': {'player_client': ['tv_embedded', 'android_creator', 'ios_downgraded']}},
+    }
+    cookies = os.path.expanduser(settings.YTDLP_COOKIES)
+    attempts = [{}, {'cookiefile': cookies}] if os.path.isfile(cookies) else [{}]
+    for i, extra in enumerate(attempts):
+        try:
+            with yt_dlp.YoutubeDL({**base, **extra}) as ydl:
+                return ydl.extract_info(url, download=True)
+        except yt_dlp.utils.DownloadError as e:
+            if i == len(attempts) - 1:
+                raise
+            logger.warning(f"Anonymous download failed ({str(e)[:120]}), retrying with cookies")
+
 class LinkRequest(BaseModel):
     url: str
     engine: Optional[str] = None
@@ -429,15 +459,9 @@ async def process_link(
     job_id = _new_job_id()
     input_video = os.path.join(TEMP_DIR, f"in_{job_id}.mp4")
     try:
-        ydl_opts = {
-            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4',
-            'outtmpl': input_video,
-            'quiet': True,
-            'no_warnings': True,
-        }
         logger.info('downloading video')
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(request.url, download=True)
+        async with _dl_lock:
+            info = await run_in_threadpool(_download, request.url, input_video)
         result = await _transcribe_and_upload(job_id, input_video, request.engine, background_tasks)
         result["title"] = (info or {}).get('title') or ""
         return result

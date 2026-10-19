@@ -81,7 +81,7 @@ export default function LoginForm() {
     <AuthStudioShell mode="login">
       {(lang) => (
         <div>
-          <form action={formAction} className="space-y-3.5" noValidate={false}>
+          <form action={formAction} className="space-y-3 sm:space-y-3.5" noValidate={false}>
             <input type="hidden" name="next" value={next} />
 
             {/* Email Input */}
@@ -124,7 +124,7 @@ export default function LoginForm() {
                   aria-required="true"
                   aria-invalid={hasError ? 'true' : undefined}
                   aria-describedby={hasError ? 'auth-error-msg' : undefined}
-                  className="w-full h-12 bg-transparent rounded-xl pl-10.5 pr-4 text-[14px] text-[#f4f2f8] placeholder:text-zinc-400 outline-none"
+                  className="w-full h-11 sm:h-12 bg-transparent rounded-xl pl-10 sm:pl-10.5 pr-4 text-[14px] text-[#f4f2f8] placeholder:text-zinc-400 outline-none"
                   placeholder={
                     lang === 'en' ? 'name@example.com' : 'อีเมลของคุณ'
                   }
@@ -173,7 +173,7 @@ export default function LoginForm() {
                   aria-required="true"
                   aria-invalid={hasError ? 'true' : undefined}
                   aria-describedby={hasError ? 'auth-error-msg' : undefined}
-                  className="w-full h-12 bg-transparent rounded-xl pl-10.5 pr-11 text-[14px] text-[#f4f2f8] placeholder:text-zinc-400 outline-none"
+                  className="w-full h-11 sm:h-12 bg-transparent rounded-xl pl-10 sm:pl-10.5 pr-11 text-[14px] text-[#f4f2f8] placeholder:text-zinc-400 outline-none"
                   placeholder={
                     lang === 'en'
                       ? 'Enter your password'
@@ -244,7 +244,7 @@ export default function LoginForm() {
               <div
                 id="auth-error-msg"
                 role="alert"
-                className="text-red-300 text-[13px] bg-red-500/10 px-4 py-3 rounded-xl border border-red-500/25 flex items-center gap-2"
+                className="text-red-300 text-[12.5px] sm:text-[13px] bg-red-500/10 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-red-500/25 flex items-center gap-2"
               >
                 <svg
                   width="15"
@@ -274,7 +274,7 @@ export default function LoginForm() {
               <button
                 type="submit"
                 disabled={pending || googlePending || facebookPending}
-                className={`relative w-full h-12 px-4 rounded-xl text-[14px] font-semibold text-white transition-all border border-purple-300/25 shadow-[0_1px_2px_rgba(0,0,0,0.4),0_0_24px_rgba(139,92,246,0.22),inset_0_1px_0_rgba(255,255,255,0.22)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#07060a] ${
+                className={`relative w-full h-11 sm:h-12 px-4 rounded-xl text-[14px] font-semibold text-white transition-all border border-purple-300/25 shadow-[0_1px_2px_rgba(0,0,0,0.4),0_0_24px_rgba(139,92,246,0.22),inset_0_1px_0_rgba(255,255,255,0.22)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#07060a] ${
                   pending
                     ? 'bg-[#6d28d9]/50 cursor-not-allowed'
                     : 'bg-gradient-to-b from-[#8b5cf6] to-[#6d28d9] hover:from-[#9366f9] hover:to-[#7c3aed] active:scale-[0.99] cursor-pointer'
@@ -315,7 +315,7 @@ export default function LoginForm() {
           </form>
 
           {/* Hairline Divider */}
-          <div className="flex items-center gap-3.5 my-5">
+          <div className="flex items-center gap-3.5 my-4 sm:my-5">
             <div className="h-px flex-1 bg-white/[0.08]" />
             <span className="text-xs text-zinc-400 uppercase tracking-wider font-mono">
               {lang === 'en' ? 'or' : 'หรือ'}
@@ -333,7 +333,7 @@ export default function LoginForm() {
               aria-label={
                 lang === 'en' ? 'Continue with Google' : 'ดำเนินการต่อด้วย Google'
               }
-              className={`h-12 flex items-center justify-center gap-2.5 rounded-xl bg-white/[0.045] hover:bg-white/[0.08] border border-white/[0.1] hover:border-white/[0.18] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] px-3 text-[14px] font-medium text-[#f4f2f8] transition-all active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#07060a] ${
+              className={`h-11 sm:h-12 flex items-center justify-center gap-2.5 rounded-xl bg-white/[0.045] hover:bg-white/[0.08] border border-white/[0.1] hover:border-white/[0.18] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] px-3 text-[13.5px] sm:text-[14px] font-medium text-[#f4f2f8] transition-all active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#07060a] ${
                 googlePending || facebookPending
                   ? 'opacity-70 cursor-wait'
                   : 'cursor-pointer'
@@ -400,7 +400,7 @@ export default function LoginForm() {
               aria-label={
                 lang === 'en' ? 'Continue with Facebook' : 'ดำเนินการต่อด้วย Facebook'
               }
-              className={`h-12 flex items-center justify-center gap-2.5 rounded-xl bg-white/[0.045] hover:bg-white/[0.08] border border-white/[0.1] hover:border-white/[0.18] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] px-3 text-[14px] font-medium text-[#f4f2f8] transition-all active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#07060a] ${
+              className={`h-11 sm:h-12 flex items-center justify-center gap-2.5 rounded-xl bg-white/[0.045] hover:bg-white/[0.08] border border-white/[0.1] hover:border-white/[0.18] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] px-3 text-[13.5px] sm:text-[14px] font-medium text-[#f4f2f8] transition-all active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#07060a] ${
                 googlePending || facebookPending
                   ? 'opacity-70 cursor-wait'
                   : 'cursor-pointer'
@@ -450,7 +450,7 @@ export default function LoginForm() {
           </div>
 
           {/* Single Clean Account Switch Prompt */}
-          <p className="mt-5 text-center text-[13px] text-zinc-400">
+          <p className="mt-4 sm:mt-5 text-center text-[13px] text-zinc-400">
             {lang === 'en' ? "Don't have an account?" : 'ยังไม่มีบัญชีใช่ไหม?'}{' '}
             <Link
               href={

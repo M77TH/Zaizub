@@ -224,7 +224,7 @@ export default function CustomScrollbar({ scrollRef }: CustomScrollbarProps) {
       aria-valuemin={0}
       aria-orientation="vertical"
       onClick={handleTrackClick}
-      className={`${scrollRef ? "absolute inset-y-0 right-0 z-20" : "fixed inset-y-0 right-0 z-50"} flex w-3 select-none justify-end cursor-pointer`}
+      className={`${scrollRef ? "absolute inset-y-0 right-0 z-20" : "fixed inset-y-0 right-0 z-50"} hidden md:flex w-3 select-none justify-end cursor-pointer`}
     >
       {/* Draggable Minimal Thumb */}
       <div

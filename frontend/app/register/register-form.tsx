@@ -84,8 +84,8 @@ export default function RegisterForm() {
       {(lang) => (
         <div>
           {isSuccess ? (
-            <div className="space-y-6 text-center py-2">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#141122] border border-violet-500/30 text-violet-400 shadow-[0_0_28px_rgba(139,92,246,0.25)]">
+            <div className="space-y-5 sm:space-y-6 text-center py-2">
+              <div className="mx-auto flex h-13 w-13 sm:h-14 sm:w-14 items-center justify-center rounded-2xl bg-[#141122] border border-violet-500/30 text-violet-400 shadow-[0_0_28px_rgba(139,92,246,0.25)]">
                 <svg
                   width="24"
                   height="24"
@@ -103,12 +103,12 @@ export default function RegisterForm() {
               </div>
 
               <div className="space-y-2">
-                <h2 className="font-display text-[22px] font-semibold text-[#f4f2f8] tracking-tight">
+                <h2 className="font-display text-[21px] sm:text-[22px] font-semibold text-[#f4f2f8] tracking-tight">
                   {lang === 'en'
                     ? 'Check your email'
                     : 'ตรวจสอบกล่องจดหมายของคุณ'}
                 </h2>
-                <p className="text-[14px] leading-relaxed text-[#8c879e] max-w-sm mx-auto">
+                <p className="text-[13.5px] sm:text-[14px] leading-relaxed text-[#8c879e] max-w-sm mx-auto">
                   {successMessage ||
                     (lang === 'en'
                       ? 'Check your email to confirm your account before signing in.'
@@ -123,7 +123,7 @@ export default function RegisterForm() {
                       ? `/login?next=${encodeURIComponent(next)}`
                       : '/login'
                   }
-                  className="inline-flex w-full h-12 items-center justify-center rounded-xl bg-gradient-to-b from-[#8b5cf6] to-[#6d28d9] hover:from-[#9366f9] hover:to-[#7c3aed] text-[14px] font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.4),0_0_24px_rgba(139,92,246,0.22),inset_0_1px_0_rgba(255,255,255,0.22)] transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+                  className="inline-flex w-full h-11 sm:h-12 items-center justify-center rounded-xl bg-gradient-to-b from-[#8b5cf6] to-[#6d28d9] hover:from-[#9366f9] hover:to-[#7c3aed] text-[14px] font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.4),0_0_24px_rgba(139,92,246,0.22),inset_0_1px_0_rgba(255,255,255,0.22)] transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
                 >
                   {lang === 'en'
                     ? 'Continue to sign in'
@@ -133,7 +133,7 @@ export default function RegisterForm() {
             </div>
           ) : (
             <div>
-              <form action={formAction} className="space-y-3.5">
+              <form action={formAction} className="space-y-3 sm:space-y-3.5">
                 <input type="hidden" name="next" value={next} />
 
                 {/* Email Input */}
@@ -178,7 +178,7 @@ export default function RegisterForm() {
                       aria-describedby={
                         hasError ? 'register-error-msg' : undefined
                       }
-                      className="w-full h-12 bg-transparent rounded-xl pl-10.5 pr-4 text-[14px] text-[#f4f2f8] placeholder:text-zinc-400 outline-none"
+                      className="w-full h-11 sm:h-12 bg-transparent rounded-xl pl-10 sm:pl-10.5 pr-4 text-[14px] text-[#f4f2f8] placeholder:text-zinc-400 outline-none"
                       placeholder={
                         lang === 'en' ? 'name@example.com' : 'อีเมลของคุณ'
                       }
@@ -236,7 +236,7 @@ export default function RegisterForm() {
                       aria-describedby={
                         hasError ? 'register-error-msg' : undefined
                       }
-                      className="w-full h-12 bg-transparent rounded-xl pl-10.5 pr-11 text-[14px] text-[#f4f2f8] placeholder:text-zinc-400 outline-none"
+                      className="w-full h-11 sm:h-12 bg-transparent rounded-xl pl-10 sm:pl-10.5 pr-11 text-[14px] text-[#f4f2f8] placeholder:text-zinc-400 outline-none"
                       placeholder={
                         lang === 'en'
                           ? 'At least 8 characters'
@@ -297,7 +297,7 @@ export default function RegisterForm() {
                   <div
                     id="register-error-msg"
                     role="alert"
-                    className="text-red-300 text-[13px] bg-red-500/10 px-4 py-3 rounded-xl border border-red-500/25 flex items-center gap-2"
+                    className="text-red-300 text-[12.5px] sm:text-[13px] bg-red-500/10 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-red-500/25 flex items-center gap-2"
                   >
                     <svg
                       width="15"
@@ -322,7 +322,7 @@ export default function RegisterForm() {
                   <button
                     type="submit"
                     disabled={pending || googlePending || facebookPending}
-                    className={`relative w-full h-12 px-4 rounded-xl text-[14px] font-semibold text-white transition-all border border-purple-300/25 shadow-[0_1px_2px_rgba(0,0,0,0.4),0_0_24px_rgba(139,92,246,0.22),inset_0_1px_0_rgba(255,255,255,0.22)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#07060a] ${
+                    className={`relative w-full h-11 sm:h-12 px-4 rounded-xl text-[14px] font-semibold text-white transition-all border border-purple-300/25 shadow-[0_1px_2px_rgba(0,0,0,0.4),0_0_24px_rgba(139,92,246,0.22),inset_0_1px_0_rgba(255,255,255,0.22)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#07060a] ${
                       pending
                         ? 'bg-[#6d28d9]/50 cursor-not-allowed'
                         : 'bg-gradient-to-b from-[#8b5cf6] to-[#6d28d9] hover:from-[#9366f9] hover:to-[#7c3aed] active:scale-[0.99] cursor-pointer'
@@ -365,7 +365,7 @@ export default function RegisterForm() {
               </form>
 
               {/* Hairline Divider */}
-              <div className="flex items-center gap-3.5 my-5">
+              <div className="flex items-center gap-3.5 my-4 sm:my-5">
                 <div className="h-px flex-1 bg-white/[0.08]" />
                 <span className="text-xs text-zinc-400 uppercase tracking-wider font-mono">
                   {lang === 'en' ? 'or' : 'หรือ'}
@@ -383,7 +383,7 @@ export default function RegisterForm() {
                   aria-label={
                     lang === 'en' ? 'Continue with Google' : 'ดำเนินการต่อด้วย Google'
                   }
-                  className={`h-12 flex items-center justify-center gap-2.5 rounded-xl bg-white/[0.045] hover:bg-white/[0.08] border border-white/[0.1] hover:border-white/[0.18] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] px-3 text-[14px] font-medium text-[#f4f2f8] transition-all active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#07060a] ${
+                  className={`h-11 sm:h-12 flex items-center justify-center gap-2.5 rounded-xl bg-white/[0.045] hover:bg-white/[0.08] border border-white/[0.1] hover:border-white/[0.18] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] px-3 text-[13.5px] sm:text-[14px] font-medium text-[#f4f2f8] transition-all active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#07060a] ${
                     googlePending || facebookPending
                       ? 'opacity-70 cursor-wait'
                       : 'cursor-pointer'
@@ -450,7 +450,7 @@ export default function RegisterForm() {
                   aria-label={
                     lang === 'en' ? 'Continue with Facebook' : 'ดำเนินการต่อด้วย Facebook'
                   }
-                  className={`h-12 flex items-center justify-center gap-2.5 rounded-xl bg-white/[0.045] hover:bg-white/[0.08] border border-white/[0.1] hover:border-white/[0.18] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] px-3 text-[14px] font-medium text-[#f4f2f8] transition-all active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#07060a] ${
+                  className={`h-11 sm:h-12 flex items-center justify-center gap-2.5 rounded-xl bg-white/[0.045] hover:bg-white/[0.08] border border-white/[0.1] hover:border-white/[0.18] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] px-3 text-[13.5px] sm:text-[14px] font-medium text-[#f4f2f8] transition-all active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#07060a] ${
                     googlePending || facebookPending
                       ? 'opacity-70 cursor-wait'
                       : 'cursor-pointer'
@@ -500,7 +500,7 @@ export default function RegisterForm() {
               </div>
 
               {/* Single Clean Account Switch Prompt */}
-              <p className="mt-5 text-center text-[13px] text-zinc-400">
+              <p className="mt-4 sm:mt-5 text-center text-[13px] text-zinc-400">
                 {lang === 'en'
                   ? 'Already have an account?'
                   : 'มีบัญชีอยู่แล้วใช่ไหม?'}{' '}

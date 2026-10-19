@@ -406,39 +406,36 @@ export default function Hero({ lang }: { lang: Lang }) {
       <InteractiveDots />
 
       <div className="relative z-10 mx-auto grid max-w-7xl w-full grid-cols-1 items-center gap-6 px-4 pt-16 pb-6 sm:gap-8 sm:px-6 sm:pt-20 sm:pb-8 lg:grid-cols-12 lg:gap-8 xl:gap-12 lg:px-10 lg:pt-16 lg:pb-8">
-        <div className="lg:col-span-7">
+        <div className="min-w-0 lg:col-span-7 flex flex-col items-center text-center lg:items-start lg:text-left">
           <h1
-            className={`font-display font-extrabold tracking-tight text-white ${lang === "th"
-                ? "text-3xl leading-[1.25] sm:text-5xl sm:leading-[1.2] lg:text-[54px] xl:text-[62px] lg:leading-[1.15] tracking-[-0.03em]"
-                : "text-[28px] leading-[1.15] min-[400px]:text-3xl sm:text-5xl sm:leading-[1.12] lg:text-[48px] xl:text-[56px] 2xl:text-[62px] lg:leading-[1.08] tracking-[-0.035em]"
+            className={`font-display font-extrabold tracking-tight text-white text-center lg:text-left ${lang === "th"
+                ? "text-[26px] min-[360px]:text-3xl leading-[1.25] sm:text-5xl sm:leading-[1.2] lg:text-[54px] xl:text-[62px] lg:leading-[1.15] tracking-[-0.03em]"
+                : "text-[26px] min-[400px]:text-3xl sm:text-5xl sm:leading-[1.12] lg:text-[48px] xl:text-[56px] 2xl:text-[62px] lg:leading-[1.08] tracking-[-0.035em]"
               }`}
           >
-            <span className="block whitespace-nowrap text-white">
+            <span className="block sm:whitespace-nowrap text-white">
               {t.headlineTop}
             </span>
-            <span className="block whitespace-nowrap bg-gradient-to-r from-[#d8b4fe] via-[#a78bfa] to-[#818cf8] bg-clip-text text-transparent">
+            <span className="block sm:whitespace-nowrap bg-gradient-to-r from-[#d8b4fe] via-[#a78bfa] to-[#818cf8] bg-clip-text text-transparent">
               {t.headlineAccent}
             </span>
           </h1>
 
-          <p
-            className={`mt-6 whitespace-pre-line text-base leading-relaxed text-zinc-400 sm:text-lg ${lang === "th" ? "max-w-none" : "max-w-xl"
-              }`}
-          >
+          <p className="hidden lg:block mt-4 lg:mt-5 text-base xl:text-lg text-[#a19cb0] max-w-xl leading-relaxed text-left font-normal">
             {t.sub}
           </p>
 
           <form
             id="generate"
             onSubmit={handleGenerate}
-            className="relative mt-8 sm:mt-9 flex w-full max-w-2xl flex-col gap-3"
+            className="relative mt-7 sm:mt-8 lg:mt-6 flex w-full max-w-xl lg:max-w-2xl flex-col gap-3 mx-auto lg:mx-0"
           >
             <label className="sr-only" htmlFor="upload">
               {lang === "en" ? "Upload a video file" : "อัปโหลดไฟล์วิดีโอ"}
             </label>
             <input ref={fileInputRef} type="file" accept="video/*" onChange={handleFileChange} className="hidden" />
 
-            <div className="flex h-12 min-w-0 flex-1 items-center gap-2 overflow-visible rounded-full border border-white/[0.08] bg-surface/80 p-1.5 backdrop-blur-md shadow-[0_12px_40px_rgba(0,0,0,0.6),0_0_20px_rgba(124,58,237,0.08)]">
+            <div className="flex h-12 w-full max-w-full min-w-0 items-center gap-1.5 sm:gap-2 overflow-visible rounded-full border border-white/[0.08] bg-surface/80 p-1.5 backdrop-blur-md shadow-[0_12px_40px_rgba(0,0,0,0.6),0_0_20px_rgba(124,58,237,0.08)]">
               {file ? (                <button
                   id="upload"
                   type="button"
@@ -534,7 +531,7 @@ export default function Hero({ lang }: { lang: Lang }) {
                   onChange={(e) => { setLink(e.target.value); setLinkError(false); }}
                   type="text"
                   placeholder={t.linkPlaceholder}
-                  className="focus-ring h-full min-h-0 flex-1 bg-transparent px-2.5 text-sm text-ink placeholder:text-ink-muted focus:outline-none"
+                  className="focus-ring h-full w-full min-w-0 flex-1 bg-transparent px-2 sm:px-2.5 text-xs sm:text-sm text-ink placeholder:text-ink-muted focus:outline-none"
                 />
               )}
               {file && (
@@ -559,7 +556,7 @@ export default function Hero({ lang }: { lang: Lang }) {
                       setSourceHintOpen(true);
                     }
                   }}
-                  className={`peer focus-ring relative flex h-9 w-32 items-center justify-center rounded-full border overflow-hidden select-none transition-all duration-300 ${
+                  className={`peer focus-ring relative flex h-9 w-24 sm:w-32 items-center justify-center rounded-full border overflow-hidden select-none transition-all duration-300 ${
                     sourceReady
                       ? "border-purple-400/40 shadow-[0_0_16px_rgba(139,92,246,0.25),inset_0_1px_1px_rgba(255,255,255,0.25)] hover:brightness-110 active:scale-95 cursor-pointer"
                       : "border-white/[0.08] bg-white/[0.02] cursor-not-allowed"
@@ -567,7 +564,7 @@ export default function Hero({ lang }: { lang: Lang }) {
                 >
                   {/* Inactive purple dot with luminous halo glow */}
                   <span
-                    className={`pointer-events-none absolute left-[14px] top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-purple-400 transition-all duration-200 ${
+                    className={`pointer-events-none absolute left-3 sm:left-[14px] top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-purple-400 transition-all duration-200 ${
                       sourceReady
                         ? "opacity-0 scale-125"
                         : "opacity-100 scale-100 shadow-[0_0_8px_rgba(168,85,247,0.9),0_0_16px_rgba(147,51,234,0.4)]"
@@ -575,23 +572,23 @@ export default function Hero({ lang }: { lang: Lang }) {
                     aria-hidden
                   />
 
-                  {/* Spreading purple gradient blooming radially from the exact dot origin (18px, 50%) */}
+                  {/* Spreading purple gradient blooming radially from the exact dot origin (16px/18px, 50%) */}
                   <span
                     className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-r from-[#8b5cf6] via-[#7c3aed] to-[#6d28d9] shadow-[inset_0_1px_1px_rgba(255,255,255,0.25)] transition-[clip-path] duration-[260ms] ease-[cubic-bezier(0.16,1,0.3,1)]"
                     style={{
                       clipPath: sourceReady
-                        ? "circle(160px at 18px 50%)"
-                        : "circle(4px at 18px 50%)",
+                        ? "circle(160px at 16px 50%)"
+                        : "circle(4px at 16px 50%)",
                       WebkitClipPath: sourceReady
-                        ? "circle(160px at 18px 50%)"
-                        : "circle(4px at 18px 50%)",
+                        ? "circle(160px at 16px 50%)"
+                        : "circle(4px at 16px 50%)",
                     }}
                     aria-hidden
                   />
 
                   <span
                     className={`relative z-10 flex items-center justify-center gap-1.5 transition-all duration-[260ms] ease-out ${
-                      sourceReady ? "pl-0 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]" : "pl-3 text-white/40"
+                      sourceReady ? "pl-0 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]" : "pl-2.5 sm:pl-3 text-white/40"
                     }`}
                   >
                     {status === "generating" && (
@@ -606,7 +603,7 @@ export default function Hero({ lang }: { lang: Lang }) {
                   </span>
                 </button>
                 {!sourceReady && sourceHintOpen && (
-                  <span className="pointer-events-none absolute left-1/2 top-[calc(100%+14px)] z-[9999] -translate-x-1/2 whitespace-nowrap rounded-lg border border-black/20 bg-surface-2 px-3 py-1.5 text-[11px] font-medium text-white/60 shadow-xl shadow-black/30">
+                  <span className="pointer-events-none absolute right-0 sm:left-1/2 top-[calc(100%+14px)] z-[9999] sm:-translate-x-1/2 whitespace-nowrap rounded-lg border border-black/20 bg-surface-2 px-3 py-1.5 text-[11px] font-medium text-white/60 shadow-xl shadow-black/30">
                     {sourceHint}
                   </span>
                 )}
@@ -684,7 +681,7 @@ export default function Hero({ lang }: { lang: Lang }) {
           </form>
         </div>
 
-        <div className="lg:col-span-5 flex items-center justify-center lg:justify-center xl:justify-center lg:-translate-x-10 xl:-translate-x-16 2xl:-translate-x-24">
+        <div className="min-w-0 lg:col-span-5 flex items-center justify-center lg:-translate-x-2 xl:-translate-x-4 2xl:-translate-x-6 mt-8 min-[390px]:mt-10 sm:mt-14 lg:mt-0 translate-y-2 sm:translate-y-3 lg:translate-y-4">
           <PhoneMockup
             lang={lang}
             pulseKey={pulseKey}

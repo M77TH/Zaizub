@@ -119,9 +119,9 @@ export default function PhoneMockup({
   ];
 
   return (
-    <div ref={containerRef} className="relative flex flex-col items-center justify-center py-2 sm:py-4">
+    <div ref={containerRef} className="relative flex flex-col items-center justify-center pt-3 pb-2 sm:pt-6 sm:pb-4 lg:py-4">
       {/* Phone Stage Wrapper */}
-      <div className="relative h-[290px] w-[155px] sm:h-[340px] sm:w-[180px] lg:h-[390px] lg:w-[205px] xl:h-[430px] xl:w-[225px]">
+      <div className="relative h-[330px] w-[175px] min-[390px]:h-[370px] min-[390px]:w-[195px] sm:h-[390px] sm:w-[205px] lg:h-[360px] lg:w-[190px] xl:h-[400px] xl:w-[210px]">
         {clips.map((clip) => {
           const isFront = activeIndex === clip.id;
 
@@ -133,8 +133,8 @@ export default function PhoneMockup({
               }}
               className={`group/phone absolute inset-0 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] ${
                 isFront
-                  ? "z-20 -translate-x-5 -translate-y-2 sm:-translate-x-10 sm:-translate-y-4 scale-100 cursor-default"
-                  : "z-10 translate-x-5 translate-y-2 sm:translate-x-10 sm:translate-y-4 scale-[0.96] opacity-85 hover:opacity-100 cursor-pointer"
+                  ? "z-20 -translate-x-10 -translate-y-2 min-[390px]:-translate-x-12 min-[390px]:-translate-y-2.5 sm:-translate-x-14 sm:-translate-y-3 md:-translate-x-15 md:-translate-y-3 lg:-translate-x-16 lg:-translate-y-3.5 xl:-translate-x-20 xl:-translate-y-4 2xl:-translate-x-22 2xl:-translate-y-4 scale-100 cursor-default"
+                  : "z-10 translate-x-10 translate-y-1.5 min-[390px]:translate-x-12 min-[390px]:translate-y-2 sm:translate-x-14 sm:translate-y-2 md:translate-x-15 md:translate-y-2 lg:translate-x-16 lg:translate-y-2.5 xl:translate-x-20 xl:translate-y-3 2xl:translate-x-22 2xl:translate-y-3 scale-[0.96] opacity-90 hover:opacity-100 cursor-pointer"
               }`}
             >
               {/* Device Frame */}
@@ -142,7 +142,7 @@ export default function PhoneMockup({
                 style={{
                   animationPlayState: isInView ? "running" : "paused",
                 }}
-                className={`h-full w-full rounded-[2.1rem] bg-[#07060a] p-1 shadow-[0_24px_60px_rgba(0,0,0,0.95),0_0_20px_rgba(139,92,246,0.14)] ring-1 will-change-transform transform-gpu [backface-visibility:hidden] transition-all duration-500 ${
+                className={`h-full w-full rounded-[2.2rem] bg-[#07060a] p-1.5 shadow-[0_24px_60px_rgba(0,0,0,0.95),0_0_20px_rgba(139,92,246,0.14)] ring-1 will-change-transform transform-gpu [backface-visibility:hidden] transition-all duration-500 ${
                   isFront
                     ? isPulsing
                       ? "ring-purple-400/90 shadow-[0_28px_70px_rgba(0,0,0,0.98),0_0_36px_rgba(139,92,246,0.35)]"
@@ -151,7 +151,7 @@ export default function PhoneMockup({
                 }`}
               >
                 {/* Screen Bezel & Container */}
-                <div className="relative h-full w-full overflow-hidden rounded-[1.85rem] bg-[#0b0914] border border-white/[0.08]">
+                <div className="relative h-full w-full overflow-hidden rounded-[1.92rem] bg-[#0b0914] border border-white/[0.08]">
                   {/* Real Demo Video */}
                   <video
                     ref={clip.ref}
@@ -167,15 +167,15 @@ export default function PhoneMockup({
                   />
 
                   {/* Sleek Dynamic Island */}
-                  <div className="pointer-events-none absolute top-2.5 left-1/2 -translate-x-1/2 z-30 flex h-3 w-14 items-center justify-end rounded-full bg-black/95 px-1.5 ring-1 ring-white/[0.08] shadow-sm">
-                    <div className="h-1.5 w-1.5 rounded-full bg-[#181528] ring-1 ring-purple-500/30" />
+                  <div className="pointer-events-none absolute top-2 sm:top-2.5 left-1/2 -translate-x-1/2 z-30 flex h-2.5 sm:h-3 w-12 sm:w-13.5 items-center justify-end rounded-full bg-black/95 px-1.5 ring-1 ring-white/[0.08] shadow-sm">
+                    <div className="h-1 sm:h-1.5 w-1 sm:w-1.5 rounded-full bg-[#181528] ring-1 ring-purple-500/30" />
                   </div>
 
                   {/* Delicate Screen Glass Sheen */}
-                  <div className="pointer-events-none absolute inset-0 z-20 rounded-[1.85rem] bg-gradient-to-tr from-transparent via-white/[0.02] to-white/[0.06] mix-blend-overlay" />
+                  <div className="pointer-events-none absolute inset-0 z-20 rounded-[1.72rem] bg-gradient-to-tr from-transparent via-white/[0.02] to-white/[0.06] mix-blend-overlay" />
 
                   {/* Bottom Home Indicator */}
-                  <div className="pointer-events-none absolute bottom-1.5 left-1/2 -translate-x-1/2 z-30 h-1 w-12 rounded-full bg-white/25 backdrop-blur-sm" />
+                  <div className="pointer-events-none absolute bottom-1.5 left-1/2 -translate-x-1/2 z-30 h-1 w-10 sm:w-12 rounded-full bg-white/25 backdrop-blur-sm" />
 
                   {/* Sound Toggle (Only on Active Front Phone) */}
                   {isFront && (
@@ -194,7 +194,7 @@ export default function PhoneMockup({
                             ? "ปิดเสียง"
                             : "Mute video"
                       }
-                      className="group/sound absolute bottom-3.5 right-2.5 z-30 flex items-center gap-1.5 rounded-full bg-black/75 px-2 py-1 text-[10px] font-mono font-medium text-white/90 backdrop-blur-md border border-white/15 hover:border-purple-400/50 hover:bg-black/90 transition-all shadow-[0_2px_12px_rgba(0,0,0,0.7)] cursor-pointer"
+                      className="group/sound absolute bottom-3 right-2 sm:bottom-3.5 sm:right-2.5 z-30 flex items-center gap-1.5 rounded-full bg-black/75 px-2 py-0.5 sm:py-1 text-[9px] sm:text-[10px] font-mono font-medium text-white/90 backdrop-blur-md border border-white/15 hover:border-purple-400/50 hover:bg-black/90 transition-all shadow-[0_2px_12px_rgba(0,0,0,0.7)] cursor-pointer"
                     >
                       {isMuted ? (
                         <>

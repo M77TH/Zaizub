@@ -27,31 +27,6 @@ function dotRadius(coverage: number, gap: number): number {
   return Math.sqrt(c) * gap * 0.56;
 }
 
-function stepDot(
-  x: number,
-  y: number,
-  vx: number,
-  vy: number,
-  hx: number,
-  hy: number,
-  px: number,
-  py: number,
-  r: number
-): [number, number, number, number] {
-  const dx = x - px;
-  const dy = y - py;
-  const d2 = dx * dx + dy * dy;
-  if (r > 0 && d2 < r * r) {
-    const d = Math.sqrt(d2) + 0.001;
-    const f = (1 - d / r) * 2.6;
-    vx += (dx / d) * f;
-    vy += (dy / d) * f;
-  }
-  vx = (vx + (hx - x) * 0.05) * 0.84;
-  vy = (vy + (hy - y) * 0.05) * 0.84;
-  return [x + vx, y + vy, vx, vy];
-}
-
 function dotWarmth(x: number, y: number, hx: number, hy: number, span: number): number {
   const d = Math.hypot(x - hx, y - hy);
   return span > 0 ? Math.min(1, d / span) : 0;
@@ -65,7 +40,6 @@ const FOOTER_STYLES = `
 .hwf-root {
   position: relative; width: 100%; overflow: hidden; isolation: isolate;
   background: #07060a; color: #f4f2f8; -webkit-font-smoothing: antialiased;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 .hwf-root canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; max-width: none; }
 .hwf-container {
@@ -119,7 +93,7 @@ export default function Footer({ lang = "en" }: { lang?: Lang }) {
   const label = "Zaizub";
   const height = "260px";
   const dotGap = 6;
-  const radius = 85;
+  const radius = 80;
   const crop = 0.18;
   const grain = 0.25;
   const interactive = true;
@@ -129,7 +103,7 @@ export default function Footer({ lang = "en" }: { lang?: Lang }) {
   const colors = {
     background: "#07060a",
     ink: "#2d2746",
-    warm: "#c084fc",
+    warm: "#8b5cf6",
   };
 
   const rootRef = React.useRef<HTMLElement | null>(null);
@@ -148,8 +122,11 @@ export default function Footer({ lang = "en" }: { lang?: Lang }) {
     let w = 0;
     let h = 0;
     let dpr = 1;
-    let px = -1e5;
-    let py = -1e5;
+    let mouseInside = false;
+    let targetX = -1e5;
+    let targetY = -1e5;
+    let curX = -1e5;
+    let curY = -1e5;
     let raf = 0;
     let visible = true;
     let awake = true;
@@ -242,7 +219,22 @@ export default function Footer({ lang = "en" }: { lang?: Lang }) {
       ctx.fillStyle = o.colors.background;
       ctx.fillRect(0, 0, w, h);
 
+      // Smooth cursor follow with fluid easing
+      if (mouseInside) {
+        if (curX < -1e4) {
+          curX = targetX;
+          curY = targetY;
+        } else {
+          curX += (targetX - curX) * 0.16;
+          curY += (targetY - curY) * 0.16;
+        }
+      } else {
+        curX = -1e5;
+        curY = -1e5;
+      }
+
       const r = o.interactive && !reduced ? Math.max(0, o.radius) : 0;
+      const rSq = r * r;
       const ringAge = ring.t < 0 ? 1e9 : now - ring.t;
       const ringR = ringAge * 0.9;
       let moving = false;
@@ -260,7 +252,9 @@ export default function Footer({ lang = "en" }: { lang?: Lang }) {
         let vy = dots[j + 3];
         const hx = dots[j + 4];
         const hy = dots[j + 5];
+
         if (!reduced) {
+          // 1. Click shockwave ring expansion
           if (ringAge < 900) {
             const dx = hx - ring.x;
             const dy = hy - ring.y;
@@ -272,27 +266,75 @@ export default function Footer({ lang = "en" }: { lang?: Lang }) {
               vy += (dy / d) * f;
             }
           }
-          const s = stepDot(x, y, vx, vy, hx, hy, px, py, r);
-          x = s[0];
-          y = s[1];
-          const speed = Math.abs(vx) + Math.abs(vy);
-          if (speed > 0.015) {
-            moving = true;
-          } else {
-            vx = 0;
-            vy = 0;
-            if (px < -1e4) {
-              x = hx;
-              y = hy;
+
+          // 2. Continuous fluid ripple & mouse follow animation
+          if (r > 0 && curX > -1e4) {
+            const dx = x - curX;
+            const dy = y - curY;
+            if (Math.abs(dx) < r && Math.abs(dy) < r) {
+              const d2 = dx * dx + dy * dy;
+              if (d2 < rSq) {
+                const d = Math.sqrt(d2) + 0.001;
+                const prox = 1 - d / r;
+                const wave = Math.sin(now * 0.0045 - d * 0.065);
+                const breath = Math.sin(now * 0.0028) * 0.25;
+                const radialForce = prox * (1.6 + 0.6 * wave + breath);
+                const tangentForce = Math.cos(now * 0.0035 - d * 0.05) * 0.25 * prox;
+
+                vx += (dx / d) * radialForce - (dy / d) * tangentForce;
+                vy += (dy / d) * radialForce + (dx / d) * tangentForce;
+              }
             }
           }
+
+          // 3. Damped spring return towards home position
+          vx = (vx + (hx - x) * 0.055) * 0.83;
+          vy = (vy + (hy - y) * 0.055) * 0.83;
+
+          // Clamp velocity against extreme browser lag or throttling jumps
+          const MAX_V = 8;
+          vx = Math.max(-MAX_V, Math.min(MAX_V, vx));
+          vy = Math.max(-MAX_V, Math.min(MAX_V, vy));
+
+          x += vx;
+          y += vy;
+
+          const speed = Math.abs(vx) + Math.abs(vy);
+          const distFromHome = Math.abs(x - hx) + Math.abs(y - hy);
+
+          if (speed > 0.015 || distFromHome > 0.05) {
+            moving = true;
+          } else if (!mouseInside && ringAge >= 900) {
+            x = hx;
+            y = hy;
+            vx = 0;
+            vy = 0;
+          }
+
           dots[j] = x;
           dots[j + 1] = y;
           dots[j + 2] = vx;
           dots[j + 3] = vy;
         }
-        const k = dotWarmth(x, y, hx, hy, 28);
-        if (k > 0.02) {
+
+        // Color warmth calculation (displacement + subtle mouse radiance)
+        const dispK = dotWarmth(x, y, hx, hy, 32) * 0.35;
+        let k = dispK;
+        if (curX > -1e4 && r > 0) {
+          const cdx = x - curX;
+          const cdy = y - curY;
+          const cd = Math.hypot(cdx, cdy);
+          const glowRadius = r * 0.65;
+          if (cd < glowRadius) {
+            const prox = Math.max(0, 1 - cd / glowRadius);
+            const falloff = prox * prox;
+            const shimmer = 0.85 + 0.15 * Math.sin(now * 0.0035 - cd * 0.08);
+            const cursorK = falloff * 0.42 * shimmer;
+            if (cursorK > k) k = cursorK;
+          }
+        }
+
+        if (k > 0.04) {
           warmIndices.push(j);
           warmValues.push(k);
         } else {
@@ -321,47 +363,103 @@ export default function Footer({ lang = "en" }: { lang?: Lang }) {
       }
 
       if (grainPattern && o.grain > 0) {
-        ctx.globalAlpha = Math.min(1, o.grain) * 0.07;
-        ctx.globalCompositeOperation = "overlay";
+        ctx.globalAlpha = Math.min(1, o.grain) * 0.06;
         ctx.fillStyle = grainPattern;
         ctx.fillRect(0, 0, w, h);
         ctx.globalAlpha = 1;
-        ctx.globalCompositeOperation = "source-over";
       }
-      awake = moving || ringAge < 900;
+
+      awake = mouseInside || moving || ringAge < 900;
     };
 
-    const loop = (now: number) => {
-      raf = 0;
-      if (!visible) return;
-      draw(now);
-      if (awake) raf = requestAnimationFrame(loop);
+    let isTicking = false;
+
+    const stopLoop = () => {
+      if (raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
     };
 
     const wake = () => {
       awake = true;
-      if (!raf && visible) raf = requestAnimationFrame(loop);
+      if (raf === 0 && visible && !isTicking && !reduced) {
+        raf = requestAnimationFrame(loop);
+      }
+    };
+
+    const loop = (now: number) => {
+      raf = 0;
+      if (!visible || reduced) return;
+
+      isTicking = true;
+      try {
+        draw(now);
+      } finally {
+        isTicking = false;
+      }
+
+      if (awake && visible && raf === 0 && !reduced) {
+        raf = requestAnimationFrame(loop);
+      }
+    };
+
+    const resetInteraction = () => {
+      mouseInside = false;
+      targetX = -1e5;
+      targetY = -1e5;
+      curX = -1e5;
+      curY = -1e5;
+      cachedRect = null;
+    };
+
+    const resetDotsToHome = () => {
+      for (let i = 0; i < count; i++) {
+        const j = i * 7;
+        dots[j] = dots[j + 4];
+        dots[j + 1] = dots[j + 5];
+        dots[j + 2] = 0;
+        dots[j + 3] = 0;
+      }
+      ring = { x: 0, y: 0, t: -1 };
     };
 
     const toLocal = (e: PointerEvent) => {
       const b = cachedRect || (cachedRect = canvas.getBoundingClientRect());
       return [e.clientX - b.left, e.clientY - b.top];
     };
-    const onEnter = () => {
+    const onEnter = (e: PointerEvent) => {
       cachedRect = canvas.getBoundingClientRect();
+      const p = toLocal(e);
+      mouseInside = true;
+      targetX = p[0];
+      targetY = p[1];
+      if (curX < -1e4) {
+        curX = targetX;
+        curY = targetY;
+      }
+      wake();
     };
     const onMove = (e: PointerEvent) => {
       if (!opts.current.interactive) return;
       const p = toLocal(e);
-      px = p[0];
-      py = p[1];
+      mouseInside = true;
+      targetX = p[0];
+      targetY = p[1];
+      if (curX < -1e4) {
+        curX = targetX;
+        curY = targetY;
+      }
       wake();
     };
     const onLeave = () => {
-      cachedRect = null;
-      px = -1e5;
-      py = -1e5;
+      resetInteraction();
       wake();
+    };
+    const onUp = (e: PointerEvent) => {
+      if (e.pointerType === "touch") {
+        onLeave();
+      }
     };
     const onDown = (e: PointerEvent) => {
       if (!opts.current.interactive || reduced) return;
@@ -374,30 +472,53 @@ export default function Footer({ lang = "en" }: { lang?: Lang }) {
 
     layout();
     draw(performance.now());
-    wake();
 
     root.addEventListener("pointerenter", onEnter);
     root.addEventListener("pointermove", onMove);
     root.addEventListener("pointerleave", onLeave);
     root.addEventListener("pointerdown", onDown);
+    root.addEventListener("pointerup", onUp);
+    root.addEventListener("pointercancel", onLeave);
+
+    const onWindowBlur = () => {
+      resetInteraction();
+      stopLoop();
+      resetDotsToHome();
+      if (visible) {
+        draw(performance.now());
+      }
+    };
+    window.addEventListener("blur", onWindowBlur);
+
     const ro = new ResizeObserver(() => {
       layout();
       wake();
     });
     ro.observe(root);
+
     const io = new IntersectionObserver((entries) => {
       visible = entries[0] ? entries[0].isIntersecting : true;
-      if (visible) wake();
+      if (visible) {
+        cachedRect = null;
+        if (mouseInside || ring.t > 0) wake();
+        else draw(performance.now());
+      } else {
+        stopLoop();
+      }
     });
     io.observe(root);
 
     const handleVisibility = () => {
       if (document.hidden) {
         visible = false;
-        if (raf) cancelAnimationFrame(raf);
+        stopLoop();
+        resetInteraction();
+        resetDotsToHome();
       } else {
         visible = true;
-        wake();
+        resetInteraction();
+        resetDotsToHome();
+        draw(performance.now());
       }
     };
     document.addEventListener("visibilitychange", handleVisibility);
@@ -407,20 +528,23 @@ export default function Footer({ lang = "en" }: { lang?: Lang }) {
       document.fonts.ready.then(() => {
         if (!alive) return;
         layout();
-        wake();
+        draw(performance.now());
       });
     }
 
     return () => {
       alive = false;
-      cancelAnimationFrame(raf);
+      stopLoop();
       ro.disconnect();
       io.disconnect();
       document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("blur", onWindowBlur);
       root.removeEventListener("pointerenter", onEnter);
       root.removeEventListener("pointermove", onMove);
       root.removeEventListener("pointerleave", onLeave);
       root.removeEventListener("pointerdown", onDown);
+      root.removeEventListener("pointerup", onUp);
+      root.removeEventListener("pointercancel", onLeave);
     };
   }, []);
 
@@ -438,7 +562,7 @@ export default function Footer({ lang = "en" }: { lang?: Lang }) {
 
       {/* Subtle ambient violet glow rising from bottom matching Hero & Editor */}
       <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_75%_55%_at_50%_100%,rgba(139,92,246,0.12)_0%,rgba(109,40,217,0.04)_45%,transparent_75%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_75%_55%_at_50%_100%,rgba(139,92,246,0.05)_0%,rgba(109,40,217,0.015)_45%,transparent_75%)]"
         aria-hidden="true"
       />
 

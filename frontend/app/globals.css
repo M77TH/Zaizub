@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Anuphan:wght@400;600;700&family=Athiti:wght@400;600;700&family=Bai+Jamjuree:wght@400;600;700&family=Chakra+Petch:wght@400;600;700&family=Charm:wght@400;700&family=Chonburi&family=Itim&family=Kanit:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Krub:wght@400;600;700&family=Mali:wght@400;600;700&family=Mitr:wght@400;600&family=Noto+Sans+Thai:wght@300;400;600;700&family=Pattaya&family=Pridi:wght@400;600;700&family=Prompt:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Sarabun:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Trirong:wght@400;600;700&display=swap');
 @import "tailwindcss";
 @config "../tailwind.config.mts";
 
@@ -13,9 +12,33 @@
   100% { opacity: 1; transform: scale(1); }
 }
 
+@keyframes subPopOut {
+  0% { opacity: 1; transform: scale(1); }
+  35% { opacity: 1; transform: scale(1.06); }
+  100% { opacity: 0; transform: scale(0.85); }
+}
+
+@keyframes wireframeProgress {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+
+.animate-wireframe-progress {
+  animation: wireframeProgress 2100ms linear forwards;
+}
+
 @keyframes equalizer {
   0%, 100% { height: 3px; }
   50% { height: 12px; }
+}
+
+@keyframes subPopContained {
+  0% { opacity: 0; transform: scale(0.94); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.anim-pop-contained {
+  animation: subPopContained 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .anim-fade {
@@ -26,17 +49,331 @@
   animation: subPopIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 
+.anim-pop-in {
+  animation: subPopIn 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+
+.anim-pop-out {
+  animation: subPopOut 0.26s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* ============================================================
+   Caption Animations (landing editor mockup)
+   Two layers per word:
+   1. Outer span  -> one-shot ENTRANCE when a caption line appears (staggered)
+   2. Inner .cap-word -> smooth TRANSITION into/out of the active (spoken) state
+   ============================================================ */
+
+/* --- 1. Line entrance (per word, staggered via animation-delay) --- */
+@keyframes capEnterBounce {
+  0%   { opacity: 0; transform: translateY(0.8em) scale(0.6); }
+  50%  { opacity: 1; transform: translateY(-0.25em) scale(1.24); }
+  75%  { transform: translateY(0.04em) scale(0.96); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes capEnterPop {
+  0%   { opacity: 0; transform: scale(0.1); }
+  55%  { opacity: 1; transform: scale(1.35); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes capEnterRise {
+  0%   { opacity: 0; transform: translateY(0.85em); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes capEnterType {
+  0%   { opacity: 0; transform: translateY(0.12em); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* --- 1.4. Chaotic Randomized Individual Word Shake Animations (Viral Hook) --- */
+@keyframes capWordShakeA {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  15%      { transform: translate(-3.2px, 1.4px) rotate(-2.8deg); }
+  32%      { transform: translate(2.8px, -1.8px) rotate(2.4deg); }
+  49%      { transform: translate(-1.6px, -2.5px) rotate(-1.5deg); }
+  68%      { transform: translate(3.2px, 1.2px) rotate(2.9deg); }
+  84%      { transform: translate(-2.4px, 2px) rotate(-2deg); }
+}
+
+@keyframes capWordShakeB {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  18%      { transform: translate(2.6px, -2.4px) rotate(2.7deg); }
+  36%      { transform: translate(-3.4px, -1.2px) rotate(-3deg); }
+  55%      { transform: translate(1.8px, 2.7px) rotate(1.8deg); }
+  73%      { transform: translate(-2.5px, 1.7px) rotate(-2.5deg); }
+  90%      { transform: translate(3px, -1.5px) rotate(2.6deg); }
+}
+
+@keyframes capWordShakeC {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  12%      { transform: translate(-2.2px, -2.8px) rotate(-2.1deg); }
+  28%      { transform: translate(3.6px, 1.3px) rotate(3.1deg); }
+  46%      { transform: translate(-3.2px, 2.1px) rotate(-2.8deg); }
+  67%      { transform: translate(2.1px, -2.7px) rotate(1.9deg); }
+  85%      { transform: translate(-1.8px, 1.8px) rotate(-1.6deg); }
+}
+
+@keyframes capWordShakeD {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  16%      { transform: translate(3.4px, 1.7px) rotate(2.9deg); }
+  35%      { transform: translate(-2.7px, 2.5px) rotate(-2.6deg); }
+  54%      { transform: translate(2.5px, -2.5px) rotate(2.3deg); }
+  71%      { transform: translate(-3.5px, -1.6px) rotate(-3.1deg); }
+  88%      { transform: translate(1.9px, 2.2px) rotate(1.8deg); }
+}
+
+.cap-word-shake-0 { animation: capWordShakeA ease-in-out infinite; }
+.cap-word-shake-1 { animation: capWordShakeB ease-in-out infinite; }
+.cap-word-shake-2 { animation: capWordShakeC ease-in-out infinite; }
+.cap-word-shake-3 { animation: capWordShakeD ease-in-out infinite; }
+
+@keyframes capShakeAlert {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  20%      { transform: translate(-3px, 1px) rotate(-1.5deg); }
+  40%      { transform: translate(3px, -1px) rotate(1.5deg); }
+  60%      { transform: translate(-3px, -1px) rotate(-1deg); }
+  80%      { transform: translate(3px, 1px) rotate(1deg); }
+}
+
+@keyframes capPillBreath {
+  0%   { transform: scale(0.9); opacity: 0; }
+  60%  { transform: scale(1.06); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.cap-enter-bounce   { animation: capEnterBounce 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.cap-enter-pop      { animation: capEnterPop 0.32s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.cap-enter-rise     { animation: capEnterRise 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.cap-enter-type     { animation: capEnterType 0.22s ease-out both; }
+.cap-phrase-shake   { animation: capShakeAlert 0.45s ease-in-out infinite; display: inline-flex; }
+.cap-pill-expand    { animation: capPillBreath 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* --- 1.5. Intro Phrase Entrance Animations --- */
+@keyframes capImpactDrop {
+  0%   { opacity: 0; transform: scale(1.35) translateY(-12px); }
+  60%  { opacity: 1; transform: scale(0.97) translateY(1px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes capCapsulePop {
+  0%   { opacity: 0; transform: scale(0.85); }
+  65%  { opacity: 1; transform: scale(1.05); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes capIntroSlideUp {
+  0%   { opacity: 0; transform: translateY(22px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.cap-intro-impact   { animation: capImpactDrop 0.38s cubic-bezier(0.2, 2, 0.4, 1) both; }
+.cap-intro-capsule  { animation: capCapsulePop 0.42s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.cap-intro-slide-up { animation: capIntroSlideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* --- 2. Active word state (GPU transform-driven only; no text-shadow interpolation) --- */
+.cap-word {
+  display: inline-block;
+  transform-origin: 50% 70%;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.cap-word[data-active="true"] {
+  will-change: transform;
+}
+
+.cap-word[data-anim="bounce"][data-active="true"] {
+  transform: translateY(-0.32em) scale(1.26);
+}
+
+.cap-word[data-anim="pop"] {
+  transition-duration: 0.16s;
+  transition-timing-function: cubic-bezier(0.2, 2.6, 0.4, 1);
+}
+.cap-word[data-anim="pop"][data-active="true"] {
+  transform: scale(1.36);
+}
+
+.cap-word[data-badge="true"] {
+  transition: transform 0.18s cubic-bezier(0.2, 2, 0.4, 1);
+}
+.cap-word[data-badge="true"][data-active="true"] {
+  transform: scale(1.16);
+}
+
+.cap-word[data-anim="shake"][data-active="true"] {
+  transform: scale(1.18);
+  animation: capShakeAlert 0.35s ease-in-out infinite;
+}
+
+.cap-word[data-anim="slide-up"] {
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+.cap-word[data-anim="slide-up"][data-active="true"] {
+  transform: translateY(-0.06em) scale(1.04);
+}
+
+.cap-word[data-anim="typing"][data-active="true"] {
+  transform: scale(1.12);
+}
+
+/* Smaller variant for the transcript list cards */
+.cap-word-sm {
+  display: inline-block;
+}
+.cap-word-sm[data-active="true"] {
+  transform: translateY(-1px) scale(1.06);
+}
+
+/* Typing caret (absolutely positioned so it never shifts layout) */
+@keyframes capCaretBlink {
+  0%, 45% { opacity: 1; }
+  45.01%, 100% { opacity: 0; }
+}
+.cap-caret {
+  position: absolute;
+  right: -0.24em;
+  top: 8%;
+  width: 2.5px;
+  height: 84%;
+  border-radius: 1px;
+  animation: capCaretBlink 0.65s infinite;
+  box-shadow: 0 0 6px currentColor;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cap-enter-bounce,
+  .cap-enter-pop,
+  .cap-enter-rise,
+  .cap-enter-type { animation: none; }
+  .cap-word,
+  .cap-word-sm { transition: color 0.18s ease; transform: none !important; }
+}
+
+@keyframes floatGentle {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-9px); }
+}
+
+@keyframes floatReverse {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(8px); }
+}
+
+@keyframes floatSubtle {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-7px); }
+}
+
+.anim-float-1 {
+  animation: floatGentle 5s ease-in-out infinite;
+}
+
+.anim-float-2 {
+  animation: floatReverse 6.2s ease-in-out infinite;
+}
+
+.anim-float-3 {
+  animation: floatSubtle 5.6s ease-in-out infinite;
+}
+
+/* Hairline Workflow subtle floating (calm, minimal movement) */
+@keyframes workflowFloat1 {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-2px); }
+}
+
+@keyframes workflowFloat2 {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(2px); }
+}
+
+@keyframes workflowFloat3 {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-2px); }
+}
+
+.anim-workflow-float-1 {
+  animation: workflowFloat1 6.5s ease-in-out infinite;
+}
+
+.anim-workflow-float-2 {
+  animation: workflowFloat2 7.5s ease-in-out infinite;
+}
+
+.anim-workflow-float-3 {
+  animation: workflowFloat3 7s ease-in-out infinite;
+}
 
 :root {
+  color-scheme: dark;
   --background: #0a0a0a;
   --foreground: #ededed;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
+    color-scheme: dark;
     --background: #0a0a0a;
     --foreground: #ededed;
   }
+}
+
+/* ============================================================
+   Dark Mode Autofill Overrides (Chrome, Safari, Edge, Firefox)
+   Neutralizes default bright light-blue/white browser autofill
+   boxes and seamlessly blends with Zaizub's obsidian dark theme.
+   ============================================================ */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+textarea:-webkit-autofill:active,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus,
+select:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #12101e inset !important;
+  box-shadow: 0 0 0 1000px #12101e inset !important;
+  -webkit-text-fill-color: #f4f2f8 !important;
+  caret-color: #f4f2f8 !important;
+  border-radius: inherit;
+  transition: background-color 5000000s ease-in-out 0s;
+}
+
+input:-webkit-autofill:hover,
+textarea:-webkit-autofill:hover,
+select:-webkit-autofill:hover {
+  -webkit-box-shadow: 0 0 0 1000px #151224 inset !important;
+  box-shadow: 0 0 0 1000px #151224 inset !important;
+}
+
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #18152b inset !important;
+  box-shadow: 0 0 0 1000px #18152b inset !important;
+}
+
+input:autofill,
+input:autofill:hover,
+input:autofill:focus,
+textarea:autofill,
+select:autofill {
+  box-shadow: 0 0 0 1000px #12101e inset !important;
+  -webkit-text-fill-color: #f4f2f8 !important;
+  filter: none !important;
+}
+
+/* Prevent Microsoft Edge duplicate password reveal button */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
 }
 
 *, *::before, *::after {
@@ -47,7 +384,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body), "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -183,3 +520,34 @@ header::-webkit-scrollbar, header *::-webkit-scrollbar {
   width: 0 !important;
   height: 0 !important;
 }
+
+/* ============================================================
+   How It Works Pipeline & Step Animations
+   ============================================================ */
+@keyframes pipelinePulse {
+  0% {
+    stroke-dashoffset: 1600;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-pipeline-flow {
+  animation: pipelinePulse 4s linear infinite;
+}
+
+@keyframes audioWaveBar {
+  0%, 100% {
+    transform: scaleY(0.25);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.animate-audio-bar {
+  animation: audioWaveBar 0.9s ease-in-out infinite;
+  transform-origin: bottom;
+}
+

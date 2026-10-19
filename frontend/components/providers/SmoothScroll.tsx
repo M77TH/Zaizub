@@ -97,25 +97,47 @@ export default function SmoothScroll({ children }: { children: ReactNode }) {
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (prefersReducedMotion) return;
 
+    const isTouchDevice = typeof window !== "undefined" && (
+      "ontouchstart" in window ||
+      navigator.maxTouchPoints > 0 ||
+      window.matchMedia("(pointer: coarse)").matches
+    );
+
     const lenisInstance = new Lenis({
-      duration: 1.15,
+      duration: 0.88,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       orientation: "vertical",
       gestureOrientation: "vertical",
       smoothWheel: true,
-      wheelMultiplier: 1.05,
-      touchMultiplier: 1.5,
+      wheelMultiplier: 1.0,
+      touchMultiplier: 1.0,
+      syncTouch: false,
     });
 
     setLenis(lenisInstance);
     (window as unknown as { __lenis?: Lenis }).__lenis = lenisInstance;
 
-    let rafId: number;
+    let isRunning = true;
+    let rafId: number = 0;
     function raf(time: number) {
+      if (!isRunning) return;
       lenisInstance.raf(time);
       rafId = requestAnimationFrame(raf);
     }
     rafId = requestAnimationFrame(raf);
+
+    const handleVisibility = () => {
+      if (document.hidden) {
+        isRunning = false;
+        if (rafId) cancelAnimationFrame(rafId);
+      } else {
+        if (!isRunning) {
+          isRunning = true;
+          rafId = requestAnimationFrame(raf);
+        }
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
 
     // Global interceptor for in-page anchor links
     const handleAnchorClick = (e: MouseEvent) => {
@@ -128,20 +150,22 @@ export default function SmoothScroll({ children }: { children: ReactNode }) {
 
       if (href === "#top") {
         e.preventDefault();
-        lenisInstance.scrollTo(0, { duration: 1.2 });
+        lenisInstance.scrollTo(0, { duration: 0.9 });
         return;
       }
 
       const targetElement = document.querySelector(href);
       if (targetElement) {
         e.preventDefault();
-        lenisInstance.scrollTo(targetElement as HTMLElement, { offset: -70, duration: 1.2 });
+        lenisInstance.resize();
+        lenisInstance.scrollTo(targetElement as HTMLElement, { offset: 0, duration: 0.9, force: true });
       }
     };
 
     document.addEventListener("click", handleAnchorClick);
 
     return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
       document.removeEventListener("click", handleAnchorClick);
       cancelAnimationFrame(rafId);
       lenisInstance.destroy();

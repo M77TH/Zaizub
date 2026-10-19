@@ -91,3 +91,8 @@ ehthumbs.db
 .vscode/
 *.swp
 *.swo
+
+.freebuff
+
+AGENTS.md
+GEMINI.md

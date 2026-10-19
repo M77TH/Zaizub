@@ -19,7 +19,7 @@ export default function Hero({ lang }: { lang: Lang }) {
       close: "Close upload dialog",
       release: "Release to upload",
       drop: "Drag and drop your video here",
-      formats: "MP4, MOV, or WebM · up to 50 MB",
+      formats: "MP4 · up to 50 MB",
       browse: "Browse files",
       alreadyAttached: "Remove the current video before uploading another.",
       remove: "Remove uploaded file",
@@ -31,7 +31,7 @@ export default function Hero({ lang }: { lang: Lang }) {
       close: "ปิดหน้าต่างอัปโหลด",
       release: "ปล่อยไฟล์เพื่ออัปโหลด",
       drop: "ลากและวางวิดีโอที่นี่",
-      formats: "MP4, MOV หรือ WebM · ขนาดไม่เกิน 50 MB",
+      formats: "MP4 · ขนาดไม่เกิน 50 MB",
       browse: "เลือกไฟล์",
       alreadyAttached: "กรุณาลบวิดีโอปัจจุบันก่อนอัปโหลดไฟล์ใหม่",
       remove: "ลบไฟล์ที่อัปโหลด",
@@ -115,7 +115,6 @@ export default function Hero({ lang }: { lang: Lang }) {
 
   const selectFile = useCallback((nextFile: File | undefined) => {
     forceCloseUpload();
-    if (file) return;
     clearUploadTimer();
 
     if (!nextFile || !isVideoFile(nextFile) || nextFile.size > 50 * 1024 * 1024) {
@@ -402,27 +401,28 @@ export default function Hero({ lang }: { lang: Lang }) {
   };
 
   return (
-    <section id="top" className="relative min-h-svh overflow-hidden">
+    <section id="top" className="relative overflow-visible overflow-x-clip min-h-[100svh] lg:h-screen lg:max-h-[880px] flex flex-col justify-center">
       <div className="absolute inset-0 bg-hero-glow" aria-hidden />
       <InteractiveDots />
 
-      <div className="relative z-10 mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 px-4 pb-16 pt-24 sm:gap-16 sm:px-6 sm:pb-24 sm:pt-28 lg:grid-cols-2 lg:px-10 lg:pb-32 lg:pt-36">
-        <div>
+      <div className="relative z-10 mx-auto grid max-w-7xl w-full grid-cols-1 items-center gap-6 px-4 pt-16 pb-6 sm:gap-8 sm:px-6 sm:pt-20 sm:pb-8 lg:grid-cols-12 lg:gap-8 xl:gap-12 lg:px-10 lg:pt-16 lg:pb-8">
+        <div className="lg:col-span-7">
           <h1
-            className={`font-display text-3xl font-bold leading-tight tracking-tight text-ink ${lang === "th"
-                ? "tracking-[-0.04em] leading-[1.3] sm:text-5xl sm:leading-[1.3] lg:text-6xl lg:tracking-[-0.06em]"
-                : "tracking-[-0.04em] leading-[1.3] sm:text-4xl sm:leading-[1.3] lg:text-5xl lg:leading-[1.3]"
+            className={`font-display font-extrabold tracking-tight text-white ${lang === "th"
+                ? "text-3xl leading-[1.25] sm:text-5xl sm:leading-[1.2] lg:text-[54px] xl:text-[62px] lg:leading-[1.15] tracking-[-0.03em]"
+                : "text-[28px] leading-[1.15] min-[400px]:text-3xl sm:text-5xl sm:leading-[1.12] lg:text-[48px] xl:text-[56px] 2xl:text-[62px] lg:leading-[1.08] tracking-[-0.035em]"
               }`}
           >
-            {t.headlineTop}
-            <br />
-            <span className="bg-gradient-to-r from-accent-soft via-accent to-magenta bg-clip-text text-transparent">
+            <span className="block whitespace-nowrap text-white">
+              {t.headlineTop}
+            </span>
+            <span className="block whitespace-nowrap bg-gradient-to-r from-[#d8b4fe] via-[#a78bfa] to-[#818cf8] bg-clip-text text-transparent">
               {t.headlineAccent}
             </span>
           </h1>
 
           <p
-            className={`mt-5 whitespace-pre-line text-sm leading-relaxed text-ink-muted sm:text-base ${lang === "th" ? "max-w-none" : "max-w-md"
+            className={`mt-6 whitespace-pre-line text-base leading-relaxed text-zinc-400 sm:text-lg ${lang === "th" ? "max-w-none" : "max-w-xl"
               }`}
           >
             {t.sub}
@@ -431,45 +431,93 @@ export default function Hero({ lang }: { lang: Lang }) {
           <form
             id="generate"
             onSubmit={handleGenerate}
-            className="relative mt-9 flex w-full max-w-2xl flex-col gap-3 sm:flex-row sm:items-center"
+            className="relative mt-8 sm:mt-9 flex w-full max-w-2xl flex-col gap-3"
           >
             <label className="sr-only" htmlFor="upload">
               {lang === "en" ? "Upload a video file" : "อัปโหลดไฟล์วิดีโอ"}
             </label>
             <input ref={fileInputRef} type="file" accept="video/*" onChange={handleFileChange} className="hidden" />
-            <div className="flex h-12 min-w-0 flex-1 items-center gap-2 overflow-visible rounded-xl border border-white/[0.03] bg-surface/60 pl-1.5 pr-1.5 backdrop-blur-md">
-              {file ? (
-                <span className={`flex h-9 w-9 flex-none items-center justify-center rounded-xl transition-[background-color,color,transform] duration-300 ${uploadStage === "error" ? "bg-red-400/10 text-red-300" : "bg-accent/15 text-accent-soft"}`} aria-label={uploadStage === "uploading" ? "Uploading" : uploadStage === "complete" ? "Upload complete" : "Upload error"}>
-                  <span className="relative flex h-5 w-5 items-center justify-center" aria-hidden>
-                    <svg className={`absolute transition-[opacity,transform] duration-500 ease-out ${uploadStage === "uploading" ? "scale-100 opacity-100" : "scale-50 opacity-0"}`} width="20" height="20" viewBox="0 0 24 24" fill="none">
-                      <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeOpacity="0.2" strokeWidth="2" />
-                      <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="53.4" strokeDashoffset={`${53.4 - (53.4 * uploadProgress) / 100}`} transform="rotate(-90 12 12)" className="transition-[stroke-dashoffset] duration-150" />
-                    </svg>
-                    <svg className={`absolute transition-[opacity,transform,color] duration-500 ease-out ${uploadStage === "complete" ? "scale-100 text-accent-soft opacity-100" : "scale-50 opacity-0"}`} width="18" height="18" viewBox="0 0 24 24" fill="none">
-                      <path d="m7 12.5 3.2 3.2L17.5 8.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    <svg className={`absolute transition-[opacity,transform] duration-500 ease-out ${uploadStage === "error" ? "scale-100 opacity-100" : "scale-50 opacity-0"}`} width="18" height="18" viewBox="0 0 24 24" fill="none">
-                      <path d="M12 4 3.5 19h17L12 4Zm0 6v4m0 3h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </span>
-                </span>
+
+            <div className="flex h-12 min-w-0 flex-1 items-center gap-2 overflow-visible rounded-full border border-white/[0.08] bg-surface/80 p-1.5 backdrop-blur-md shadow-[0_12px_40px_rgba(0,0,0,0.6),0_0_20px_rgba(124,58,237,0.08)]">
+              {file ? (                <button
+                  id="upload"
+                  type="button"
+                  onClick={openUpload}
+                  className={`group focus-ring flex h-9 w-9 flex-none items-center justify-center rounded-full transition-all duration-300 ${
+                    uploadStage === "error"
+                      ? "bg-red-400/10 text-red-300 hover:bg-red-400/20 hover:scale-105"
+                      : uploadStage === "uploading"
+                        ? "bg-accent/15 text-accent-soft"
+                      : "bg-accent/15 text-accent-soft hover:bg-accent/25 hover:scale-105"
+                  }`}
+                  aria-label={uploadStage === "uploading" ? (lang === "en" ? "Uploading video..." : "กำลังอัปโหลดวิดีโอ...") : lang === "en" ? "Change uploaded video" : "เปลี่ยนไฟล์วิดีโอที่อัปโหลด"}
+                  title={uploadStage === "uploading" ? (lang === "en" ? "Uploading video..." : "กำลังอัปโหลดวิดีโอ...") : lang === "en" ? "Change uploaded video" : "เปลี่ยนไฟล์วิดีโอที่อัปโหลด"}
+                >
+                  {/* Checkmark — upload complete state (no circle border) */}
+                  <svg
+                    className={`absolute transition-[opacity,transform] duration-500 ease-out ${uploadStage === "complete" ? "scale-100 opacity-100" : "scale-50 opacity-0"}`}
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    aria-hidden
+                  >
+                    <path d="m7 12.5 3.2 3.2L17.5 8.5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  {/* Animated progress ring — uploading state */}
+                  <svg
+                    className={`absolute transition-[opacity,transform] duration-500 ease-out ${uploadStage === "uploading" ? "scale-100 opacity-100" : "scale-50 opacity-0"}`}
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    aria-hidden
+                  >
+                    <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeOpacity="0.2" strokeWidth="2" />
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="8.5"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeDasharray="53.4"
+                      strokeDashoffset={`${53.4 - (53.4 * uploadProgress) / 100}`}
+                      transform="rotate(-90 12 12)"
+                      className="transition-[stroke-dashoffset] duration-150"
+                    />
+                  </svg>
+                  {/* Upload (+) icon — idle/error state, also doubles as change-file affordance */}
+                  <svg
+                    className={`absolute transition-[opacity,transform] duration-500 ease-out ${uploadStage === "error" ? "scale-100 opacity-100" : "scale-50 opacity-0"}`}
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                </button>
               ) : (
                 <button
                   id="upload"
                   type="button"
-                  onClick={() => {
-                    if (file) return;
-                    openUpload();
-                  }}
-                  className="focus-ring flex h-10 w-10 flex-none items-center justify-center rounded-lg text-accent-soft transition-[background-color,color,transform] duration-300 hover:rotate-90 hover:bg-white/5 hover:text-ink"
+                  onClick={openUpload}
+                  className="group focus-ring flex h-9 w-9 flex-none items-center justify-center rounded-full text-purple-400/80 hover:text-purple-200 hover:bg-white/[0.06] transition-all duration-300 hover:rotate-90 hover:scale-110 active:scale-95"
                   aria-label={lang === "en" ? "Upload a video file" : "อัปโหลดไฟล์วิดีโอ"}
+                  title={lang === "en" ? "Upload a video file" : "อัปโหลดไฟล์วิดีโอ"}
                 >
-                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden>
-                    <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-[0_0_8px_rgba(168,85,247,0.4)] group-hover:drop-shadow-[0_0_12px_rgba(168,85,247,0.7)] transition-all" aria-hidden>
+                    <path d="M12 5v14M5 12h14" />
                   </svg>
                 </button>
               )}
-              <span className="self-center h-7 w-px flex-none bg-white/5" aria-hidden />
+              <span className="self-center h-5 w-px flex-none bg-white/10" aria-hidden />
 
               {file && uploadStage !== "complete" ? (
                 <div className="min-w-0 flex-1 overflow-hidden px-2 text-xs text-ink-faint">{uploadStage === "error" ? uploadErrorText : upload.uploading}</div>
@@ -481,16 +529,25 @@ export default function Hero({ lang }: { lang: Lang }) {
                   </p>
                 </div>
               ) : (
-                <input value={link} onChange={(e) => { setLink(e.target.value); setLinkError(false); }} type="text" placeholder={t.linkPlaceholder} className="focus-ring h-12 flex-1 bg-transparent px-2 text-sm text-ink placeholder:text-ink-muted focus:outline-none" />
+                <input
+                  value={link}
+                  onChange={(e) => { setLink(e.target.value); setLinkError(false); }}
+                  type="text"
+                  placeholder={t.linkPlaceholder}
+                  className="focus-ring h-full min-h-0 flex-1 bg-transparent px-2.5 text-sm text-ink placeholder:text-ink-muted focus:outline-none"
+                />
               )}
               {file && (
                 <button
                   type="button"
                   onClick={handleResetFile}
-                  className="focus-ring mr-3 flex h-8 w-8 flex-none items-center justify-center rounded-full text-lg text-ink-faint hover:bg-white/5 hover:text-ink"
+                  className="focus-ring mr-2 flex h-7 w-7 flex-none items-center justify-center rounded-full text-zinc-400 hover:bg-white/10 hover:text-white transition-colors"
                   aria-label={upload.remove}
+                  title={upload.remove}
                 >
-                  ×
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
                 </button>
               )}
               <span className="group relative z-50 flex-none" onMouseEnter={() => !sourceReady && setSourceHintOpen(true)} onMouseLeave={() => setSourceHintOpen(false)}>
@@ -502,23 +559,50 @@ export default function Hero({ lang }: { lang: Lang }) {
                       setSourceHintOpen(true);
                     }
                   }}
-                  className={`peer focus-ring relative flex h-9 w-32 items-center justify-center gap-1.5 rounded-xl bg-white/[0.02] px-5 text-sm font-medium transition-[color,transform,opacity,box-shadow] duration-700 ease-in-out disabled:cursor-not-allowed ${sourceReady ? "scale-100 text-white shadow-glow hover:scale-[1.03]" : "scale-[0.98] text-white/20"}`}
+                  className={`peer focus-ring relative flex h-9 w-32 items-center justify-center rounded-full border overflow-hidden select-none transition-all duration-300 ${
+                    sourceReady
+                      ? "border-purple-400/40 shadow-[0_0_16px_rgba(139,92,246,0.25),inset_0_1px_1px_rgba(255,255,255,0.25)] hover:brightness-110 active:scale-95 cursor-pointer"
+                      : "border-white/[0.08] bg-white/[0.02] cursor-not-allowed"
+                  }`}
                 >
-                  <span className={`absolute inset-0 rounded-xl bg-gradient-to-b from-accent-soft to-accent-deep transition-opacity duration-700 ease-in-out ${sourceReady ? "opacity-100" : "opacity-0"}`} aria-hidden />
-                  {sourceReady && <span className="pointer-events-none absolute -inset-1 rounded-xl bg-accent/15 blur-lg animate-[buttonAura_3.6s_ease-in-out_infinite]" aria-hidden />}
-                  <span className="relative z-10 flex items-center gap-1.5">
-                    {status === "generating" ? t.generating : t.generate}
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" className={`transition-[color,opacity,filter] duration-700 ease-in-out ${sourceReady ? "animate-[sparkleGlow_2.4s_ease-in-out_infinite] text-white opacity-100" : "text-white/20 opacity-70"}`} aria-hidden>
-                      <path
-                        d="M7.45284 2.71266C7.8276 1.76244 9.1724 1.76245 9.54716 2.71267L10.7085 5.65732C10.8229 5.94743 11.0526 6.17707 11.3427 6.29148L14.2873 7.45284C15.2376 7.8276 15.2376 9.1724 14.2873 9.54716L11.3427 10.7085C11.0526 10.8229 10.8229 11.0526 10.7085 11.3427L9.54716 14.2873C9.1724 15.2376 7.8276 15.2376 7.45284 14.2873L6.29148 11.3427C6.17707 11.0526 5.94743 10.8229 5.65732 10.7085L2.71266 9.54716C1.76244 9.1724 1.76245 7.8276 2.71267 7.45284L5.65732 6.29148C5.94743 6.17707 6.17707 5.94743 6.17707 5.65732L7.45284 2.71266Z"
-                        fill="currentColor"
-                      />
-                      <path
-                        opacity="0.55"
-                        d="M16.9245 13.3916C17.1305 12.8695 17.8695 12.8695 18.0755 13.3916L18.9761 15.6753C19.039 15.8348 19.1652 15.961 19.3247 16.0239L21.6084 16.9245C22.1305 17.1305 22.1305 17.8695 21.6084 18.0755L19.3247 18.9761C19.1652 19.039 19.039 19.1652 18.9761 19.3247L18.0755 21.6084C17.8695 22.1305 17.1305 22.1305 16.9245 21.6084L16.0239 19.3247C15.961 19.1652 15.8348 19.039 15.6753 18.9761L13.3916 18.0755C12.8695 17.8695 12.8695 17.1305 13.3916 16.9245L15.6753 16.0239C15.8348 15.961 15.961 15.8348 16.0239 15.6753L16.9245 13.3916Z"
-                        fill="currentColor"
-                      />
-                    </svg>
+                  {/* Inactive purple dot with luminous halo glow */}
+                  <span
+                    className={`pointer-events-none absolute left-[14px] top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-purple-400 transition-all duration-200 ${
+                      sourceReady
+                        ? "opacity-0 scale-125"
+                        : "opacity-100 scale-100 shadow-[0_0_8px_rgba(168,85,247,0.9),0_0_16px_rgba(147,51,234,0.4)]"
+                    }`}
+                    aria-hidden
+                  />
+
+                  {/* Spreading purple gradient blooming radially from the exact dot origin (18px, 50%) */}
+                  <span
+                    className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-r from-[#8b5cf6] via-[#7c3aed] to-[#6d28d9] shadow-[inset_0_1px_1px_rgba(255,255,255,0.25)] transition-[clip-path] duration-[260ms] ease-[cubic-bezier(0.16,1,0.3,1)]"
+                    style={{
+                      clipPath: sourceReady
+                        ? "circle(160px at 18px 50%)"
+                        : "circle(4px at 18px 50%)",
+                      WebkitClipPath: sourceReady
+                        ? "circle(160px at 18px 50%)"
+                        : "circle(4px at 18px 50%)",
+                    }}
+                    aria-hidden
+                  />
+
+                  <span
+                    className={`relative z-10 flex items-center justify-center gap-1.5 transition-all duration-[260ms] ease-out ${
+                      sourceReady ? "pl-0 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]" : "pl-3 text-white/40"
+                    }`}
+                  >
+                    {status === "generating" && (
+                      <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                      </svg>
+                    )}
+                    <span className="text-xs font-semibold tracking-wide">
+                      {status === "generating" ? t.generating : t.generate}
+                    </span>
                   </span>
                 </button>
                 {!sourceReady && sourceHintOpen && (
@@ -528,6 +612,7 @@ export default function Hero({ lang }: { lang: Lang }) {
                 )}
               </span>
             </div>
+
             {linkError && (
               <p className="pointer-events-none absolute left-0 top-full mt-2 flex items-center gap-1.5 rounded-lg bg-red-400/10 px-3 py-1.5 text-xs text-red-200/70 ring-1 ring-red-400/10">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="flex-none text-red-300" aria-hidden>
@@ -540,7 +625,7 @@ export default function Hero({ lang }: { lang: Lang }) {
 
             {uploadOpen && (
               <div
-                className={`fixed inset-0 z-30 flex items-center justify-center bg-black/60 px-6 backdrop-blur-sm ${isClosing ? "animate-[uploadOverlayOut_300ms_ease-out_both] pointer-events-none" : "animate-[uploadOverlayIn_300ms_ease-out_both]"}`}
+                className={`fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-6 backdrop-blur-md ${isClosing ? "animate-[uploadOverlayOut_300ms_ease-out_both] pointer-events-none" : "animate-[uploadOverlayIn_300ms_ease-out_both]"}`}
                 onAnimationEnd={(event) => {
                   if (isClosing && event.target === event.currentTarget) {
                     setUploadOpen(false);
@@ -558,37 +643,37 @@ export default function Hero({ lang }: { lang: Lang }) {
                   aria-modal="true"
                   aria-labelledby="upload-modal-title"
                   data-upload-modal
-                  className={`w-full max-w-md rounded-3xl border border-white/10 bg-[#100c18] p-5 ${isClosing ? "animate-[uploadModalOut_300ms_ease-out_both] pointer-events-none" : "animate-[uploadModalIn_300ms_ease-out_both]"}`}
+                  className={`w-full max-w-md rounded-3xl border border-[#221e33] bg-[#0a090f]/95 p-6 shadow-[0_35px_90px_-15px_rgba(0,0,0,0.95),0_0_60px_rgba(139,92,246,0.2)] ring-1 ring-white/10 backdrop-blur-2xl ${isClosing ? "animate-[uploadModalOut_300ms_ease-out_both] pointer-events-none" : "animate-[uploadModalIn_300ms_ease-out_both]"}`}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="mb-4 flex items-start justify-between">
                     <div>
-                      <p id="upload-modal-title" className="text-base font-semibold text-ink">{upload.title}</p>
-                      <p className="mt-1 text-sm text-ink-faint">{upload.description}</p>
+                      <p id="upload-modal-title" className="text-base font-bold text-white tracking-tight">{upload.title}</p>
+                      <p className="mt-1 text-xs text-zinc-400">{upload.description}</p>
                     </div>
-                    <button type="button" onClick={closeUpload} className="focus-ring rounded-full px-2 text-xl leading-none text-ink-faint hover:text-ink" aria-label={upload.close}>×</button>
+                    <button type="button" onClick={closeUpload} className="focus-ring rounded-xl p-1 text-xl leading-none text-white/40 hover:text-white hover:bg-white/10 transition-colors" aria-label={upload.close}>×</button>
                   </div>
 
                   <div
-                    className={`rounded-2xl border border-dashed px-5 py-9 text-center transition-[border-color,background-color,transform,box-shadow] duration-200 ease-out ${file ? "border-white/10 bg-white/[0.01]" : isDragging ? "scale-[1.02] animate-[dropZonePulse_1.4s_ease-in-out_infinite] border-accent bg-accent/10 shadow-[0_0_35px_rgba(139,92,246,0.25)]" : "border-white/15 bg-white/[0.02]"}`}
+                    className={`rounded-2xl border border-dashed px-5 py-8 text-center transition-all duration-200 ${file ? "border-white/10 bg-white/[0.01]" : isDragging ? "scale-[1.02] border-purple-400 bg-purple-500/10 shadow-[0_0_35px_rgba(139,92,246,0.25)]" : "border-white/20 bg-white/[0.02] hover:border-purple-400/35 hover:bg-purple-500/[0.04]"}`}
                     onDragEnter={file ? undefined : handleDragEnter}
                     onDragOver={file ? undefined : (e) => { e.preventDefault(); setIsDragging(true); }}
                     onDragLeave={file ? undefined : handleDragLeave}
                     onDrop={file ? undefined : handleDrop}
                   >
-                    <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/15 text-accent-soft transition-[transform,background-color] duration-200 ${isDragging ? "scale-110 -rotate-6 bg-accent/25" : ""}`} aria-hidden>
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                        <path d="M12 16V4m0 0L8 8m4-4 4 4M5 20h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-500/15 border border-purple-500/25 text-purple-300 transition-all duration-200 ${isDragging ? "scale-110 -rotate-6 bg-purple-500/25 border-purple-400/40 text-purple-200" : ""}`} aria-hidden>
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 16V4m0 0L8 8m4-4 4 4M5 20h14" />
                       </svg>
                     </div>
-                    <p className="mt-4 text-sm font-medium text-ink">{file ? upload.alreadyAttached : isDragging ? upload.release : upload.drop}</p>
-                    <p className="mt-1 text-xs text-ink-faint">{upload.formats}</p>
-                    {uploadErrorText && <p className="mt-3 text-xs text-red-300">{uploadErrorText}</p>}
+                    <p className="mt-4 text-sm font-semibold text-white">{file ? upload.alreadyAttached : isDragging ? upload.release : upload.drop}</p>
+                    <p className="mt-1 text-xs text-white/50 font-mono">{upload.formats}</p>
+                    {uploadErrorText && <p className="mt-3 text-xs text-red-400">{uploadErrorText}</p>}
                     <button
                       type="button"
                       disabled={Boolean(file)}
                       onClick={() => fileInputRef.current?.click()}
-                      className="focus-ring mt-5 rounded-xl bg-gradient-to-b from-accent-soft to-accent-deep px-4 py-2 text-sm font-medium text-white transition-[filter] duration-200 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-30"
+                      className="focus-ring mt-5 rounded-xl bg-gradient-to-r from-[#8b5cf6] via-[#7c3aed] to-[#6d28d9] hover:from-[#9061f9] hover:to-[#7c3aed] border border-purple-400/40 px-5 py-2 text-xs font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.5),0_0_14px_rgba(139,92,246,0.25)] transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30"
                     >
                       {upload.browse}
                     </button>
@@ -599,7 +684,14 @@ export default function Hero({ lang }: { lang: Lang }) {
           </form>
         </div>
 
-        <PhoneMockup lang={lang} pulseKey={pulseKey} />
+        <div className="lg:col-span-5 flex items-center justify-center lg:justify-center xl:justify-center lg:-translate-x-10 xl:-translate-x-16 2xl:-translate-x-24">
+          <PhoneMockup
+            lang={lang}
+            pulseKey={pulseKey}
+            videoSrc="/video_preview/video_1.mp4"
+            backVideoSrc="/video_preview/video_2.mp4"
+          />
+        </div>
       </div>
     </section>
   );

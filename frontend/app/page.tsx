@@ -1,27 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import dynamic from "next/dynamic";
 import Navbar from "@/components/landing/Navbar";
 import Hero from "@/components/landing/Hero";
-import HowItWorks from "@/components/landing/HowItWorks";
-import Features from "@/components/landing/Features";
-import Pricing from "@/components/landing/Pricing";
-import Footer from "@/components/landing/Footer";
 import CustomScrollbar from "@/components/ui/CustomScrollbar";
-import type { Lang } from "@/components/landing/copy";
+import { useLanguage } from "@/components/providers/LanguageProvider";
+
+const EditorMockup = dynamic(() => import("@/components/landing/EditorMockup"));
+const HowItWorks = dynamic(() => import("@/components/landing/HowItWorks"));
+const Features = dynamic(() => import("@/components/landing/Features"));
+const Footer = dynamic(() => import("@/components/landing/Footer"));
 
 export default function Home() {
-  const [lang, setLang] = useState<Lang>("en");
+  const { lang, setLang } = useLanguage();
 
   return (
     <main className="min-h-screen bg-bg">
       <Navbar lang={lang} setLang={setLang} />
       <Hero lang={lang} />
+      <EditorMockup lang={lang} />
       <HowItWorks lang={lang} />
       <Features lang={lang} />
-      <Pricing lang={lang} />
       <Footer lang={lang} />
       <CustomScrollbar />
     </main>
   );
 }
+

@@ -1,10 +1,16 @@
-export default function ZaiZubLogo() {
+export default function ZaiZubLogo({
+  size = 30,
+  className = "",
+}: {
+  size?: number;
+  className?: string;
+}) {
   return (
-    <div className="flex items-center gap-3">
+    <div className={`flex items-center ${className}`}>
       {/* ไอคอนโลโก้ */}
       <svg 
-        width="40" 
-        height="40" 
+        width={size} 
+        height={size} 
         viewBox="0 0 40 40" 
         fill="none" 
         xmlns="http://www.w3.org/2000/svg"

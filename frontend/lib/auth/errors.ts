@@ -8,6 +8,10 @@ const AUTH_ERROR_MAP: Record<string, string> = {
   over_email_send_rate_limit: 'Too many attempts. Please try again later.',
   signup_disabled: 'Unable to create account.',
   email_not_confirmed: 'Please confirm your email before signing in.',
+  otp_expired: 'Your reset link has expired. Please request a new one.',
+  token_expired: 'Your reset link has expired. Please request a new one.',
+  same_password: 'New password should be different from your old password.',
+  session_expired: 'Your session has expired. Please request a new link.',
 }
 
 const MESSAGE_HINTS: Array<{ match: RegExp; message: string }> = [
@@ -22,6 +26,14 @@ const MESSAGE_HINTS: Array<{ match: RegExp; message: string }> = [
   {
     match: /email not confirmed/i,
     message: 'Please confirm your email before signing in.',
+  },
+  {
+    match: /expired|token has expired|otp has expired/i,
+    message: 'Your reset link has expired. Please request a new one.',
+  },
+  {
+    match: /same password|should be different/i,
+    message: 'New password should be different from your old password.',
   },
   {
     match: /password/i,

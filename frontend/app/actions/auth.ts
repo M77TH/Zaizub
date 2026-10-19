@@ -15,23 +15,32 @@ export type AuthActionState =
   | { success: true; message?: string; error?: undefined }
   | null
 
-async function getEmailRedirectTo() {
+async function getEmailRedirectTo(nextPath?: string) {
   const headerStore = await headers()
   const origin = headerStore.get('origin')
+
+  const buildUrl = (base: string) => {
+    const url = new URL('/auth/callback', base)
+    if (nextPath) {
+      url.searchParams.set('next', nextPath)
+    }
+    return url.toString()
+  }
+
   if (origin) {
-    return `${origin}/auth/callback`
+    return buildUrl(origin)
   }
 
   const host = headerStore.get('x-forwarded-host') || headerStore.get('host')
   const proto = headerStore.get('x-forwarded-proto') || 'http'
   if (host) {
-    return `${proto}://${host}/auth/callback`
+    return buildUrl(`${proto}://${host}`)
   }
 
   const fallback =
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ||
     'http://localhost:3000'
-  return `${fallback}/auth/callback`
+  return buildUrl(fallback)
 }
 
 export async function login(
@@ -145,4 +154,80 @@ export async function updateProfile(
   }
 
   return { success: true, message: 'Profile updated.' }
+}
+
+export async function resetPassword(
+  _prev: AuthActionState,
+  formData: FormData
+): Promise<AuthActionState> {
+  const emailRaw = formData.get('email')
+  if (typeof emailRaw !== 'string' || !emailRaw.trim()) {
+    return { error: 'Please enter your email address.' }
+  }
+  const email = emailRaw.trim().toLowerCase()
+  const supabase = await createClient()
+  const emailRedirectTo = await getEmailRedirectTo('/reset-password')
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: emailRedirectTo,
+  })
+
+  if (error) {
+    return { error: toUserFacingAuthError(error) }
+  }
+
+  return {
+    success: true,
+    message: 'Check your email for the password reset instructions.',
+  }
+}
+
+export async function updatePassword(
+  _prev: AuthActionState,
+  formData: FormData
+): Promise<AuthActionState> {
+  const passwordRaw = formData.get('password')
+  const confirmPasswordRaw = formData.get('confirmPassword')
+
+  if (typeof passwordRaw !== 'string' || !passwordRaw) {
+    return { error: 'Please enter your new password.' }
+  }
+
+  if (passwordRaw.length < 8) {
+    return { error: 'Password must be at least 8 characters.' }
+  }
+
+  if (typeof confirmPasswordRaw !== 'string' || !confirmPasswordRaw) {
+    return { error: 'Please confirm your new password.' }
+  }
+
+  if (passwordRaw !== confirmPasswordRaw) {
+    return { error: 'Passwords do not match.' }
+  }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
+
+  if (userError || !user) {
+    return {
+      error:
+        'Your password reset session has expired. Please request a new link.',
+    }
+  }
+
+  const { error } = await supabase.auth.updateUser({
+    password: passwordRaw,
+  })
+
+  if (error) {
+    return { error: toUserFacingAuthError(error) }
+  }
+
+  return {
+    success: true,
+    message: 'Your password has been successfully updated.',
+  }
 }

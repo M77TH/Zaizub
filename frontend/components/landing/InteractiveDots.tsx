@@ -116,7 +116,8 @@ export default function InteractiveDots() {
           if (distSq > 0 && distSq < MOUSE_RADIUS_SQ) {
             const distanceToMouse = Math.sqrt(distSq);
             proximity = 1 - distanceToMouse / MOUSE_RADIUS;
-            const force = proximity * 9;
+            const wave = Math.sin(performance.now() * 0.0035 - distanceToMouse * 0.06);
+            const force = proximity * (8.5 + 1.5 * wave);
             targetX = (dx / distanceToMouse) * force;
             targetY = (dy / distanceToMouse) * force;
           }
@@ -172,15 +173,25 @@ export default function InteractiveDots() {
         context.fill();
       }
 
-      // Sleep automatically once all dots settle back to rest
-      if (!reducedMotion && isVisible && anyMoving) {
+      // Continuously animate while mouse is active, or sleep once all dots settle back to rest
+      if (!reducedMotion && isVisible && (anyMoving || mouseActive) && !animationFrame) {
         animationFrame = window.requestAnimationFrame(draw);
       }
     };
 
+    let isTicking = false;
+    const safeDraw = () => {
+      isTicking = true;
+      try {
+        draw();
+      } finally {
+        isTicking = false;
+      }
+    };
+
     const wake = () => {
-      if (!animationFrame && isVisible && !reducedMotion) {
-        animationFrame = window.requestAnimationFrame(draw);
+      if (!animationFrame && isVisible && !reducedMotion && !isTicking) {
+        animationFrame = window.requestAnimationFrame(safeDraw);
       }
     };
 
@@ -259,12 +270,14 @@ export default function InteractiveDots() {
 
     const handleVisibility = () => {
       if (document.hidden) {
+        handlePointerLeave();
         if (animationFrame) {
           window.cancelAnimationFrame(animationFrame);
           animationFrame = 0;
         }
       } else if (isVisible) {
-        wake();
+        handlePointerLeave();
+        draw();
       }
     };
 

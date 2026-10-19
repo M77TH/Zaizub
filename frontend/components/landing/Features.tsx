@@ -1716,7 +1716,7 @@ export default function Features({ lang = "en" }: { lang?: Lang }) {
   return (
     <section
       id="features"
-      className="relative border-t border-line min-h-[calc(100svh-3.75rem)] min-h-[calc(100dvh-3.75rem)] min-h-[calc(100vh-3.75rem)] flex flex-col justify-center py-5 sm:py-6 lg:py-5 xl:py-8 [@media(max-height:760px)]:py-3 bg-bg overflow-hidden text-white scroll-mt-16"
+      className="relative min-h-[calc(100svh-3.75rem)] min-h-[calc(100dvh-3.75rem)] min-h-[calc(100vh-3.75rem)] flex flex-col justify-center py-5 sm:py-6 lg:py-5 xl:py-8 [@media(max-height:760px)]:py-3 bg-bg overflow-hidden text-white scroll-mt-16"
     >
       {/* Background ambient lighting matching Hero and EditorMockup */}
       <div

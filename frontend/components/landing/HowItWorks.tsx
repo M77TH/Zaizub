@@ -402,7 +402,7 @@ export default function HowItWorks({ lang = "en" }: { lang?: Lang }) {
   return (
     <section
       id="how-it-works"
-      className="border-t border-line min-h-[calc(100svh-3.75rem)] min-h-[calc(100dvh-3.75rem)] min-h-[calc(100vh-3.75rem)] flex flex-col justify-center py-8 sm:py-10 lg:py-12 relative overflow-hidden bg-bg scroll-mt-16"
+      className="min-h-[calc(100svh-3.75rem)] min-h-[calc(100dvh-3.75rem)] min-h-[calc(100vh-3.75rem)] flex flex-col justify-center py-8 sm:py-10 lg:py-12 relative overflow-hidden bg-bg scroll-mt-16"
     >
       {/* Background ambient lighting matching Hero and EditorMockup */}
       <div

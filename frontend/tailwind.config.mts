@@ -170,24 +170,24 @@ const config: Config = {
         },
         phoneIdleFront: {
           "0%, 100%": {
-            transform: "translate3d(0px, 0px, 0px) rotate(-8deg)",
+            transform: "translate3d(0px, 0px, 0px) rotate(-2deg)",
           },
           "33%": {
-            transform: "translate3d(5px, -18px, 0px) rotate(-6.8deg)",
+            transform: "translate3d(2px, -14px, 0px) rotate(-1deg)",
           },
           "66%": {
-            transform: "translate3d(-5px, -10px, 0px) rotate(-9.2deg)",
+            transform: "translate3d(-2px, -7px, 0px) rotate(-2.5deg)",
           },
         },
         phoneIdleBack: {
           "0%, 100%": {
-            transform: "translate3d(0px, 0px, 0px) rotate(6deg)",
+            transform: "translate3d(0px, 0px, 0px) rotate(9.5deg)",
           },
           "33%": {
-            transform: "translate3d(-6px, 16px, 0px) rotate(7.2deg)",
+            transform: "translate3d(-2px, -4px, 0px) rotate(10.5deg)",
           },
           "66%": {
-            transform: "translate3d(4px, 8px, 0px) rotate(4.8deg)",
+            transform: "translate3d(2px, 3px, 0px) rotate(8.5deg)",
           },
         },
         blobDrift: {

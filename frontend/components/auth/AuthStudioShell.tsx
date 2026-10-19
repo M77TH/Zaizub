@@ -841,7 +841,7 @@ export default function AuthStudioShell({
   const { lang, setLang } = useLanguage()
 
   return (
-    <div className="relative h-screen max-h-screen w-full bg-[#07060a] text-[#f4f2f8] overflow-hidden select-none grid grid-cols-1 lg:grid-cols-[52%_48%] xl:grid-cols-[53%_47%]">
+    <div className="relative h-[100dvh] max-h-[100dvh] w-full bg-[#07060a] text-[#f4f2f8] overflow-hidden select-none grid grid-cols-1 lg:grid-cols-[52%_48%] xl:grid-cols-[53%_47%]">
       {/* Distinct display/serif/handwritten Google Fonts + GPU-accelerated -15deg diagonal loop */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Caveat:wght@600;700&family=Playfair+Display:ital,wght@0,700;1,400;1,600&family=Syne:wght@700;800&display=swap');
@@ -993,7 +993,7 @@ export default function AuthStudioShell({
       {/* ====================================================================
           RIGHT SECTION: Unboxed, Spacious, Minimal Premium Auth Section
          ==================================================================== */}
-      <div className="relative flex flex-col justify-between bg-[#07060a] px-6 py-5 sm:px-12 sm:py-6 lg:px-14 xl:px-20 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+      <div className="relative flex flex-col justify-between bg-[#07060a] px-5 py-4 sm:px-12 sm:py-6 lg:px-14 xl:px-20 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         {/* Subtle Ambient Glow & Interactive Dots on Right Panel */}
         <div
           className="pointer-events-none absolute inset-0"
@@ -1065,20 +1065,20 @@ export default function AuthStudioShell({
           </div>
         </div>
 
-        {/* Centered Unboxed Login Section (Bigger & More Spacious) */}
-        <div className="relative z-10 my-auto w-full max-w-[420px] mx-auto py-3 sm:py-5">
+        {/* Centered Unboxed Login Section */}
+        <div className="relative z-10 my-auto w-full max-w-[420px] mx-auto py-2 sm:py-6">
           {/* Brand Emblem & Header */}
           {!hideHeader && (
-            <div className="flex flex-col items-center text-center mb-6 sm:mb-7">
+            <div className="flex flex-col items-center text-center mb-4 sm:mb-6">
               <Link
                 href="/"
-                className="group relative flex h-13 w-13 items-center justify-center rounded-2xl bg-[#141122] border border-white/[0.1] shadow-[0_12px_28px_rgba(0,0,0,0.65),0_0_24px_rgba(139,92,246,0.2),inset_0_1px_0_rgba(255,255,255,0.12)] mb-4 transition-transform duration-200 hover:scale-105"
+                className="group relative flex h-11 w-11 sm:h-13 sm:w-13 items-center justify-center rounded-2xl bg-[#141122] border border-white/[0.1] shadow-[0_8px_24px_rgba(0,0,0,0.6),0_0_20px_rgba(139,92,246,0.2),inset_0_1px_0_rgba(255,255,255,0.12)] mb-3 sm:mb-4 transition-transform duration-200 hover:scale-105"
                 aria-label="Zaizub Home"
               >
-                <ZaiZubLogo size={28} />
+                <ZaiZubLogo size={26} svgClassName="w-6 h-6 sm:w-7 sm:h-7" />
               </Link>
 
-              <h1 className="font-display text-[26px] sm:text-[28px] font-semibold tracking-[-0.025em] text-[#f4f2f8]">
+              <h1 className="font-display text-[22px] sm:text-[28px] font-semibold tracking-[-0.025em] text-[#f4f2f8]">
                 {mode === 'login'
                   ? lang === 'en'
                     ? 'Welcome back'
@@ -1095,7 +1095,7 @@ export default function AuthStudioShell({
                         ? 'Set new password'
                         : 'ตั้งรหัสผ่านใหม่'}
               </h1>
-              <p className="text-[14px] text-[#8c879e] mt-1.5">
+              <p className="text-[13px] sm:text-[14px] text-[#8c879e] mt-1.5 leading-normal">
                 {mode === 'login'
                   ? lang === 'en'
                     ? 'Sign in to continue to your Zaizub workspace.'
@@ -1120,8 +1120,8 @@ export default function AuthStudioShell({
         </div>
 
         {/* Bottom Footer Row */}
-        <div className="relative z-10 flex items-center justify-end text-xs text-[#6b6779]">
-          <div className="flex items-center gap-3">
+        <div className="relative z-10 flex items-center justify-center sm:justify-end text-xs text-[#6b6779] pt-3 sm:pt-0">
+          <div className="flex items-center gap-3.5">
             <Link href="/" className="hover:text-[#a19cb0] transition-colors">
               {lang === 'en' ? 'Privacy' : 'ความเป็นส่วนตัว'}
             </Link>

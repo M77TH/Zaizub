@@ -21,11 +21,11 @@ export default function ForgotPasswordForm() {
       {(lang) => (
         <div>
           {isSuccess ? (
-            <div className="space-y-5 text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-500/10 border border-violet-500/20 text-violet-400">
+            <div className="space-y-4 sm:space-y-5 text-center">
+              <div className="mx-auto flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-2xl bg-violet-500/10 border border-violet-500/20 text-violet-400">
                 <svg
-                  width="22"
-                  height="22"
+                  width="20"
+                  height="20"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -40,13 +40,13 @@ export default function ForgotPasswordForm() {
                 </svg>
               </div>
 
-              <div className="space-y-2">
-                <h2 className="text-base font-semibold text-white">
+              <div className="space-y-1.5 sm:space-y-2">
+                <h2 className="text-[15px] sm:text-base font-semibold text-white">
                   {lang === 'en'
                     ? 'Check your inbox'
                     : 'ตรวจสอบกล่องจดหมายของคุณ'}
                 </h2>
-                <p className="text-xs leading-relaxed text-[#8c879e]">
+                <p className="text-[12px] sm:text-xs leading-relaxed text-[#8c879e]">
                   {successMessage ||
                     (lang === 'en'
                       ? 'If an account exists for that email, we have sent recovery instructions.'
@@ -56,13 +56,13 @@ export default function ForgotPasswordForm() {
 
               <Link
                 href="/login"
-                className="inline-flex w-full items-center justify-center rounded-xl bg-violet-600 hover:bg-violet-500 h-11 text-[14px] font-medium text-white shadow-[0_4px_16px_rgba(139,92,246,0.35)] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/60"
+                className="inline-flex w-full items-center justify-center rounded-xl bg-violet-600 hover:bg-violet-500 h-10.5 sm:h-11 text-[13.5px] sm:text-[14px] font-medium text-white shadow-[0_4px_16px_rgba(139,92,246,0.35)] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/60"
               >
                 {lang === 'en' ? 'Back to sign in' : 'กลับสู่หน้าเข้าสู่ระบบ'}
               </Link>
             </div>
           ) : (
-            <form action={formAction} className="space-y-4" noValidate={false}>
+            <form action={formAction} className="space-y-3.5 sm:space-y-4" noValidate={false}>
               {/* Email Input */}
               <div className="space-y-1.5 text-left">
                 <label
@@ -103,7 +103,7 @@ export default function ForgotPasswordForm() {
                     aria-required="true"
                     aria-invalid={hasError ? 'true' : undefined}
                     aria-describedby={hasError ? 'recovery-error-msg' : undefined}
-                    className="w-full h-12 bg-transparent rounded-xl pl-10.5 pr-4 text-[14px] text-[#f4f2f8] placeholder:text-zinc-400 outline-none"
+                    className="w-full h-11 sm:h-12 bg-transparent rounded-xl pl-10 sm:pl-10.5 pr-4 text-[14px] text-[#f4f2f8] placeholder:text-zinc-400 outline-none"
                     placeholder={
                       lang === 'en' ? 'name@example.com' : 'อีเมลของคุณ'
                     }
@@ -115,7 +115,7 @@ export default function ForgotPasswordForm() {
                 <div
                   id="recovery-error-msg"
                   role="alert"
-                  className="text-red-300 text-[13px] bg-red-500/10 px-4 py-3 rounded-xl border border-red-500/25 flex items-center gap-2"
+                  className="text-red-300 text-[12.5px] sm:text-[13px] bg-red-500/10 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-red-500/25 flex items-center gap-2"
                 >
                   <svg
                     width="15"
@@ -145,7 +145,7 @@ export default function ForgotPasswordForm() {
               <button
                 type="submit"
                 disabled={pending}
-                className="w-full h-12 rounded-xl bg-violet-600 hover:bg-violet-500 active:scale-[0.99] text-white font-medium text-[14px] transition-all duration-150 flex items-center justify-center gap-2 shadow-[0_4px_20px_rgba(139,92,246,0.35)] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+                className="w-full h-11 sm:h-12 rounded-xl bg-violet-600 hover:bg-violet-500 active:scale-[0.99] text-white font-medium text-[14px] transition-all duration-150 flex items-center justify-center gap-2 shadow-[0_4px_20px_rgba(139,92,246,0.35)] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
               >
                 {pending ? (
                   <>
@@ -182,7 +182,7 @@ export default function ForgotPasswordForm() {
               </button>
 
               {/* Back to sign in link */}
-              <div className="pt-2 text-center">
+              <div className="pt-1 sm:pt-2 text-center">
                 <Link
                   href="/login"
                   className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:text-violet-400"

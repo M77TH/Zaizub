@@ -251,7 +251,7 @@ export default function ResetPasswordForm({
             <form
               action={formAction}
               onSubmit={handleSubmit}
-              className="space-y-4"
+              className="space-y-3.5 sm:space-y-4"
               noValidate={false}
             >
               {/* New Password Input */}
@@ -302,7 +302,7 @@ export default function ResetPasswordForm({
                     aria-describedby={
                       errorMessage ? 'reset-error-msg' : undefined
                     }
-                    className="w-full h-12 bg-transparent rounded-xl pl-10.5 pr-11 text-[14px] text-[#f4f2f8] placeholder:text-zinc-400 outline-none"
+                    className="w-full h-11 sm:h-12 bg-transparent rounded-xl pl-10 sm:pl-10.5 pr-11 text-[14px] text-[#f4f2f8] placeholder:text-zinc-400 outline-none"
                     placeholder={
                       lang === 'en'
                         ? 'At least 8 characters'
@@ -407,7 +407,7 @@ export default function ResetPasswordForm({
                     aria-describedby={
                       errorMessage ? 'reset-error-msg' : undefined
                     }
-                    className="w-full h-12 bg-transparent rounded-xl pl-10.5 pr-11 text-[14px] text-[#f4f2f8] placeholder:text-zinc-400 outline-none"
+                    className="w-full h-11 sm:h-12 bg-transparent rounded-xl pl-10 sm:pl-10.5 pr-11 text-[14px] text-[#f4f2f8] placeholder:text-zinc-400 outline-none"
                     placeholder={
                       lang === 'en'
                         ? 'Re-enter your new password'
@@ -465,7 +465,7 @@ export default function ResetPasswordForm({
               </div>
 
               {/* Password requirement hint */}
-              <div className="flex items-center gap-2 text-[12px] text-zinc-400 pt-0.5">
+              <div className="flex items-center gap-2 text-xs text-zinc-400 pt-1">
                 <svg
                   width="13"
                   height="13"
@@ -493,7 +493,7 @@ export default function ResetPasswordForm({
                 <div
                   id="reset-error-msg"
                   role="alert"
-                  className="text-red-300 text-[13px] bg-red-500/10 px-4 py-3 rounded-xl border border-red-500/25 flex items-center gap-2"
+                  className="text-red-300 text-[12.5px] sm:text-[13px] bg-red-500/10 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-red-500/25 flex items-center gap-2"
                 >
                   <svg
                     width="15"
@@ -522,7 +522,7 @@ export default function ResetPasswordForm({
               <button
                 type="submit"
                 disabled={pending}
-                className="w-full h-12 rounded-xl bg-violet-600 hover:bg-violet-500 active:scale-[0.99] text-white font-medium text-[14px] transition-all duration-150 flex items-center justify-center gap-2 shadow-[0_4px_20px_rgba(139,92,246,0.35)] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+                className="w-full h-11 sm:h-12 rounded-xl bg-violet-600 hover:bg-violet-500 active:scale-[0.99] text-white font-medium text-[14px] transition-all duration-150 flex items-center justify-center gap-2 shadow-[0_4px_20px_rgba(139,92,246,0.35)] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
               >
                 {pending ? (
                   <>
@@ -561,7 +561,7 @@ export default function ResetPasswordForm({
               </button>
 
               {/* Back to sign in link */}
-              <div className="pt-2 text-center">
+              <div className="pt-1 sm:pt-2 text-center">
                 <Link
                   href="/login"
                   className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:text-violet-400"

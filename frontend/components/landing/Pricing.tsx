@@ -6,7 +6,7 @@ export default function Pricing({ lang = "en" }: { lang?: Lang }) {
   const t = pricingCopy[lang];
 
   return (
-    <section id="pricing" className="border-t border-line py-24 relative overflow-hidden">
+    <section id="pricing" className="py-24 relative overflow-hidden">
       <div className="relative mx-auto max-w-7xl px-6 lg:px-10">
         <div className="max-w-xl">
           <h2 className="font-display text-3xl font-semibold tracking-tight text-ink sm:text-4xl">

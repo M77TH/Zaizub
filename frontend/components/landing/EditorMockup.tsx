@@ -413,6 +413,10 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
   const uploadPercentRef = useRef<number>(0);
   const isUploading = uploadState === "uploaded" && uploadPercent < 100;
 
+  // Dedicated Mobile Editor Tab & Horizontal Auto-Scroll Ref
+  const [mobileTab, setMobileTab] = useState<"captions" | "templates" | "style">("captions");
+  const mobileCardsListRef = useRef<HTMLDivElement>(null);
+
   // Interactive Render Simulation State
   const [isRendering, setIsRendering] = useState<boolean>(false);
   const [renderProgress, setRenderProgress] = useState<number>(0);
@@ -631,7 +635,7 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
 
   // Auto-scroll the active subtitle card strictly within the left panel only when clipped
   useEffect(() => {
-    if (!isSyncOn || !cardListRef.current || !playingCaption?.id) return;
+    if (!isInView || !isSyncOn || !cardListRef.current || !playingCaption?.id) return;
     const container = cardListRef.current;
     if (container.scrollHeight <= container.clientHeight) return;
     const activeEl = container.querySelector<HTMLElement>(
@@ -649,7 +653,25 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
         container.scrollTop = bottom - container.clientHeight + 8;
       }
     }
-  }, [isSyncOn, playingCaption?.id]);
+  }, [isInView, isSyncOn, playingCaption?.id]);
+
+  // Auto-scroll the active subtitle card horizontally in the mobile function panel
+  useEffect(() => {
+    if (!isInView || !mobileCardsListRef.current || !playingCaption?.id) return;
+    const container = mobileCardsListRef.current;
+    const activeEl = container.querySelector<HTMLElement>(
+      `[data-mobile-card-id="${playingCaption.id}"]`
+    );
+    if (activeEl) {
+      const left = activeEl.offsetLeft;
+      const width = activeEl.offsetWidth;
+      const containerWidth = container.offsetWidth;
+      container.scrollTo({
+        left: Math.max(0, left - containerWidth / 2 + width / 2),
+        behavior: "smooth",
+      });
+    }
+  }, [isInView, playingCaption?.id]);
 
   // Apply real preset template (both visual styles and animation bundled together)
   const handleApplyTemplate = useCallback((tpl: TemplateItem) => {
@@ -806,9 +828,9 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
             onCloseRenderModal={handleCloseRenderModal}
           />
 
-          {/* AUTHENTIC ZAIZUB EDITOR FRAME (Faithfully mirroring /editor page UI) */}
-          <div className="relative z-10 overflow-hidden rounded-2xl sm:rounded-3xl border border-[#221e33] bg-[#0a090f] shadow-[0_30px_70px_-15px_rgba(0,0,0,0.9)] ring-1 ring-white/10 [contain:layout_paint] transform-gpu [backface-visibility:hidden]">
-            {/* 1. TOP NAVBAR (Faithful replica of EditorHeader.tsx) */}
+          {/* 1. DESKTOP VIEW (Visible on lg and above: Pro 3-Column Studio Layout) */}
+          <div className="hidden lg:block relative z-10 overflow-hidden rounded-2xl sm:rounded-3xl border border-[#221e33] bg-[#0a090f] shadow-[0_30px_70px_-15px_rgba(0,0,0,0.9)] ring-1 ring-white/10 [contain:layout_paint] transform-gpu [backface-visibility:hidden]">
+            {/* TOP NAVBAR (Faithful replica of EditorHeader.tsx) */}
             <EditorHeader
               aspectRatio={aspectRatio}
               isRendering={isRendering}
@@ -819,201 +841,198 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
               onRenderClick={handleRenderClick}
             />
 
-          {/* 2. MAIN WORKSPACE (Authentic 3-Column Layout from EditorWorkspace.tsx) */}
-          <div className="flex flex-col lg:flex-row min-h-[460px] lg:h-[480px] xl:h-[510px] 2xl:h-[550px] relative w-full overflow-hidden">
-            {/* LEFT COLUMN: Transcript / Subtitles Panel (Faithful replica of TranscriptPanel.tsx) */}
-            <div className="w-full lg:w-[260px] xl:w-[290px] 2xl:w-[320px] flex-shrink-0 flex flex-col bg-[#0d0c14] border-b lg:border-b-0 lg:border-r border-[#1c1a28]">
-              {/* Subtitle Card List */}
-              <div
-                ref={cardListRef}
-                className="flex-1 overflow-y-auto p-2.5 space-y-2 no-scrollbar"
-              >
-                {captionsList.map((sub, index) => {
-                  const isPlayingThis = sub.id === playingCaption.id;
-                  const isSelected = sub.id === activeCaption.id;
-                  const isCardPast = sub.endSec <= playingCaption.startSec;
-
-                  return (
-                    <TranscriptCard
-                      key={sub.id}
-                      sub={sub}
-                      index={index}
-                      isPlayingThis={isPlayingThis}
-                      isSelected={isSelected}
-                      isCardPast={isCardPast}
-                      wordIndex={isPlayingThis ? playbackState.wordIndex : -1}
-                      selectedTemplateId={selectedTemplateId}
-                      fontFamily={fontFamily}
-                      textColor={textColor}
-                      baseTextColor={baseTextColor}
-                      badgeBgColor={badgeBgColor}
-                      hasWordBadge={hasWordBadge}
-                      isFrosted={isFrosted}
-                      hasBoxBg={hasBoxBg}
-                      boxBgColor={boxBgColor}
-                      boxOpacity={boxOpacity}
-                      isBold={isBold}
-                      isItalic={isItalic}
-                      isUnderline={isUnderline}
-                      hasOutline={hasOutline}
-                      hasShadow={hasShadow}
-                      stylesCurrentWord={stylesCurrentWord}
-                      onSelect={handleSelectTranscriptCard}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* CENTER COLUMN: Video Player + Transport Controls */}
-            <div className="flex-1 min-w-0 flex flex-col bg-[#0a090f] overflow-hidden select-none relative">
-              {/* Video Player Canvas Area */}
-              <div className="flex-1 flex items-center justify-center p-2 sm:p-3 relative overflow-hidden min-h-[300px] sm:min-h-[325px] lg:min-h-[345px]">
-                {/* Subtle dark canvas background grid */}
+            {/* MAIN WORKSPACE (Authentic 3-Column Layout from EditorWorkspace.tsx) */}
+            <div className="flex flex-row min-h-[460px] lg:h-[480px] xl:h-[510px] 2xl:h-[550px] relative w-full overflow-hidden">
+              {/* LEFT COLUMN: Transcript / Subtitles Panel */}
+              <div className="w-[260px] xl:w-[290px] 2xl:w-[320px] flex-shrink-0 flex flex-col bg-[#0d0c14] border-r border-[#1c1a28]">
                 <div
-                  className="pointer-events-none absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.03)_1px,transparent_1px)] [background-size:16px_16px]"
-                  aria-hidden
-                />
+                  ref={cardListRef}
+                  className="flex-1 overflow-y-auto p-2.5 space-y-2 no-scrollbar"
+                >
+                  {captionsList.map((sub, index) => {
+                    const isPlayingThis = sub.id === playingCaption.id;
+                    const isSelected = sub.id === activeCaption.id;
+                    const isCardPast = sub.endSec <= playingCaption.startSec;
 
-                {/* Aspect-Ratio Adaptive Video Stage Card (Click to toggle play/pause) */}
-                <div className="relative z-20 w-full flex items-center justify-center">
+                    return (
+                      <TranscriptCard
+                        key={sub.id}
+                        sub={sub}
+                        index={index}
+                        isPlayingThis={isPlayingThis}
+                        isSelected={isSelected}
+                        isCardPast={isCardPast}
+                        wordIndex={isPlayingThis ? playbackState.wordIndex : -1}
+                        selectedTemplateId={selectedTemplateId}
+                        fontFamily={fontFamily}
+                        textColor={textColor}
+                        baseTextColor={baseTextColor}
+                        badgeBgColor={badgeBgColor}
+                        hasWordBadge={hasWordBadge}
+                        isFrosted={isFrosted}
+                        hasBoxBg={hasBoxBg}
+                        boxBgColor={boxBgColor}
+                        boxOpacity={boxOpacity}
+                        isBold={isBold}
+                        isItalic={isItalic}
+                        isUnderline={isUnderline}
+                        hasOutline={hasOutline}
+                        hasShadow={hasShadow}
+                        stylesCurrentWord={stylesCurrentWord}
+                        onSelect={handleSelectTranscriptCard}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* CENTER COLUMN: Video Player Canvas */}
+              <div className="flex-1 min-w-0 flex flex-col bg-[#0a090f] overflow-hidden select-none relative">
+                <div className="flex-1 flex items-center justify-center p-2 sm:p-3 relative overflow-hidden min-h-[300px] sm:min-h-[325px] lg:min-h-[345px]">
+                  {/* Subtle dark canvas background grid */}
                   <div
-                    onClick={() => setIsPlaying((p) => !p)}
-                    title={isPlaying ? (lang === "th" ? "คลิกเพื่อหยุดชั่วคราว" : "Click to pause") : (lang === "th" ? "คลิกเพื่อเล่น" : "Click to play")}
-                    className={`group/stage relative overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.9),inset_0_1px_0_0_rgba(255,255,255,0.2)] flex items-center justify-center border border-white/20 hover:border-white/30 bg-[#141022] cursor-pointer select-none transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] [contain:layout_paint] ${
-                      aspectRatio === "9:16"
-                        ? "rounded-[1.8rem] sm:rounded-[2.2rem] h-[310px] w-[174px] sm:h-[345px] sm:w-[194px] lg:h-[370px] lg:w-[208px] xl:h-[395px] xl:w-[222px] 2xl:h-[415px] 2xl:w-[233px] max-w-[calc(100%-1.5rem)]"
-                        : aspectRatio === "16:9"
-                        ? "rounded-[1.2rem] sm:rounded-[1.4rem] h-[174px] w-[310px] sm:h-[216px] sm:w-[384px] lg:h-[208px] lg:w-[370px] xl:h-[242px] xl:w-[430px] 2xl:h-[270px] 2xl:w-[480px] max-w-[calc(100%-1.5rem)]"
-                        : "rounded-[1.6rem] sm:rounded-[1.8rem] h-[260px] w-[260px] sm:h-[300px] sm:w-[300px] lg:h-[330px] lg:w-[330px] xl:h-[370px] xl:w-[370px] 2xl:h-[400px] 2xl:w-[400px] max-w-[calc(100%-1.5rem)]"
-                    }`}
-                  >
-                    {/* Studio video player backdrop */}
-                    <div className="absolute inset-0 bg-gradient-to-b from-[#26203a] via-[#1a162b] to-[#120f20]" />
-                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_25%,rgba(255,255,255,0.07)_0%,transparent_70%)] pointer-events-none" />
-                    <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_0%,rgba(0,0,0,0.35)_100%)] pointer-events-none" />
+                    className="pointer-events-none absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.03)_1px,transparent_1px)] [background-size:16px_16px]"
+                    aria-hidden
+                  />
 
-                    {/* PAUSE STAGE OVERLAY */}
-                    {!isPlaying && (
-                      <div className="absolute inset-0 z-30 flex flex-col items-center justify-center pointer-events-none select-none bg-black/45">
-                        <div className="relative z-10 anim-pop-in">
-                          <div className="relative flex h-13 w-13 sm:h-15 sm:w-15 items-center justify-center rounded-full bg-gradient-to-tr from-[#7c3aed] to-[#6d28d9] border border-white/30 text-white shadow-[0_12px_30px_rgba(0,0,0,0.85)] ring-2 ring-white/20">
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" className="ml-0.5 text-white">
-                              <polygon points="6 3 20 12 6 21 6 3" />
-                            </svg>
+                  {/* Aspect-Ratio Adaptive Video Stage Card */}
+                  <div className="relative z-20 w-full flex items-center justify-center">
+                    <div
+                      onClick={() => setIsPlaying((p) => !p)}
+                      title={isPlaying ? (lang === "th" ? "คลิกเพื่อหยุดชั่วคราว" : "Click to pause") : (lang === "th" ? "คลิกเพื่อเล่น" : "Click to play")}
+                      className={`group/stage relative overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.9),inset_0_1px_0_0_rgba(255,255,255,0.2)] flex items-center justify-center border border-white/20 hover:border-white/30 bg-[#141022] cursor-pointer select-none transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] [contain:layout_paint] ${
+                        aspectRatio === "9:16"
+                          ? "rounded-[1.8rem] sm:rounded-[2.2rem] h-[310px] w-[174px] sm:h-[345px] sm:w-[194px] lg:h-[370px] lg:w-[208px] xl:h-[395px] xl:w-[222px] 2xl:h-[415px] 2xl:w-[233px] max-w-[calc(100%-1.5rem)]"
+                          : aspectRatio === "16:9"
+                          ? "rounded-[1.2rem] sm:rounded-[1.4rem] h-[174px] w-[310px] sm:h-[216px] sm:w-[384px] lg:h-[208px] lg:w-[370px] xl:h-[242px] xl:w-[430px] 2xl:h-[270px] 2xl:w-[480px] max-w-[calc(100%-1.5rem)]"
+                          : "rounded-[1.6rem] sm:rounded-[1.8rem] h-[260px] w-[260px] sm:h-[300px] sm:w-[300px] lg:h-[330px] lg:w-[330px] xl:h-[370px] xl:w-[370px] 2xl:h-[400px] 2xl:w-[400px] max-w-[calc(100%-1.5rem)]"
+                      }`}
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-b from-[#26203a] via-[#1a162b] to-[#120f20]" />
+                      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_25%,rgba(255,255,255,0.07)_0%,transparent_70%)] pointer-events-none" />
+                      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_0%,rgba(0,0,0,0.35)_100%)] pointer-events-none" />
+
+                      {/* PAUSE STAGE OVERLAY */}
+                      {!isPlaying && (
+                        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center pointer-events-none select-none bg-black/45">
+                          <div className="relative z-10 anim-pop-in">
+                            <div className="relative flex h-13 w-13 sm:h-15 sm:w-15 items-center justify-center rounded-full bg-gradient-to-tr from-[#7c3aed] to-[#6d28d9] border border-white/30 text-white shadow-[0_12px_30px_rgba(0,0,0,0.85)] ring-2 ring-white/20">
+                              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" className="ml-0.5 text-white">
+                                <polygon points="6 3 20 12 6 21 6 3" />
+                              </svg>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    {/* SUBTITLE CONTAINER */}
-                    <div
-                      className="absolute left-1/2 -translate-x-1/2 w-[88%] z-20 select-none pointer-events-none"
-                      style={{
-                        top: position === "top" ? "12%" : position === "center" ? "45%" : undefined,
-                        bottom:
-                          position === "bottom"
-                            ? aspectRatio === "16:9"
-                              ? "8%"
-                              : aspectRatio === "1:1"
-                              ? "10%"
-                              : "9.5%"
-                            : undefined,
-                      }}
-                    >
-                      {/* Live Subtitle Text with Running Word-by-Word Highlight */}
-                      <div className="text-center py-1">
-                        <div
-                          key={`${activeCaption.id}-${selectedTemplateId}-${videoLoopCycle}`}
-                          className={`items-center justify-center text-center ${
-                            introTiming === "block" && introAnimation === "impact-drop"
-                              ? "cap-intro-impact"
-                              : introTiming === "block" && introAnimation === "capsule-pop"
-                              ? "cap-intro-capsule"
-                              : introTiming === "block" && introAnimation === "slide-up"
-                              ? "cap-intro-slide-up"
-                              : ""
-                          }`}
-                        >
+                      {/* SUBTITLE CONTAINER */}
+                      <div
+                        className="absolute left-1/2 -translate-x-1/2 w-[88%] z-20 select-none pointer-events-none"
+                        style={{
+                          top: position === "top" ? "12%" : position === "center" ? "45%" : undefined,
+                          bottom:
+                            position === "bottom"
+                              ? aspectRatio === "16:9"
+                                ? "8%"
+                                : aspectRatio === "1:1"
+                                ? "10%"
+                                : "9.5%"
+                              : undefined,
+                        }}
+                      >
+                        <div className="text-center py-1">
                           <div
-                            className={`items-center justify-center gap-x-2 sm:gap-x-2.5 gap-y-1.5 leading-tight text-center ${
-                              isFrosted
-                                ? "inline-flex flex-wrap rounded-2xl px-5 py-2.5 shadow-xl border border-white/20 bg-[#1e1b2e]/90"
-                                : hasBoxBg && boxOpacity > 0
-                                ? "inline-flex flex-wrap rounded-xl px-4 py-2 shadow-xl"
-                                : "inline-flex flex-wrap"
+                            key={`${activeCaption.id}-${selectedTemplateId}-${videoLoopCycle}`}
+                            className={`items-center justify-center text-center ${
+                              introTiming === "block" && introAnimation === "impact-drop"
+                                ? "cap-intro-impact"
+                                : introTiming === "block" && introAnimation === "capsule-pop"
+                                ? "cap-intro-capsule"
+                                : introTiming === "block" && introAnimation === "slide-up"
+                                ? "cap-intro-slide-up"
+                                : ""
                             }`}
-                            style={{
-                              backgroundColor:
-                                isFrosted
-                                  ? undefined
-                                  : hasBoxBg && boxOpacity > 0 ? `rgba(0, 0, 0, ${boxOpacity})` : undefined,
-                              fontFamily:
-                                fontFamily === "Kanit"
-                                  ? "Kanit, sans-serif"
-                                  : fontFamily === "Prompt"
-                                  ? "Prompt, sans-serif"
-                                  : fontFamily === "Sarabun"
-                                  ? "Sarabun, sans-serif"
-                                  : "Noto Sans Thai, sans-serif",
-                              fontSize: `${Math.round(fontSize * 0.28)}px`,
-                              fontStyle: isItalic ? "italic" : "normal",
-                              textDecoration: isUnderline ? "underline" : "none",
-                              textTransform: isUppercase ? "uppercase" : "none",
-                              letterSpacing: isUppercase ? "0.04em" : "normal",
-                            }}
                           >
-                            {(activeCaption.tokens || activeCaption.text.split(" ")).map((token, idx) => {
-                              const isCurrent = idx === currentWordIndex;
-                              const isKaraoke = selectedTemplateId === "submagic-karaoke";
-                              const isWordBadgeActive = hasWordBadge || selectedTemplateId === "mrbeast-badge";
-                              const isGradientActive = isGradient || selectedTemplateId === "gradient-aurora";
-                              const isHighlighterActive = isHighlighter || selectedTemplateId === "highlighter-marker";
-                              const isFrostedActive = isFrosted || selectedTemplateId === "ali-abdaal";
-                              const isRevealed = (isKaraoke || isFrostedActive) ? true : wordReveal === "progressive" ? idx <= currentWordIndex : true;
-                              const isTyping = animation === "typing";
-                              const isShake = animation === "shake";
-                              const isStaggerWave = selectedTemplateId === "clean-minimal";
-                              const shouldAnimateEnter =
-                                introAnimation !== "none" &&
-                                (wordReveal === "progressive" || isStaggerWave) &&
-                                !isKaraoke &&
-                                !isFrostedActive;
+                            <div
+                              className={`items-center justify-center gap-x-2 sm:gap-x-2.5 gap-y-1.5 leading-tight text-center ${
+                                isFrosted
+                                  ? "inline-flex flex-wrap rounded-2xl px-5 py-2.5 shadow-xl border border-white/20 bg-[#1e1b2e]/90"
+                                  : hasBoxBg && boxOpacity > 0
+                                  ? "inline-flex flex-wrap rounded-xl px-4 py-2 shadow-xl"
+                                  : "inline-flex flex-wrap"
+                              }`}
+                              style={{
+                                backgroundColor:
+                                  isFrosted
+                                    ? undefined
+                                    : hasBoxBg && boxOpacity > 0 ? `rgba(0, 0, 0, ${boxOpacity})` : undefined,
+                                fontFamily:
+                                  fontFamily === "Kanit"
+                                    ? "Kanit, sans-serif"
+                                    : fontFamily === "Prompt"
+                                    ? "Prompt, sans-serif"
+                                    : fontFamily === "Sarabun"
+                                    ? "Sarabun, sans-serif"
+                                    : "Noto Sans Thai, sans-serif",
+                                fontSize: `${Math.round(fontSize * 0.28)}px`,
+                                fontStyle: isItalic ? "italic" : "normal",
+                                textDecoration: isUnderline ? "underline" : "none",
+                                textTransform: isUppercase ? "uppercase" : "none",
+                                letterSpacing: isUppercase ? "0.04em" : "normal",
+                              }}
+                            >
+                              {(activeCaption.tokens || activeCaption.text.split(" ")).map((token, idx) => {
+                                const isCurrent = idx === currentWordIndex;
+                                const isKaraoke = selectedTemplateId === "submagic-karaoke";
+                                const isWordBadgeActive = hasWordBadge || selectedTemplateId === "mrbeast-badge";
+                                const isGradientActive = isGradient || selectedTemplateId === "gradient-aurora";
+                                const isHighlighterActive = isHighlighter || selectedTemplateId === "highlighter-marker";
+                                const isFrostedActive = isFrosted || selectedTemplateId === "ali-abdaal";
+                                const isRevealed = (isKaraoke || isFrostedActive) ? true : wordReveal === "progressive" ? idx <= currentWordIndex : true;
+                                const isTyping = animation === "typing";
+                                const isShake = animation === "shake";
+                                const isStaggerWave = selectedTemplateId === "clean-minimal";
+                                const shouldAnimateEnter =
+                                  introAnimation !== "none" &&
+                                  (wordReveal === "progressive" || isStaggerWave) &&
+                                  !isKaraoke &&
+                                  !isFrostedActive;
 
-                              return (
-                                <StageWord
-                                  key={idx}
-                                  token={token}
-                                  idx={idx}
-                                  isCurrent={isCurrent}
-                                  isRevealed={isRevealed}
-                                  shouldAnimateEnter={shouldAnimateEnter}
-                                  enterClass={enterClass}
-                                  isStaggerWave={isStaggerWave}
-                                  isTyping={isTyping}
-                                  isShake={isShake}
-                                  animation={animation}
-                                  stylesCurrentWord={stylesCurrentWord}
-                                  isWordBadgeActive={isWordBadgeActive}
-                                  isHighlighterActive={isHighlighterActive}
-                                  textColor={textColor}
-                                  badgeBgColor={badgeBgColor}
-                                  baseTextColor={baseTextColor}
-                                  isGradientActive={isGradientActive}
-                                  gradientColors={gradientColors}
-                                  isFrostedActive={isFrostedActive}
-                                  highlighterColor={highlighterColor}
-                                  hasShadow={hasShadow}
-                                  shadowColor={shadowColor}
-                                  shadowThickness={shadowThickness}
-                                  hasOutline={hasOutline}
-                                  isBold={isBold}
-                                  isKaraoke={isKaraoke}
-                                  selectedTemplateId={selectedTemplateId}
-                                  currentWordIndex={currentWordIndex}
-                                />
-                              );
-                            })}
+                                return (
+                                  <StageWord
+                                    key={idx}
+                                    token={token}
+                                    idx={idx}
+                                    isCurrent={isCurrent}
+                                    isRevealed={isRevealed}
+                                    shouldAnimateEnter={shouldAnimateEnter}
+                                    enterClass={enterClass}
+                                    isStaggerWave={isStaggerWave}
+                                    isTyping={isTyping}
+                                    isShake={isShake}
+                                    animation={animation}
+                                    stylesCurrentWord={stylesCurrentWord}
+                                    isWordBadgeActive={isWordBadgeActive}
+                                    isHighlighterActive={isHighlighterActive}
+                                    textColor={textColor}
+                                    badgeBgColor={badgeBgColor}
+                                    baseTextColor={baseTextColor}
+                                    isGradientActive={isGradientActive}
+                                    gradientColors={gradientColors}
+                                    isFrostedActive={isFrostedActive}
+                                    highlighterColor={highlighterColor}
+                                    hasShadow={hasShadow}
+                                    shadowColor={shadowColor}
+                                    shadowThickness={shadowThickness}
+                                    hasOutline={hasOutline}
+                                    isBold={isBold}
+                                    isKaraoke={isKaraoke}
+                                    selectedTemplateId={selectedTemplateId}
+                                    currentWordIndex={currentWordIndex}
+                                  />
+                                );
+                              })}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1022,28 +1041,497 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
                 </div>
               </div>
 
-              {/* Mobile Transport Controls Bar */}
-              <MobileTransportBar
-                isPlaying={isPlaying}
-                initialTimeLabel={initialTimeLabel}
-                durationSec={durationSec}
-                initialProgressScale={initialProgressScale}
-                mobileTimeTextRef={mobileTimeTextRef}
-                mobileProgressFillRef={mobileProgressFillRef}
-                onTogglePlay={handleTogglePlay}
-                onScrub={handleScrub}
+              {/* RIGHT COLUMN: Isolated Memoized Preset Templates Panel */}
+              <TemplatePresetsPanel
+                lang={lang}
+                selectedTemplateId={selectedTemplateId}
+                textColor={textColor}
+                onApplyTemplate={handleApplyTemplate}
               />
             </div>
-
-            {/* RIGHT COLUMN: Isolated Memoized Preset Templates Panel */}
-            <TemplatePresetsPanel
-              lang={lang}
-              selectedTemplateId={selectedTemplateId}
-              textColor={textColor}
-              onApplyTemplate={handleApplyTemplate}
-            />
           </div>
-        </div>
+
+          {/* 2. DEDICATED MOBILE APP VIEW (App View on top, Navbar/Function at bottom) */}
+          <div className="flex lg:hidden flex-col relative z-10 overflow-hidden rounded-2xl sm:rounded-3xl border border-[#221e33] bg-[#09080f] shadow-[0_24px_65px_-10px_rgba(0,0,0,0.95)] ring-1 ring-white/10 [contain:layout_paint]">
+            {/* A. MOBILE APP TOP HEADER */}
+            <div className="flex h-11 sm:h-12 items-center justify-between border-b border-[#1c1a28] bg-[#0c0b11] px-3 select-none">
+              {/* Left: Project title & format pill */}
+              <div className="flex items-center gap-1.5 min-w-0">
+                <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-purple-500/15 border border-purple-500/25 text-purple-300 shrink-0">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polygon points="5 3 19 12 5 21 5 3" />
+                  </svg>
+                </div>
+                <span className="text-xs font-semibold text-white truncate max-w-[85px] sm:max-w-[120px]">
+                  demo.mp4
+                </span>
+                <span className="text-[9px] font-mono text-purple-300 bg-purple-500/10 border border-purple-500/20 px-1 py-0.2 rounded font-semibold shrink-0">
+                  1080p
+                </span>
+              </div>
+
+              {/* Center: Aspect Ratio selector buttons */}
+              <div className="flex items-center gap-1 rounded-lg bg-[#141222] p-0.5 border border-white/[0.08]">
+                {(["9:16", "1:1", "16:9"] as AspectRatio[]).map((ratio) => {
+                  const isActive = aspectRatio === ratio;
+                  return (
+                    <button
+                      key={ratio}
+                      type="button"
+                      onClick={() => handleAspectRatioChange(ratio)}
+                      className={`px-2 py-0.5 text-[10px] font-mono font-bold rounded transition-colors cursor-pointer ${
+                        isActive
+                          ? "bg-purple-600/40 text-purple-200 border border-purple-500/40 shadow-sm"
+                          : "text-zinc-400 hover:text-white"
+                      }`}
+                    >
+                      {ratio}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Right: Render button */}
+              <button
+                type="button"
+                onClick={handleRenderClick}
+                disabled={isRendering}
+                className={`h-7 px-2.5 rounded-lg text-white font-semibold text-[11px] flex items-center gap-1 transition-all active:scale-95 cursor-pointer ${
+                  isRendering
+                    ? "bg-[#282046] border border-purple-500/40 text-purple-200"
+                    : "bg-gradient-to-r from-[#8b5cf6] to-[#6d28d9] hover:brightness-110 shadow-sm"
+                }`}
+              >
+                {isRendering ? (
+                  <>
+                    <svg className="animate-spin h-3 w-3 text-purple-300" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                    </svg>
+                    <span>{renderProgress}%</span>
+                  </>
+                ) : (
+                  <>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                      <polygon points="5 3 19 12 5 21 5 3" />
+                    </svg>
+                    <span>{t.renderBtn}</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* B. APP VIEW ON TOP: FOCAL VIDEO PLAYER STAGE */}
+            <div className="flex flex-col items-center justify-center p-3 relative overflow-hidden bg-[#0a090f] select-none min-h-[285px] sm:min-h-[310px]">
+              {/* Subtle dark canvas background grid */}
+              <div
+                className="pointer-events-none absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.03)_1px,transparent_1px)] [background-size:16px_16px]"
+                aria-hidden
+              />
+
+              <div
+                onClick={handleTogglePlay}
+                className={`group/stage relative overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.95)] flex items-center justify-center border border-white/20 hover:border-white/30 bg-[#141022] cursor-pointer select-none transition-all duration-300 [contain:layout_paint] ${
+                  aspectRatio === "9:16"
+                    ? "rounded-[1.6rem] h-[260px] w-[146px] sm:h-[285px] sm:w-[160px]"
+                    : aspectRatio === "16:9"
+                    ? "rounded-[1.1rem] h-[155px] w-[275px] sm:h-[175px] sm:w-[310px]"
+                    : "rounded-[1.4rem] h-[220px] w-[220px] sm:h-[240px] sm:w-[240px]"
+                }`}
+              >
+                <div className="absolute inset-0 bg-gradient-to-b from-[#26203a] via-[#1a162b] to-[#120f20]" />
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_25%,rgba(255,255,255,0.07)_0%,transparent_70%)] pointer-events-none" />
+
+                {/* PAUSE OVERLAY */}
+                {!isPlaying && (
+                  <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none bg-black/45">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-tr from-[#7c3aed] to-[#6d28d9] border border-white/30 text-white shadow-xl ring-2 ring-white/20">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" className="ml-0.5 text-white">
+                        <polygon points="6 3 20 12 6 21 6 3" />
+                      </svg>
+                    </div>
+                  </div>
+                )}
+
+                {/* SUBTITLE CONTAINER */}
+                <div
+                  className="absolute left-1/2 -translate-x-1/2 w-[88%] z-20 select-none pointer-events-none"
+                  style={{
+                    top: position === "top" ? "12%" : position === "center" ? "45%" : undefined,
+                    bottom:
+                      position === "bottom"
+                        ? aspectRatio === "16:9"
+                          ? "8%"
+                          : aspectRatio === "1:1"
+                          ? "10%"
+                          : "9.5%"
+                        : undefined,
+                  }}
+                >
+                  <div className="text-center py-1">
+                    <div
+                      key={`mobile-${activeCaption.id}-${selectedTemplateId}-${videoLoopCycle}`}
+                      className="items-center justify-center text-center"
+                    >
+                      <div
+                        className={`items-center justify-center gap-x-1.5 sm:gap-x-2 gap-y-1 leading-tight text-center ${
+                          isFrosted
+                            ? "inline-flex flex-wrap rounded-xl px-3.5 py-1.5 shadow-xl border border-white/20 bg-[#1e1b2e]/90"
+                            : hasBoxBg && boxOpacity > 0
+                            ? "inline-flex flex-wrap rounded-lg px-3 py-1.5 shadow-xl"
+                            : "inline-flex flex-wrap"
+                        }`}
+                        style={{
+                          backgroundColor:
+                            isFrosted
+                              ? undefined
+                              : hasBoxBg && boxOpacity > 0 ? `rgba(0, 0, 0, ${boxOpacity})` : undefined,
+                          fontFamily:
+                            fontFamily === "Kanit"
+                              ? "Kanit, sans-serif"
+                              : fontFamily === "Prompt"
+                              ? "Prompt, sans-serif"
+                              : fontFamily === "Sarabun"
+                              ? "Sarabun, sans-serif"
+                              : "Noto Sans Thai, sans-serif",
+                          fontSize: `${Math.round(fontSize * 0.24)}px`,
+                          fontStyle: isItalic ? "italic" : "normal",
+                          textDecoration: isUnderline ? "underline" : "none",
+                          textTransform: isUppercase ? "uppercase" : "none",
+                        }}
+                      >
+                        {(activeCaption.tokens || activeCaption.text.split(" ")).map((token, idx) => {
+                          const isCurrent = idx === currentWordIndex;
+                          const isKaraoke = selectedTemplateId === "submagic-karaoke";
+                          const isWordBadgeActive = hasWordBadge || selectedTemplateId === "mrbeast-badge";
+                          const isGradientActive = isGradient || selectedTemplateId === "gradient-aurora";
+                          const isHighlighterActive = isHighlighter || selectedTemplateId === "highlighter-marker";
+                          const isFrostedActive = isFrosted || selectedTemplateId === "ali-abdaal";
+                          const isRevealed = (isKaraoke || isFrostedActive) ? true : wordReveal === "progressive" ? idx <= currentWordIndex : true;
+                          const isTyping = animation === "typing";
+                          const isShake = animation === "shake";
+                          const isStaggerWave = selectedTemplateId === "clean-minimal";
+                          const shouldAnimateEnter =
+                            introAnimation !== "none" &&
+                            (wordReveal === "progressive" || isStaggerWave) &&
+                            !isKaraoke &&
+                            !isFrostedActive;
+
+                          return (
+                            <StageWord
+                              key={idx}
+                              token={token}
+                              idx={idx}
+                              isCurrent={isCurrent}
+                              isRevealed={isRevealed}
+                              shouldAnimateEnter={shouldAnimateEnter}
+                              enterClass={enterClass}
+                              isStaggerWave={isStaggerWave}
+                              isTyping={isTyping}
+                              isShake={isShake}
+                              animation={animation}
+                              stylesCurrentWord={stylesCurrentWord}
+                              isWordBadgeActive={isWordBadgeActive}
+                              isHighlighterActive={isHighlighterActive}
+                              textColor={textColor}
+                              badgeBgColor={badgeBgColor}
+                              baseTextColor={baseTextColor}
+                              isGradientActive={isGradientActive}
+                              gradientColors={gradientColors}
+                              isFrostedActive={isFrostedActive}
+                              highlighterColor={highlighterColor}
+                              hasShadow={hasShadow}
+                              shadowColor={shadowColor}
+                              shadowThickness={shadowThickness}
+                              hasOutline={hasOutline}
+                              isBold={isBold}
+                              isKaraoke={isKaraoke}
+                              selectedTemplateId={selectedTemplateId}
+                              currentWordIndex={currentWordIndex}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* C. MOBILE TRANSPORT SCRUBBER CONTROLLER */}
+            <div className="flex items-center gap-2.5 px-3 py-2 bg-[#0d0b16] border-t border-[#1c1a28] select-none">
+              <button
+                type="button"
+                onClick={handleTogglePlay}
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-[#7c3aed] to-[#6d28d9] hover:from-[#8b5cf6] text-white active:scale-95 transition-transform shrink-0 cursor-pointer"
+              >
+                {isPlaying ? (
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="4" width="4" height="16" rx="1" />
+                    <rect x="14" y="4" width="4" height="16" rx="1" />
+                  </svg>
+                ) : (
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="ml-0.5">
+                    <polygon points="5 3 19 12 5 21 5 3" />
+                  </svg>
+                )}
+              </button>
+
+              <div
+                onClick={handleScrub}
+                className="group relative flex items-center h-4 cursor-pointer flex-1 py-1"
+              >
+                <div className="w-full h-1.5 rounded-full bg-white/[0.08] overflow-hidden relative">
+                  <div
+                    ref={mobileProgressFillRef}
+                    className="h-full w-full origin-left bg-gradient-to-r from-accent via-magenta to-emerald-400 rounded-full will-change-transform"
+                    style={{ transform: `scaleX(${initialProgressScale.toFixed(4)})` }}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1 font-mono text-[10.5px] text-zinc-300 font-semibold tabular-nums shrink-0">
+                <span ref={mobileTimeTextRef}>{initialTimeLabel}</span>
+                <span className="text-zinc-600">/</span>
+                <span className="text-zinc-400">{formatTimeStr(durationSec)}</span>
+              </div>
+            </div>
+
+            {/* D. FUNCTION PANEL (Active Drawer above navbar) */}
+            <div className="border-t border-[#1c1a28] bg-[#0c0a15] p-2.5 min-h-[120px] flex flex-col justify-center">
+              {/* 1. CAPTIONS DRAWER */}
+              {mobileTab === "captions" && (
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between text-xs text-zinc-400 px-1">
+                    <span className="font-semibold text-white flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span>{t.captionsTitle || (lang === "th" ? "แคปชัน" : "Captions")}</span>
+                      <span className="text-[10px] text-zinc-500 font-mono">({captionsList.length})</span>
+                    </span>
+                    <span className="text-[10px] text-zinc-500 font-mono">
+                      {lang === "th" ? "แตะเพื่อเลือกช่วง" : "Tap card to seek"}
+                    </span>
+                  </div>
+
+                  <div
+                    ref={mobileCardsListRef}
+                    className="flex gap-2 overflow-x-auto no-scrollbar py-1"
+                  >
+                    {captionsList.map((sub, index) => {
+                      const isPlayingThis = sub.id === playingCaption.id;
+                      return (
+                        <div
+                          key={sub.id}
+                          data-mobile-card-id={sub.id}
+                          onClick={() => handleSelectTranscriptCard(sub.id, sub.startSec)}
+                          className={`w-[200px] sm:w-[220px] shrink-0 p-2.5 rounded-xl border transition-all cursor-pointer ${
+                            isPlayingThis
+                              ? "bg-[#211a3b] border-purple-400/80 shadow-md ring-1 ring-purple-500/30"
+                              : "bg-[#12101e] border-white/[0.06] hover:bg-[#181528]"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className={`text-[10px] font-mono font-bold ${isPlayingThis ? "text-purple-300" : "text-zinc-500"}`}>
+                              #{index + 1}
+                            </span>
+                            <span className="text-[9px] font-mono text-zinc-400 bg-white/[0.05] border border-white/[0.08] px-1 py-0.2 rounded">
+                              {sub.dur}
+                            </span>
+                          </div>
+                          <p className={`text-xs line-clamp-2 leading-snug ${isPlayingThis ? "text-white font-semibold" : "text-zinc-400 font-medium"}`}>
+                            {sub.text}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* 2. TEMPLATES DRAWER */}
+              {mobileTab === "templates" && (
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between text-xs text-zinc-400 px-1">
+                    <span className="font-semibold text-white flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-purple-400" />
+                      <span>{t.templatesTab || (lang === "th" ? "เทมเพลต" : "Templates")}</span>
+                    </span>
+                    <span className="text-[10px] text-purple-300 font-mono">
+                      {TEMPLATES_LIST.find((tpl) => tpl.id === selectedTemplateId)?.name}
+                    </span>
+                  </div>
+
+                  <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+                    {TEMPLATES_LIST.map((tpl) => {
+                      const isActive = selectedTemplateId === tpl.id;
+                      const cardTokens = tpl.demoTokens?.[lang] || (lang === "th" ? ["คลิปไวรัล", "ด้วย", "Zaizub"] : ["Viral", "clips", "Zaizub"]);
+                      return (
+                        <button
+                          key={tpl.id}
+                          type="button"
+                          onClick={() => handleApplyTemplate(tpl)}
+                          className={`w-[140px] sm:w-[155px] shrink-0 p-2 rounded-xl border text-left transition-all cursor-pointer ${
+                            isActive
+                              ? "bg-[#251d3f] border-purple-400/80 shadow-md ring-1 ring-purple-500/40 text-white"
+                              : "bg-[#12101e] border-white/[0.07] hover:bg-[#181528] text-zinc-300"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-[11px] font-semibold truncate">
+                              {tpl.name}
+                            </span>
+                            {isActive && (
+                              <span className="h-3 w-3 rounded-full bg-purple-500 flex items-center justify-center text-white text-[8px] font-bold">
+                                ✓
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Mini Preview Box */}
+                          <div className="h-7 rounded-md bg-[#0a0812] flex items-center justify-center px-1.5 overflow-hidden">
+                            <span
+                              className="truncate text-[10px]"
+                              style={{
+                                fontFamily: tpl.font,
+                                color: tpl.textColor,
+                                fontWeight: tpl.bold ? 800 : 500,
+                              }}
+                            >
+                              {cardTokens.slice(0, 2).join(" ")}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* 3. STYLE DRAWER */}
+              {mobileTab === "style" && (
+                <div className="flex flex-col gap-2 px-1">
+                  {/* Row 1: Font and Size */}
+                  <div className="flex items-center justify-between gap-3">
+                    {/* Font selector */}
+                    <div className="flex items-center gap-1">
+                      {["Kanit", "Prompt", "Noto Sans Thai"].map((f) => (
+                        <button
+                          key={f}
+                          type="button"
+                          onClick={() => setFontFamily(f)}
+                          className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors cursor-pointer ${
+                            fontFamily === f
+                              ? "bg-purple-600 text-white font-semibold"
+                              : "bg-white/[0.05] text-zinc-400 hover:text-white"
+                          }`}
+                        >
+                          {f.replace(" Thai", "")}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Size slider */}
+                    <div className="flex items-center gap-1.5 flex-1 max-w-[140px]">
+                      <span className="text-[10px] text-zinc-400 font-mono">T</span>
+                      <input
+                        type="range"
+                        min="36"
+                        max="90"
+                        value={fontSize}
+                        onChange={(e) => handleFontSizeChange(Number(e.target.value))}
+                        className="w-full h-1 bg-[#1d1a2c] rounded-lg appearance-none accent-purple-400 cursor-pointer"
+                      />
+                      <span className="text-[9.5px] font-mono text-purple-300 font-semibold tabular-nums">
+                        {fontSize}px
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Row 2: Highlight Color Swatches */}
+                  <div className="flex items-center justify-between pt-1 border-t border-white/[0.06]">
+                    <span className="text-[10px] text-zinc-400">
+                      {t.textColor || (lang === "th" ? "สีไฮไลต์" : "Highlight")}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {colorPresets.map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => handleTextColorChange(c)}
+                          style={{ backgroundColor: c }}
+                          className={`h-5 w-5 rounded-full transition-transform cursor-pointer ${
+                            textColor.toLowerCase() === c.toLowerCase()
+                              ? "ring-2 ring-purple-400 ring-offset-2 ring-offset-[#0c0a15] scale-110 shadow-sm"
+                              : "opacity-75 hover:opacity-100"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* E. MOBILE BOTTOM NAVBAR (Docked at bottom of mobile app) */}
+            <div className="h-13 bg-[#07060d] border-t border-[#1a1826] grid grid-cols-3 items-stretch select-none">
+              {/* Tab 1: Captions */}
+              <button
+                type="button"
+                onClick={() => setMobileTab("captions")}
+                className={`flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer border-t-2 ${
+                  mobileTab === "captions"
+                    ? "border-purple-400 text-purple-300 bg-purple-500/10 font-bold"
+                    : "border-transparent text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  <line x1="8" y1="9" x2="16" y2="9" />
+                  <line x1="8" y1="13" x2="13" y2="13" />
+                </svg>
+                <span className="text-[10.5px]">
+                  {t.captionsTitle || (lang === "th" ? "แคปชัน" : "Captions")}
+                </span>
+              </button>
+
+              {/* Tab 2: Templates */}
+              <button
+                type="button"
+                onClick={() => setMobileTab("templates")}
+                className={`flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer border-t-2 ${
+                  mobileTab === "templates"
+                    ? "border-purple-400 text-purple-300 bg-purple-500/10 font-bold"
+                    : "border-transparent text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+                <span className="text-[10.5px]">
+                  {t.templatesTab || (lang === "th" ? "เทมเพลต" : "Templates")}
+                </span>
+              </button>
+
+              {/* Tab 3: Style */}
+              <button
+                type="button"
+                onClick={() => setMobileTab("style")}
+                className={`flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer border-t-2 ${
+                  mobileTab === "style"
+                    ? "border-purple-400 text-purple-300 bg-purple-500/10 font-bold"
+                    : "border-transparent text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+                <span className="text-[10.5px]">
+                  {t.stylesTab || (lang === "th" ? "สไตล์" : "Style")}
+                </span>
+              </button>
+            </div>
+          </div>
 
           {/* EXPORT READY CONVERSION MODAL */}
           {showRenderModal && (
@@ -2011,73 +2499,6 @@ const EditorHeader = React.memo(function EditorHeader({
         </button>
       </div>
     </header>
-  );
-});
-
-interface MobileTransportBarProps {
-  isPlaying: boolean;
-  initialTimeLabel: string;
-  durationSec: number;
-  initialProgressScale: number;
-  mobileTimeTextRef: React.RefObject<HTMLSpanElement | null>;
-  mobileProgressFillRef: React.RefObject<HTMLDivElement | null>;
-  onTogglePlay: () => void;
-  onScrub: (e: React.MouseEvent<HTMLDivElement>) => void;
-}
-
-const MobileTransportBar = React.memo(function MobileTransportBar({
-  isPlaying,
-  initialTimeLabel,
-  durationSec,
-  initialProgressScale,
-  mobileTimeTextRef,
-  mobileProgressFillRef,
-  onTogglePlay,
-  onScrub,
-}: MobileTransportBarProps) {
-  return (
-    <div className="border-t border-[#1c1a28] bg-[#0c0b11] px-4 sm:px-6 py-3 select-none flex-shrink-0 flex items-center gap-3.5 md:hidden">
-      <button
-        type="button"
-        onClick={onTogglePlay}
-        className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white active:scale-95 transition-transform shadow-md shadow-purple-900/30 flex-shrink-0 border-0 outline-none focus:outline-none"
-        title={isPlaying ? "หยุดชั่วคราว" : "เล่น"}
-      >
-        {isPlaying ? (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <rect x="6" y="4" width="4" height="16" rx="1" />
-            <rect x="14" y="4" width="4" height="16" rx="1" />
-          </svg>
-        ) : (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="ml-0.5">
-            <polygon points="5 3 19 12 5 21 5 3" />
-          </svg>
-        )}
-      </button>
-
-      <div className="flex-1 flex flex-col justify-center gap-1.5 min-w-0">
-        <div
-          onClick={onScrub}
-          className="group relative flex items-center h-3 cursor-pointer py-0.5"
-        >
-          <div className="w-full h-1.5 group-hover:h-2 transition-[height] rounded-full bg-[#1a1826] overflow-hidden relative">
-            <div
-              ref={mobileProgressFillRef}
-              className="h-full w-full origin-left bg-[#7c3aed] rounded-full will-change-transform"
-              style={{ transform: `scaleX(${initialProgressScale.toFixed(4)})` }}
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center gap-1 font-mono text-xs text-gray-400">
-          <span ref={mobileTimeTextRef} className="text-white font-semibold">
-            {initialTimeLabel}
-          </span>
-          <span className="text-gray-500">/</span>
-          <span>{formatTimeStr(durationSec)}</span>
-        </div>
-      </div>
-    </div>
   );
 });
 

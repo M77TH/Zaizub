@@ -37,8 +37,13 @@ export default function InteractiveDots() {
     let reducedMotion = false;
     let isVisible = true;
 
+    let cachedDocTop = 0;
+    let cachedDocLeft = 0;
+
     const updateCanvasBounds = () => {
       const bounds = canvas.getBoundingClientRect();
+      cachedDocLeft = bounds.left + window.scrollX;
+      cachedDocTop = bounds.top + window.scrollY;
       canvasLeft = bounds.left;
       canvasTop = bounds.top;
     };
@@ -208,7 +213,8 @@ export default function InteractiveDots() {
 
     const handleScroll = () => {
       if (!isVisible) return;
-      updateCanvasBounds();
+      canvasLeft = cachedDocLeft - window.scrollX;
+      canvasTop = cachedDocTop - window.scrollY;
       if (mouse.hasPosition) {
         syncMouseLocal();
         if (mouse.active) wake();
@@ -251,10 +257,22 @@ export default function InteractiveDots() {
 
     intersectionObserver.observe(canvas);
 
+    const handleVisibility = () => {
+      if (document.hidden) {
+        if (animationFrame) {
+          window.cancelAnimationFrame(animationFrame);
+          animationFrame = 0;
+        }
+      } else if (isVisible) {
+        wake();
+      }
+    };
+
     window.addEventListener("resize", resize, { passive: true });
     window.addEventListener("pointermove", handlePointerMove, { passive: true });
     window.addEventListener("scroll", handleScroll, { passive: true });
     window.addEventListener("blur", handlePointerLeave);
+    document.addEventListener("visibilitychange", handleVisibility);
     motionQuery.addEventListener("change", handleMotionPreference);
 
     return () => {
@@ -264,6 +282,7 @@ export default function InteractiveDots() {
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("scroll", handleScroll);
       window.removeEventListener("blur", handlePointerLeave);
+      document.removeEventListener("visibilitychange", handleVisibility);
       motionQuery.removeEventListener("change", handleMotionPreference);
     };
   }, []);

@@ -275,15 +275,16 @@ export default function Footer({ lang = "en" }: { lang?: Lang }) {
           const s = stepDot(x, y, vx, vy, hx, hy, px, py, r);
           x = s[0];
           y = s[1];
-          vx = s[2];
-          vy = s[3];
-          if (Math.abs(vx) + Math.abs(vy) > 0.02 || Math.abs(x - hx) + Math.abs(y - hy) > 0.05) {
+          const speed = Math.abs(vx) + Math.abs(vy);
+          if (speed > 0.015) {
             moving = true;
           } else {
-            x = hx;
-            y = hy;
             vx = 0;
             vy = 0;
+            if (px < -1e4) {
+              x = hx;
+              y = hy;
+            }
           }
           dots[j] = x;
           dots[j + 1] = y;
@@ -327,7 +328,7 @@ export default function Footer({ lang = "en" }: { lang?: Lang }) {
         ctx.globalAlpha = 1;
         ctx.globalCompositeOperation = "source-over";
       }
-      awake = moving || ringAge < 900 || px > -1e4;
+      awake = moving || ringAge < 900;
     };
 
     const loop = (now: number) => {
@@ -390,6 +391,17 @@ export default function Footer({ lang = "en" }: { lang?: Lang }) {
     });
     io.observe(root);
 
+    const handleVisibility = () => {
+      if (document.hidden) {
+        visible = false;
+        if (raf) cancelAnimationFrame(raf);
+      } else {
+        visible = true;
+        wake();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
     let alive = true;
     if (document.fonts && document.fonts.ready) {
       document.fonts.ready.then(() => {
@@ -404,6 +416,7 @@ export default function Footer({ lang = "en" }: { lang?: Lang }) {
       cancelAnimationFrame(raf);
       ro.disconnect();
       io.disconnect();
+      document.removeEventListener("visibilitychange", handleVisibility);
       root.removeEventListener("pointerenter", onEnter);
       root.removeEventListener("pointermove", onMove);
       root.removeEventListener("pointerleave", onLeave);

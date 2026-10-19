@@ -684,8 +684,13 @@ export default function Hero({ lang }: { lang: Lang }) {
           </form>
         </div>
 
-        <div className="lg:col-span-5 flex items-center justify-center lg:justify-end">
-          <PhoneMockup lang={lang} pulseKey={pulseKey} />
+        <div className="lg:col-span-5 flex items-center justify-center lg:justify-center xl:justify-center lg:-translate-x-10 xl:-translate-x-16 2xl:-translate-x-24">
+          <PhoneMockup
+            lang={lang}
+            pulseKey={pulseKey}
+            videoSrc="/video_preview/video_1.mp4"
+            backVideoSrc="/video_preview/video_2.mp4"
+          />
         </div>
       </div>
     </section>

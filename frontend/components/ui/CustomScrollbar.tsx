@@ -24,9 +24,6 @@ export default function CustomScrollbar({ scrollRef }: CustomScrollbarProps) {
       thumbEl.style.height = `${height}px`;
     }
     thumbEl.style.transform = `translate3d(0, ${top}px, 0)`;
-    if (trackRef.current) {
-      trackRef.current.setAttribute("aria-valuenow", String(Math.round(top)));
-    }
   }, []);
 
   // Fast scroll-only update: reads only scrollY/scrollTop, zero layout reflow, zero React re-renders
@@ -82,6 +79,15 @@ export default function CustomScrollbar({ scrollRef }: CustomScrollbarProps) {
     applyThumbTransform(top, height);
   }, [scrollRef, lenis, applyThumbTransform]);
 
+  const rafGeometryRef = useRef<number>(0);
+  const scheduleUpdateGeometry = useCallback(() => {
+    if (rafGeometryRef.current) return;
+    rafGeometryRef.current = window.requestAnimationFrame(() => {
+      rafGeometryRef.current = 0;
+      updateGeometry();
+    });
+  }, [updateGeometry]);
+
   // Sync initial style when thumb mounts after hasScrollbar becomes true
   useEffect(() => {
     if (hasScrollbar) {
@@ -110,9 +116,9 @@ export default function CustomScrollbar({ scrollRef }: CustomScrollbarProps) {
       window.addEventListener("scroll", handleScroll, { passive: true });
     }
 
-    window.addEventListener("resize", updateGeometry, { passive: true });
+    window.addEventListener("resize", scheduleUpdateGeometry, { passive: true });
 
-    const observer = new ResizeObserver(updateGeometry);
+    const observer = new ResizeObserver(scheduleUpdateGeometry);
     if (scrollElement) {
       observer.observe(scrollElement);
     } else {
@@ -121,13 +127,14 @@ export default function CustomScrollbar({ scrollRef }: CustomScrollbarProps) {
 
     return () => {
       window.cancelAnimationFrame(initialUpdate);
+      if (rafGeometryRef.current) window.cancelAnimationFrame(rafGeometryRef.current);
       if (scrollElement) scrollElement.removeEventListener("scroll", handleScroll);
       else window.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("resize", updateGeometry);
+      window.removeEventListener("resize", scheduleUpdateGeometry);
       lenisUnsubscribe?.();
       observer.disconnect();
     };
-  }, [updateGeometry, updatePosition, lenis, scrollRef]);
+  }, [scheduleUpdateGeometry, updateGeometry, updatePosition, lenis, scrollRef]);
 
   // Handle thumb dragging
   const handleThumbPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {

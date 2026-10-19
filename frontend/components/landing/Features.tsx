@@ -53,7 +53,7 @@ function useFast3DTilt(baseRotX = 0, baseRotY = 0, maxTilt = 2.5) {
       Math.abs(s.targetY - s.currentY) > 0.002 ||
       Math.abs(s.targetZ - s.currentZ) > 0.02;
 
-    if (stillMoving || s.isHovered) {
+    if (stillMoving) {
       s.rafId = requestAnimationFrame(tickRef.current);
     } else {
       s.rafId = 0;
@@ -919,7 +919,7 @@ function TranscribeAccuracyGraphic({ lang = "en" }: { lang?: Lang }) {
 }
 
 // ============================================================================
-// 4. 9:16, 16:9 & 1:1 PREVIEW
+// 4. MULTI-RATIO SUPPORT (9:16, 16:9 & 1:1 PREVIEW)
 // Unified with Card 1, 2, 3: Same Floor Cross-Grid, Chevrons & Glass Material
 // ============================================================================
 function MultiRatioGraphic() {
@@ -1219,110 +1219,326 @@ function MultiRatioGraphic() {
 // Exact 2:1 Isometric Plane (rotateX 60deg rotateZ -45deg), Same Cross-Grid,
 // Same Chevrons, Same Obsidian-Violet Glass & Wireframe Abstraction as Card 1 & 2
 // ============================================================================
-const THEME_SWATCHES = [
-  { fill: "#ffffff", glow: "rgba(255, 255, 255, 0.65)", pill: "from-[#ffffff] via-[#f5f3ff] to-[#ddd6fe]" },
-  { fill: "#ddd6fe", glow: "rgba(221, 214, 254, 0.75)", pill: "from-[#ede9fe] via-[#c4b5fd] to-[#a78bfa]" },
-  { fill: "#a78bfa", glow: "rgba(167, 139, 250, 0.85)", pill: "from-[#c4b5fd] via-[#a78bfa] to-[#8b5cf6]" },
-  { fill: "#7c3aed", glow: "rgba(124, 58, 237, 0.85)", pill: "from-[#a78bfa] via-[#8b5cf6] to-[#6d28d9]" },
+// ============================================================================
+// 5. CUSTOM STYLES & VIRAL TEMPLATES
+// Exact 2:1 Isometric Frosted Obsidian Deck with Presets Switcher & Deep Controls
+// Matches Card 1 & Card 2 glass material, cross-grid, chevrons & wireframe style
+// ============================================================================
+interface PresetTemplate {
+  id: string;
+  label: string;
+  font: string;
+  highlightColor: string;
+  glowColor: string;
+  badgeStyle: "viral" | "glow" | "clean";
+  words: {
+    en: [string, string, string];
+    th: [string, string, string];
+  };
+  highlightIdx: number;
+}
+
+const PRESET_TEMPLATES: PresetTemplate[] = [
+  {
+    id: "viral",
+    label: "Viral",
+    font: "Kanit",
+    highlightColor: "#facc15",
+    glowColor: "rgba(250, 204, 21, 0.65)",
+    badgeStyle: "viral",
+    words: {
+      en: ["HOOK", "THE", "SCROLL!"],
+      th: ["ทำคลิป", "ให้ติด", "ไวรัล!"],
+    },
+    highlightIdx: 2,
+  },
+  {
+    id: "glow",
+    label: "Glow",
+    font: "Prompt",
+    highlightColor: "#a78bfa",
+    glowColor: "rgba(167, 139, 250, 0.75)",
+    badgeStyle: "glow",
+    words: {
+      en: ["SMART", "AI", "CAPTIONS"],
+      th: ["ซับฉลาด", "ระดับ", "AI"],
+    },
+    highlightIdx: 1,
+  },
+  {
+    id: "clean",
+    label: "Clean",
+    font: "Inter",
+    highlightColor: "#ffffff",
+    glowColor: "rgba(255, 255, 255, 0.60)",
+    badgeStyle: "clean",
+    words: {
+      en: ["STUDIO", "MINIMAL", "PRO"],
+      th: ["เรียบหรู", "สไตล์คลีน", "โปร"],
+    },
+    highlightIdx: 1,
+  },
+];
+
+const COLOR_SWATCHES = [
+  { hex: "#facc15", glow: "rgba(250, 204, 21, 0.70)", label: "Amber Gold" },
+  { hex: "#a78bfa", glow: "rgba(167, 139, 250, 0.80)", label: "Zaizub Violet" },
+  { hex: "#22d3ee", glow: "rgba(34, 211, 238, 0.75)", label: "Neon Cyan" },
+  { hex: "#ffffff", glow: "rgba(255, 255, 255, 0.65)", label: "Studio White" },
 ] as const;
 
-function StyleColorsGraphic() {
-  const [activeColorIdx, setActiveColorIdx] = useState(2);
+function StyleColorsGraphic({ lang = "en" }: { lang?: Lang }) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [isInView, setIsInView] = useState(false);
+  const isCardHovered = React.useContext(FeatureCardHoverContext);
+  const [isSelfHovered, setIsSelfHovered] = useState(false);
+  const [activePresetIdx, setActivePresetIdx] = useState(0);
+  const [customColor, setCustomColor] = useState<string | null>(null);
   const [activeSize, setActiveSize] = useState<"S" | "M" | "L">("M");
 
-  const selectedSwatch = THEME_SWATCHES[activeColorIdx] || THEME_SWATCHES[2];
+  const isInteracting = isCardHovered || isSelfHovered;
+
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") {
+      setIsInView(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        setIsInView(Boolean(entries[0]?.isIntersecting));
+      },
+      { rootMargin: "150px 0px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Gentle auto-cycle through presets when untouched AND in view
+  useEffect(() => {
+    if (isInteracting || !isInView) return;
+    const interval = setInterval(() => {
+      setActivePresetIdx((prev) => (prev + 1) % PRESET_TEMPLATES.length);
+      setCustomColor(null);
+    }, 3400);
+    return () => clearInterval(interval);
+  }, [isInteracting, isInView]);
+
+  const currentPreset = PRESET_TEMPLATES[activePresetIdx] || PRESET_TEMPLATES[0];
+  const activeColor = customColor || currentPreset.highlightColor;
+  const currentWords = currentPreset.words[lang] || currentPreset.words.en;
+
+  const sliderPercent = activeSize === "S" ? "28%" : activeSize === "M" ? "62%" : "96%";
 
   return (
-    <div className="relative w-full h-full flex items-center justify-center select-none [transform-style:preserve-3d] group/iso5">
-      {/* Identical 2:1 Isometric Floor Cross-Grid as Cards 1, 2, 3, 4 */}
+    <div
+      ref={rootRef}
+      aria-label={lang === "en" ? "Custom Styles & Viral Templates" : "ปรับแต่งสไตล์ & เทมเพลตสำเร็จรูป"}
+      className="relative w-full h-full flex items-center justify-center select-none [transform-style:preserve-3d] group/iso5"
+    >
+      {/* PLANE 0 (Z: -80px) — Compact background floor grid with generous breathing room */}
       <svg
-        className="pointer-events-none absolute w-[295px] sm:w-[320px] xl:w-[340px] h-auto max-h-full overflow-visible"
-        viewBox="0 0 320 185"
+        className="pointer-events-none absolute w-[260px] sm:w-[280px] xl:w-[300px] h-auto max-h-full overflow-visible"
+        viewBox="0 0 340 190"
         fill="none"
-        style={{ transform: "translateZ(2px)" }}
+        style={{ transform: "translateZ(-80px)" }}
       >
         <defs>
-          <radialGradient id="iso5Ambient" cx="50%" cy="52%" r="46%">
+          <radialGradient id="iso5Ambient" cx="50%" cy="50%" r="48%">
             <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.22" />
             <stop offset="60%" stopColor="#6d28d9" stopOpacity="0.06" />
             <stop offset="100%" stopColor="#07060a" stopOpacity="0" />
           </radialGradient>
         </defs>
 
-        <ellipse cx="160" cy="96" rx="138" ry="66" fill="url(#iso5Ambient)" />
+        <ellipse cx="170" cy="98" rx="130" ry="62" fill="url(#iso5Ambient)" />
 
         {/* Identical 2:1 Isometric Floor Cross-Grid */}
         <g stroke="rgba(255, 255, 255, 0.05)" strokeWidth="1">
-          <line x1="36" y1="138" x2="216" y2="48" />
-          <line x1="64" y1="152" x2="244" y2="62" />
-          <line x1="92" y1="166" x2="272" y2="76" />
-          <line x1="120" y1="180" x2="300" y2="90" />
+          <line x1="36" y1="142" x2="226" y2="47" />
+          <line x1="66" y1="157" x2="256" y2="62" />
+          <line x1="96" y1="172" x2="286" y2="77" />
+          <line x1="126" y1="187" x2="316" y2="92" />
 
-          <line x1="284" y1="138" x2="104" y2="48" />
-          <line x1="256" y1="152" x2="76" y2="62" />
-          <line x1="228" y1="166" x2="48" y2="76" />
-          <line x1="200" y1="180" x2="20" y2="90" />
+          <line x1="304" y1="142" x2="114" y2="47" />
+          <line x1="274" y1="157" x2="84" y2="62" />
+          <line x1="244" y1="172" x2="54" y2="77" />
+          <line x1="214" y1="187" x2="24" y2="92" />
         </g>
       </svg>
 
-      {/* True 2:1 Isometric Plane (rotateX 60deg rotateZ -45deg — identical to Card 2!) */}
+      {/* PLANE 0 (Z: -80px) — Compact background floor grid with generous breathing room */}
+      <svg
+        className="pointer-events-none absolute w-[250px] sm:w-[270px] xl:w-[290px] h-auto max-h-full overflow-visible"
+        viewBox="0 0 340 190"
+        fill="none"
+        style={{ transform: "translateZ(-80px)" }}
+      >
+        <defs>
+          <radialGradient id="iso5Ambient" cx="50%" cy="50%" r="48%">
+            <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.22" />
+            <stop offset="60%" stopColor="#6d28d9" stopOpacity="0.06" />
+            <stop offset="100%" stopColor="#07060a" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+
+        <ellipse cx="170" cy="98" rx="120" ry="58" fill="url(#iso5Ambient)" />
+
+        {/* Identical 2:1 Isometric Floor Cross-Grid */}
+        <g stroke="rgba(255, 255, 255, 0.05)" strokeWidth="1">
+          <line x1="36" y1="142" x2="226" y2="47" />
+          <line x1="66" y1="157" x2="256" y2="62" />
+          <line x1="96" y1="172" x2="286" y2="77" />
+          <line x1="126" y1="187" x2="316" y2="92" />
+
+          <line x1="304" y1="142" x2="114" y2="47" />
+          <line x1="274" y1="157" x2="84" y2="62" />
+          <line x1="244" y1="172" x2="54" y2="77" />
+          <line x1="214" y1="187" x2="24" y2="92" />
+        </g>
+      </svg>
+
+      {/* Refined Compact 3D Isometric Deck Stage (Centered vertically with safe stage margins) */}
       <div
-        className="relative w-[196px] sm:w-[206px] xl:w-[218px] h-[118px] [transform-style:preserve-3d]"
+        className="relative w-[182px] sm:w-[190px] xl:w-[198px] h-[106px] sm:h-[110px] xl:h-[114px] [transform-style:preserve-3d]"
         style={{
-          transform: "rotateX(60deg) rotateZ(-45deg)",
+          transform: "translate3d(0px, 4px, 12px) rotateX(60deg) rotateZ(-45deg)",
         }}
       >
-        {/* Layer 0: Lower Stacked Obsidian Glass Plate (Matches Card 1 & Card 3) */}
+        {/* Layer 0: Lower Stacked Obsidian Glass Plates (Preset Library Depth) */}
         <div
-          className="pointer-events-none absolute inset-0 rounded-[9px] border border-white/[0.12] bg-[#110d20]/92"
+          className="pointer-events-none absolute inset-0 rounded-[9px] border border-white/[0.08] bg-[#0c0918]/98"
           style={{
-            transform: "translate3d(-4px, 4px, 4px)",
+            transform: "translate3d(-4px, 5px, -8px)",
             boxShadow:
-              "-3px 3px 0px rgba(139, 92, 246, 0.20), -10px 10px 24px rgba(0, 0, 0, 0.88)",
-          }}
-        />
-
-        {/* Layer 1: Elevated Active Frosted Violet-Obsidian Glass Deck (Matches Card 2 Active Card) */}
-        <div
-          className="relative w-full h-full rounded-[9px] border border-purple-300/75 bg-gradient-to-r from-[#231a42]/95 via-[#181330]/95 to-[#140f28]/95 p-3 flex flex-col justify-between"
-          style={{
-            transform: "translateZ(18px)",
-            boxShadow:
-              "-3px 3px 0px rgba(139, 92, 246, 0.55), -12px 12px 28px rgba(0, 0, 0, 0.92), 0 0 24px rgba(139, 92, 246, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.30)",
+              "-3.5px 3.5px 0px rgba(139, 92, 246, 0.18), -14px 14px 30px rgba(0, 0, 0, 0.94)",
           }}
         >
-          {/* Upper Row: Typography Badge + Wireframe Caption Word Highlight Track */}
-          <div className="flex items-center gap-2.5 w-full h-[46px] rounded-[6px] border border-white/[0.10] bg-[#0b0816]/75 px-2.5">
-            {/* Left 'Aa' Squircle Badge (Matches Card 2 Left Squircle) */}
-            <div className="h-8 w-8 rounded-[5px] shrink-0 flex items-center justify-center border border-purple-300/65 bg-purple-500/25 shadow-[0_0_12px_rgba(139,92,246,0.4)]">
-              <span className="font-mono text-[10.5px] font-extrabold text-purple-100 tracking-tight">
+          {/* Subtle preset shelf indicator lines */}
+          <div className="absolute top-1 left-2.5 right-2.5 flex items-center justify-between opacity-30 pt-0.5">
+            <span className="h-0.5 w-5 rounded-full bg-purple-400/50" />
+            <span className="h-0.5 w-10 rounded-full bg-white/20" />
+            <span className="h-0.5 w-5 rounded-full bg-purple-400/40" />
+          </div>
+        </div>
+
+        {/* Layer 1: Elevated Active Frosted Violet-Obsidian Glass Deck */}
+        <div
+          onPointerEnter={() => setIsSelfHovered(true)}
+          onPointerLeave={() => setIsSelfHovered(false)}
+          className="relative w-full h-full rounded-[9px] border border-purple-300/70 bg-gradient-to-br from-[#21183e]/98 via-[#150f2b]/98 to-[#100c22]/98 p-2 flex flex-col justify-between shadow-[0_16px_32px_rgba(0,0,0,0.92)] overflow-hidden"
+          style={{
+            transform: "translateZ(14px)",
+            boxShadow:
+              "-2.5px 2.5px 0px rgba(139, 92, 246, 0.50), -10px 12px 24px rgba(0, 0, 0, 0.95), 0 0 20px rgba(139, 92, 246, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.25)",
+          }}
+        >
+          {/* Row 1: Preset Templates Switcher ONLY (No swatches here — prevents any right overflow!) */}
+          <div className="flex items-center justify-between gap-1 w-full pb-0.5 border-b border-white/[0.06]">
+            {/* Presets Segmented Buttons */}
+            <div className="flex items-center gap-1">
+              <span className="font-mono text-[6.5px] font-bold tracking-wider uppercase text-purple-300/70 mr-0.5">
+                PRESETS
+              </span>
+              {PRESET_TEMPLATES.map((preset, idx) => {
+                const isActive = idx === activePresetIdx;
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActivePresetIdx(idx);
+                      setCustomColor(null);
+                    }}
+                    className={`h-[15px] px-1.5 rounded-[3px] font-mono text-[7px] font-bold cursor-pointer transition-all border flex items-center justify-center ${
+                      isActive
+                        ? "bg-purple-500/35 border-purple-300/85 text-white shadow-[0_0_6px_rgba(139,92,246,0.5)]"
+                        : "bg-white/[0.03] border-white/[0.08] text-purple-200/50 hover:text-white hover:bg-white/[0.06]"
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Subtle active preset status pill */}
+            <span className="font-mono text-[6px] text-purple-300/50 uppercase tracking-widest hidden sm:inline">
+              1-CLICK
+            </span>
+          </div>
+
+          {/* Row 2: Typography Badge + Live Caption Preview Track */}
+          <div className="flex items-center gap-1.5 w-full h-[32px] sm:h-[34px] rounded-[5px] border border-white/[0.10] bg-[#080612]/90 px-1.5">
+            {/* Left 'Aa' Font Badge */}
+            <div
+              className="h-5 w-5 sm:h-5.5 sm:w-5.5 rounded-[3.5px] shrink-0 flex flex-col items-center justify-center border transition-all duration-300"
+              style={{
+                borderColor: `${activeColor}60`,
+                backgroundColor: `${activeColor}16`,
+                boxShadow: `0 0 8px ${activeColor}30`,
+              }}
+            >
+              <span className="font-mono text-[7.5px] font-extrabold text-white leading-none">
                 Aa
+              </span>
+              <span className="text-[5px] font-mono text-purple-200/70 leading-none mt-0.5">
+                {currentPreset.font}
               </span>
             </div>
 
-            {/* Right Wireframe Word Bars with Active Highlighted Word */}
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              <span className="h-3 w-8 rounded-[3px] bg-white/30 shrink-0" />
-              <span
-                className={`${
+            {/* Right: Words Track with Dynamic Template & Highlight Style */}
+            <div className="flex items-center justify-around flex-1 min-w-0 px-0.5">
+              {currentWords.map((word, wIdx) => {
+                const isHighlighted = wIdx === currentPreset.highlightIdx;
+                const sizeClass =
                   activeSize === "S"
-                    ? "h-3.5 w-12"
+                    ? "text-[7px] px-1 py-0.5"
                     : activeSize === "M"
-                    ? "h-4 w-14"
-                    : "h-5 w-16"
-                } rounded-[3.5px] bg-gradient-to-r ${selectedSwatch.pill} transition-all duration-300 shrink-0`}
-                style={{
-                  boxShadow: `0 0 14px ${selectedSwatch.glow}`,
-                }}
-              />
-              <span className="h-3 w-7 rounded-[3px] bg-white/30 shrink-0" />
+                    ? "text-[7.5px] sm:text-[8px] px-1.5 py-0.5"
+                    : "text-[8.5px] sm:text-[9px] px-1.5 py-0.5";
+
+                if (!isHighlighted) {
+                  return (
+                    <span
+                      key={wIdx}
+                      className="font-mono text-[7px] sm:text-[7.5px] font-semibold text-white/40 tracking-tight shrink-0 transition-opacity"
+                    >
+                      {word}
+                    </span>
+                  );
+                }
+
+                return (
+                  <span
+                    key={wIdx}
+                    className={`font-mono font-black tracking-tight shrink-0 rounded-[3px] transition-all duration-300 ${sizeClass}`}
+                    style={{
+                      color: currentPreset.badgeStyle === "clean" ? "#ffffff" : activeColor,
+                      backgroundColor:
+                        currentPreset.badgeStyle === "clean"
+                          ? "rgba(255, 255, 255, 0.16)"
+                          : `${activeColor}22`,
+                      border: `1px solid ${activeColor}70`,
+                      boxShadow: `0 0 8px ${activeColor}50`,
+                      textShadow:
+                        currentPreset.badgeStyle === "viral"
+                          ? "0 1.5px 3px rgba(0,0,0,0.9)"
+                          : `0 0 6px ${activeColor}80`,
+                    }}
+                  >
+                    {word}
+                  </span>
+                );
+              })}
             </div>
           </div>
 
-          {/* Lower Row: Interactive S/M/L Size Tiles & Monochromatic Violet Swatches */}
-          <div className="flex items-center justify-between pt-1">
-            {/* Size Presets (S / M / L) */}
-            <div className="flex items-center gap-1.5">
+          {/* Row 3: S/M/L Buttons + Slider Bar + Color Swatches (All comfortably inside with zero overflow!) */}
+          <div className="flex items-center justify-between gap-1 w-full pt-0.5">
+            {/* Left: S / M / L Size Preset Buttons */}
+            <div className="flex items-center gap-0.5 shrink-0">
               {(["S", "M", "L"] as const).map((sz) => {
                 const isSelected = activeSize === sz;
                 return (
@@ -1333,10 +1549,10 @@ function StyleColorsGraphic() {
                       e.stopPropagation();
                       setActiveSize(sz);
                     }}
-                    className={`h-6 w-6 rounded-[4px] font-mono text-[9.5px] font-bold cursor-pointer transition-all border flex items-center justify-center ${
+                    className={`h-[15px] w-[15px] rounded-[3px] font-mono text-[7px] font-bold cursor-pointer transition-all border flex items-center justify-center ${
                       isSelected
-                        ? "bg-purple-500/30 border-purple-300/80 text-white shadow-[0_0_10px_rgba(139,92,246,0.45)]"
-                        : "bg-white/[0.04] border-white/[0.10] text-purple-200/50 hover:text-white"
+                        ? "bg-purple-500/35 border-purple-300/80 text-white shadow-[0_0_6px_rgba(139,92,246,0.45)]"
+                        : "bg-white/[0.04] border-white/[0.09] text-purple-200/50 hover:text-white"
                     }`}
                   >
                     {sz}
@@ -1345,28 +1561,49 @@ function StyleColorsGraphic() {
               })}
             </div>
 
-            {/* Cohesive Violet-Lavender Theme Swatches */}
-            <div className="flex items-center gap-2">
-              {THEME_SWATCHES.map((sw, idx) => {
-                const isSelected = idx === activeColorIdx;
+            {/* Center: Font Size Slider Bar */}
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveSize((prev) => (prev === "S" ? "M" : prev === "M" ? "L" : "S"));
+              }}
+              className="flex-1 max-w-[54px] sm:max-w-[62px] h-[15px] px-1.5 rounded-[3px] border border-white/[0.08] bg-white/[0.03] flex items-center cursor-pointer group/slider hover:border-purple-400/40"
+              title="Click to adjust font scale"
+            >
+              <div className="relative w-full h-1 rounded-full bg-white/[0.10] overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-300"
+                  style={{
+                    width: sliderPercent,
+                    backgroundColor: activeColor,
+                    boxShadow: `0 0 6px ${activeColor}`,
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Right: Color Swatches safely inside the card margin */}
+            <div className="flex items-center gap-1 shrink-0">
+              {COLOR_SWATCHES.map((sw) => {
+                const isSelected = activeColor === sw.hex;
                 return (
                   <button
-                    key={sw.fill}
+                    key={sw.hex}
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setActiveColorIdx(idx);
+                      setCustomColor(sw.hex);
                     }}
                     style={{
-                      backgroundColor: sw.fill,
-                      boxShadow: isSelected ? `0 0 10px ${sw.glow}` : undefined,
+                      backgroundColor: sw.hex,
+                      boxShadow: isSelected ? `0 0 6px ${sw.glow}` : undefined,
                     }}
-                    className={`h-4 w-4 rounded-full transition-all cursor-pointer ${
+                    className={`h-2.5 w-2.5 rounded-full transition-all cursor-pointer ${
                       isSelected
-                        ? "ring-2 ring-purple-200 ring-offset-2 ring-offset-[#181330] scale-110"
-                        : "opacity-55 hover:opacity-90"
+                        ? "ring-1.5 ring-purple-200 ring-offset-1 ring-offset-[#150f2b] scale-110"
+                        : "opacity-60 hover:opacity-100"
                     }`}
-                    aria-label={`Highlight swatch ${idx + 1}`}
+                    aria-label={`Highlight color ${sw.label}`}
                   />
                 );
               })}
@@ -1456,11 +1693,11 @@ function FeatureCard({
         </div>
 
         {/* Bottom Typography: Aligned top baseline across every card on the same row */}
-        <div className="relative z-10 flex flex-1 flex-col justify-start px-4.5 pb-3.5 pt-2 sm:px-5 sm:pb-4 sm:pt-2.5 lg:px-5 lg:pb-3.5 lg:pt-2 [@media(max-height:760px)]:pb-2.5 [@media(max-height:760px)]:pt-1.5">
+        <div className="relative z-10 flex flex-1 flex-col justify-start px-4.5 pb-3.5 pt-2 sm:px-5 sm:pb-4 sm:pt-2.5 lg:px-4 xl:px-5 lg:pb-3.5 lg:pt-2 [@media(max-height:760px)]:pb-2.5 [@media(max-height:760px)]:pt-1.5">
           <h3 className="text-[15.5px] sm:text-[17px] lg:text-[16px] xl:text-[17.5px] font-semibold tracking-tight text-white leading-snug antialiased transition-colors duration-300 group-hover:text-purple-200">
             {title}
           </h3>
-          <p className="mt-1 text-[12px] sm:text-[13px] lg:text-[12.5px] xl:text-[13px] text-slate-400 leading-relaxed font-normal antialiased">
+          <p className="mt-1 text-[12px] sm:text-[13px] lg:text-[12px] xl:text-[13px] text-slate-400 leading-relaxed font-normal antialiased line-clamp-1">
             {description}
           </p>
         </div>
@@ -1526,35 +1763,39 @@ export default function Features({ lang = "en" }: { lang?: Lang }) {
             description={
               items[2]?.body ||
               (lang === "en"
-                ? "High-precision AI speech recognition for Thai and English. Accurately captures fast speech, slang, and context."
-                : "แปลงเสียงพูดเป็นข้อความแม่นยำสูง รองรับทั้งภาษาไทยและอังกฤษ ตัดคำถูกต้องแม้พูดเร็ว")
+                ? "High-precision AI transcription for Thai & English."
+                : "ถอดเสียงแม่นยำสูง รองรับทั้งภาษาไทยและอังกฤษ")
             }
           >
             <TranscribeAccuracyGraphic lang={lang} />
           </FeatureCard>
 
-          {/* Card 4: 9:16, 16:9 & 1:1 Preview */}
+          {/* Card 4: Multi-Ratio Support */}
           <FeatureCard
             stageHeight="h-[145px] sm:h-[160px] lg:h-[155px] xl:h-[185px] [@media(max-height:760px)]:h-[135px]"
-            title={items[3]?.title || "9:16, 16:9 & 1:1 Preview"}
+            title={items[3]?.title || (lang === "en" ? "Multi-Ratio Support" : "รองรับหลายอัตราส่วน")}
             description={
               items[3]?.body ||
-              "Instant aspect switching for TikTok, Reels, Shorts, and YouTube."
+              (lang === "en"
+                ? "Instant aspect switching for TikTok, Reels & Shorts."
+                : "สลับขนาด 9:16, 16:9 และ 1:1 สำหรับทุกแพลตฟอร์ม")
             }
           >
             <MultiRatioGraphic />
           </FeatureCard>
 
-          {/* Card 5: Font Size & Highlight Colors */}
+          {/* Card 5: Custom Styles & Viral Templates */}
           <FeatureCard
             stageHeight="h-[145px] sm:h-[160px] lg:h-[155px] xl:h-[185px] [@media(max-height:760px)]:h-[135px]"
-            title={items[4]?.title || "Font Size & Highlight Colors"}
+            title={items[4]?.title || (lang === "en" ? "Custom Styles & Viral Templates" : "ปรับแต่งสไตล์ & เทมเพลตสำเร็จรูป")}
             description={
               items[4]?.body ||
-              "Quick font size slider and high-contrast signature highlight colors."
+              (lang === "en"
+                ? "Apply 1-click viral presets or customize text styles."
+                : "เลือกใช้พรีเซ็ตยอดฮิต หรือปรับแต่งสไตล์ได้อิสระ")
             }
           >
-            <StyleColorsGraphic />
+            <StyleColorsGraphic lang={lang} />
           </FeatureCard>
         </div>
       </div>

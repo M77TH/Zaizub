@@ -77,7 +77,7 @@ export const WorkflowUploadFigure = React.forwardRef<HTMLDivElement, WorkflowFig
           >
             <div
               className={cn(
-                "absolute inset-0 rounded-2xl border bg-[#0e0c19]/95 p-2.5 sm:p-3 backdrop-blur-2xl transition-all duration-300 ease-out flex flex-col",
+                "absolute inset-0 rounded-2xl border bg-[#0e0c19]/95 p-2.5 sm:p-3 backdrop-blur-sm transform-gpu [backface-visibility:hidden] transition-all duration-300 ease-out flex flex-col",
                 isHovered ? "border-purple-400/30" : "border-white/[0.12]"
               )}
               style={{
@@ -175,7 +175,7 @@ export const WorkflowStylingFigure = React.forwardRef<HTMLDivElement, WorkflowFi
           >
             <div
               className={cn(
-                "absolute inset-0 rounded-2xl border bg-[#0e0c19]/95 p-3.5 sm:p-4 backdrop-blur-2xl transition-all duration-300 ease-out flex flex-col justify-center gap-3.5",
+                "absolute inset-0 rounded-2xl border bg-[#0e0c19]/95 p-3.5 sm:p-4 backdrop-blur-sm transform-gpu [backface-visibility:hidden] transition-all duration-300 ease-out flex flex-col justify-center gap-3.5",
                 isHovered ? "border-purple-400/30" : "border-white/[0.12]"
               )}
               style={{
@@ -303,7 +303,7 @@ export const WorkflowRenderFigure = React.forwardRef<HTMLDivElement, WorkflowFig
           >
             <div
               className={cn(
-                "absolute inset-0 rounded-2xl border bg-[#0e0c19]/95 p-3 sm:p-3.5 backdrop-blur-2xl transition-all duration-300 ease-out flex flex-col justify-between",
+                "absolute inset-0 rounded-2xl border bg-[#0e0c19]/95 p-3 sm:p-3.5 backdrop-blur-sm transform-gpu [backface-visibility:hidden] transition-all duration-300 ease-out flex flex-col justify-between",
                 isHovered ? "border-purple-400/30" : "border-white/[0.12]"
               )}
               style={{

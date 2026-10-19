@@ -2,19 +2,22 @@
 
 import { useActionState } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { resetPassword, type AuthActionState } from '@/app/actions/auth'
 import AuthStudioShell from '@/components/auth/AuthStudioShell'
 
 const initialState: AuthActionState = null
 
 export default function ForgotPasswordForm() {
+  const searchParams = useSearchParams()
+  const queryError = searchParams.get('error')
   const [state, formAction, pending] = useActionState(resetPassword, initialState)
-  const hasError = Boolean(state?.error)
+  const hasError = Boolean(state?.error || queryError)
   const isSuccess = Boolean(state?.success)
   const successMessage = state && 'success' in state && state.success ? state.message : undefined
 
   return (
-    <AuthStudioShell mode="forgot-password">
+    <AuthStudioShell mode="forgot-password" hideHeader={isSuccess}>
       {(lang) => (
         <div>
           {isSuccess ? (
@@ -69,13 +72,13 @@ export default function ForgotPasswordForm() {
                   {lang === 'en' ? 'Email address' : 'อีเมล'}
                 </label>
                 <div
-                  className={`group relative flex items-center rounded-xl bg-white/[0.04] hover:bg-white/[0.055] focus-within:bg-white/[0.06] border transition-all ${
+                  className={`group relative flex items-center rounded-xl overflow-hidden bg-white/[0.04] hover:bg-white/[0.055] focus-within:bg-white/[0.06] border transition-all ${
                     hasError
                       ? 'border-red-500/60 focus-within:border-red-500 focus-within:ring-2 focus-within:ring-red-500/25'
                       : 'border-white/[0.1] hover:border-white/[0.18] focus-within:border-violet-500 focus-within:ring-2 focus-within:ring-violet-500/30'
                   }`}
                 >
-                  <span className="pl-4 text-zinc-400 group-focus-within:text-violet-400 transition-colors pointer-events-none flex items-center">
+                  <span className="pointer-events-none absolute left-3.5 z-10 flex items-center text-zinc-400 group-focus-within:text-violet-400 transition-colors">
                     <svg
                       width="16"
                       height="16"
@@ -100,7 +103,7 @@ export default function ForgotPasswordForm() {
                     aria-required="true"
                     aria-invalid={hasError ? 'true' : undefined}
                     aria-describedby={hasError ? 'recovery-error-msg' : undefined}
-                    className="w-full h-12 bg-transparent px-3.5 text-[14px] text-[#f4f2f8] placeholder:text-zinc-400 outline-none"
+                    className="w-full h-12 bg-transparent rounded-xl pl-10.5 pr-4 text-[14px] text-[#f4f2f8] placeholder:text-zinc-400 outline-none"
                     placeholder={
                       lang === 'en' ? 'name@example.com' : 'อีเมลของคุณ'
                     }
@@ -130,6 +133,7 @@ export default function ForgotPasswordForm() {
                   </svg>
                   <span>
                     {state?.error ||
+                      queryError ||
                       (lang === 'en'
                         ? 'Unable to process recovery request. Please try again.'
                         : 'ไม่สามารถดำเนินการได้ กรุณาลองใหม่อีกครั้ง')}

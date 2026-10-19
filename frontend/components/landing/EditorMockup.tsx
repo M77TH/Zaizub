@@ -866,7 +866,7 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
             </div>
 
             {/* CENTER COLUMN: Video Player + Transport Controls */}
-            <div className="flex-1 flex flex-col bg-[#0a090f] overflow-hidden select-none relative">
+            <div className="flex-1 min-w-0 flex flex-col bg-[#0a090f] overflow-hidden select-none relative">
               {/* Video Player Canvas Area */}
               <div className="flex-1 flex items-center justify-center p-2 sm:p-3 relative overflow-hidden min-h-[300px] sm:min-h-[325px] lg:min-h-[345px]">
                 {/* Subtle dark canvas background grid */}
@@ -876,16 +876,16 @@ export default function EditorMockup({ lang }: EditorMockupProps) {
                 />
 
                 {/* Aspect-Ratio Adaptive Video Stage Card (Click to toggle play/pause) */}
-                <div className="relative z-20">
+                <div className="relative z-20 w-full flex items-center justify-center">
                   <div
                     onClick={() => setIsPlaying((p) => !p)}
                     title={isPlaying ? (lang === "th" ? "คลิกเพื่อหยุดชั่วคราว" : "Click to pause") : (lang === "th" ? "คลิกเพื่อเล่น" : "Click to play")}
-                    className={`group/stage relative overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.9),inset_0_1px_0_0_rgba(255,255,255,0.2)] flex items-center justify-center border border-white/20 hover:border-white/30 bg-[#141022] cursor-pointer select-none [contain:layout_paint] ${
+                    className={`group/stage relative overflow-hidden shadow-[0_24px_60px_rgba(0,0,0,0.9),inset_0_1px_0_0_rgba(255,255,255,0.2)] flex items-center justify-center border border-white/20 hover:border-white/30 bg-[#141022] cursor-pointer select-none transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] [contain:layout_paint] ${
                       aspectRatio === "9:16"
-                        ? "rounded-[1.8rem] sm:rounded-[2.2rem] h-[310px] w-[174px] sm:h-[345px] sm:w-[194px] lg:h-[370px] lg:w-[208px] xl:h-[395px] xl:w-[222px] 2xl:h-[415px] 2xl:w-[233px]"
+                        ? "rounded-[1.8rem] sm:rounded-[2.2rem] h-[310px] w-[174px] sm:h-[345px] sm:w-[194px] lg:h-[370px] lg:w-[208px] xl:h-[395px] xl:w-[222px] 2xl:h-[415px] 2xl:w-[233px] max-w-[calc(100%-1.5rem)]"
                         : aspectRatio === "16:9"
-                        ? "rounded-[1.5rem] h-[220px] w-[390px] max-w-[92vw] sm:h-[248px] sm:w-[440px] lg:h-[256px] lg:w-[455px] xl:h-[280px] xl:w-[498px] 2xl:h-[288px] xl:w-[512px]"
-                        : "rounded-[1.8rem] h-[270px] w-[270px] sm:h-[320px] sm:w-[320px] lg:h-[350px] lg:w-[350px] xl:h-[390px] xl:w-[390px] 2xl:h-[420px] 2xl:w-[420px]"
+                        ? "rounded-[1.2rem] sm:rounded-[1.4rem] h-[174px] w-[310px] sm:h-[216px] sm:w-[384px] lg:h-[208px] lg:w-[370px] xl:h-[242px] xl:w-[430px] 2xl:h-[270px] 2xl:w-[480px] max-w-[calc(100%-1.5rem)]"
+                        : "rounded-[1.6rem] sm:rounded-[1.8rem] h-[260px] w-[260px] sm:h-[300px] sm:w-[300px] lg:h-[330px] lg:w-[330px] xl:h-[370px] xl:w-[370px] 2xl:h-[400px] 2xl:w-[400px] max-w-[calc(100%-1.5rem)]"
                     }`}
                   >
                     {/* Studio video player backdrop */}

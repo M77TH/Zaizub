@@ -8,8 +8,9 @@ import type { Lang } from '@/components/landing/copy'
 import { useLanguage } from '@/components/providers/LanguageProvider'
 
 interface AuthStudioShellProps {
-  mode: 'login' | 'register' | 'forgot-password'
+  mode: 'login' | 'register' | 'forgot-password' | 'reset-password'
   children: (lang: Lang) => React.ReactNode
+  hideHeader?: boolean
 }
 
 /* ============================================================================
@@ -832,7 +833,11 @@ function ColumnFourSet({ lang }: { lang: Lang }) {
   )
 }
 
-export default function AuthStudioShell({ mode, children }: AuthStudioShellProps) {
+export default function AuthStudioShell({
+  mode,
+  children,
+  hideHeader = false,
+}: AuthStudioShellProps) {
   const { lang, setLang } = useLanguage()
 
   return (
@@ -988,7 +993,7 @@ export default function AuthStudioShell({ mode, children }: AuthStudioShellProps
       {/* ====================================================================
           RIGHT SECTION: Unboxed, Spacious, Minimal Premium Auth Section
          ==================================================================== */}
-      <div className="relative flex flex-col justify-between bg-[#07060a] px-6 py-6 sm:px-12 sm:py-8 lg:px-14 xl:px-20 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+      <div className="relative flex flex-col justify-between bg-[#07060a] px-6 py-5 sm:px-12 sm:py-6 lg:px-14 xl:px-20 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         {/* Subtle Ambient Glow & Interactive Dots on Right Panel */}
         <div
           className="pointer-events-none absolute inset-0"
@@ -1061,44 +1066,54 @@ export default function AuthStudioShell({ mode, children }: AuthStudioShellProps
         </div>
 
         {/* Centered Unboxed Login Section (Bigger & More Spacious) */}
-        <div className="relative z-10 my-auto w-full max-w-[420px] mx-auto py-6">
+        <div className="relative z-10 my-auto w-full max-w-[420px] mx-auto py-3 sm:py-5">
           {/* Brand Emblem & Header */}
-          <div className="flex flex-col items-center text-center mb-8">
-            <Link
-              href="/"
-              className="group relative flex h-13 w-13 items-center justify-center rounded-2xl bg-[#141122] border border-white/[0.1] shadow-[0_12px_28px_rgba(0,0,0,0.65),0_0_24px_rgba(139,92,246,0.2),inset_0_1px_0_rgba(255,255,255,0.12)] mb-5 transition-transform duration-200 hover:scale-105"
-              aria-label="Zaizub Home"
-            >
-              <ZaiZubLogo size={28} />
-            </Link>
+          {!hideHeader && (
+            <div className="flex flex-col items-center text-center mb-6 sm:mb-7">
+              <Link
+                href="/"
+                className="group relative flex h-13 w-13 items-center justify-center rounded-2xl bg-[#141122] border border-white/[0.1] shadow-[0_12px_28px_rgba(0,0,0,0.65),0_0_24px_rgba(139,92,246,0.2),inset_0_1px_0_rgba(255,255,255,0.12)] mb-4 transition-transform duration-200 hover:scale-105"
+                aria-label="Zaizub Home"
+              >
+                <ZaiZubLogo size={28} />
+              </Link>
 
-            <h1 className="font-display text-[26px] sm:text-[28px] font-semibold tracking-[-0.025em] text-[#f4f2f8]">
-              {mode === 'login'
-                ? lang === 'en'
-                  ? 'Welcome back'
-                  : 'ยินดีต้อนรับกลับมา'
-                : mode === 'register'
+              <h1 className="font-display text-[26px] sm:text-[28px] font-semibold tracking-[-0.025em] text-[#f4f2f8]">
+                {mode === 'login'
                   ? lang === 'en'
-                    ? 'Create your account'
-                    : 'สร้างบัญชีผู้ใช้ใหม่'
-                  : lang === 'en'
-                    ? 'Reset password'
-                    : 'รีเซ็ตรหัสผ่าน'}
-            </h1>
-            <p className="text-[14px] text-[#8c879e] mt-1.5">
-              {mode === 'login'
-                ? lang === 'en'
-                  ? 'Sign in to continue to your Zaizub workspace.'
-                  : 'เข้าสู่ระบบเพื่อจัดการโปรเจกต์ซับไตเติลของคุณ'
-                : mode === 'register'
+                    ? 'Welcome back'
+                    : 'ยินดีต้อนรับกลับมา'
+                  : mode === 'register'
+                    ? lang === 'en'
+                      ? 'Create your account'
+                      : 'สร้างบัญชีผู้ใช้ใหม่'
+                    : mode === 'forgot-password'
+                      ? lang === 'en'
+                        ? 'Reset password'
+                        : 'รีเซ็ตรหัสผ่าน'
+                      : lang === 'en'
+                        ? 'Set new password'
+                        : 'ตั้งรหัสผ่านใหม่'}
+              </h1>
+              <p className="text-[14px] text-[#8c879e] mt-1.5">
+                {mode === 'login'
                   ? lang === 'en'
-                    ? 'Start generating AI subtitles in seconds.'
-                    : 'เริ่มต้นสร้างซับไตเติล AI สำหรับวิดีโอของคุณ'
-                  : lang === 'en'
-                    ? 'Enter your email to receive recovery instructions.'
-                    : 'กรอกอีเมลของคุณเพื่อรับลิงก์สำหรับตั้งรหัสผ่านใหม่'}
-            </p>
-          </div>
+                    ? 'Sign in to continue to your Zaizub workspace.'
+                    : 'เข้าสู่ระบบเพื่อจัดการโปรเจกต์ซับไตเติลของคุณ'
+                  : mode === 'register'
+                    ? lang === 'en'
+                      ? 'Start generating AI subtitles in seconds.'
+                      : 'เริ่มต้นสร้างซับไตเติล AI สำหรับวิดีโอของคุณ'
+                    : mode === 'forgot-password'
+                      ? lang === 'en'
+                        ? 'Enter your email to receive recovery instructions.'
+                        : 'กรอกอีเมลของคุณเพื่อรับลิงก์สำหรับตั้งรหัสผ่านใหม่'
+                      : lang === 'en'
+                        ? 'Enter your new password below to secure your account.'
+                        : 'กำหนดรหัสผ่านใหม่เพื่อความปลอดภัยของบัญชีคุณ'}
+              </p>
+            </div>
+          )}
 
           {/* Form Content */}
           {children(lang)}

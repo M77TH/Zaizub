@@ -9,7 +9,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 from fastapi import APIRouter, UploadFile, File, Form, Request, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse
-from app.utils.ass_generator import generate_ass_content, compute_canvas_dimensions
+from app.utils.ass_generator import generate_ass_content, compute_canvas_dimensions, FONTS_DIR
 from app.core.config import settings
 from app.core.supabase_client import upload_to_supabase_storage, delete_from_supabase_storage
 import yt_dlp
@@ -360,12 +360,14 @@ async def render_video(
         # 2. Run FFmpeg with libass filter asynchronously in thread pool so it does NOT freeze server
         # Escape colons (C\:) so FFmpeg filtergraph parser does not interpret drive letter as option separator
         safe_ass_path = ass_file_path.replace("\\", "/").replace(":", "\\:")
+        safe_fonts_dir = FONTS_DIR.replace("\\", "/").replace(":", "\\:")
+        ass_filter = f"ass='{safe_ass_path}':fontsdir='{safe_fonts_dir}'"  # fontsdir: editor fonts aren't installed on the server
 
         # If canvas differs from video aspect ratio/size, letterbox/pillarbox to canvas before burning ASS
         if canvas_w != real_width or canvas_h != real_height:
-            filter_str = f"scale={canvas_w}:{canvas_h}:force_original_aspect_ratio=decrease,pad={canvas_w}:{canvas_h}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,ass='{safe_ass_path}'"
+            filter_str = f"scale={canvas_w}:{canvas_h}:force_original_aspect_ratio=decrease,pad={canvas_w}:{canvas_h}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,{ass_filter}"
         else:
-            filter_str = f"ass='{safe_ass_path}'"
+            filter_str = ass_filter
 
         burn_cmd = [
             'ffmpeg', '-y',

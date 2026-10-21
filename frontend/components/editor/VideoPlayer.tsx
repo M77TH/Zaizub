@@ -296,6 +296,32 @@ function VideoPlayer({
     window.addEventListener('pointercancel', onPointerUp);
   }, [activeEffectiveStyle, setStyles]);
 
+  // Size of the video stage itself (aspect-fitted inside the wrapper). Text scale must follow THIS, not the
+  // wrapper: the export scales text by video height, so using the wrapper made landscape previews too big.
+  const stageDims = useMemo(() => {
+    const padX = 32;
+    const padY = 32;
+    const availW = Math.max(200, parentDimensions.width - padX);
+    const availH = Math.max(200, parentDimensions.height - padY);
+
+    let targetRatio = 16 / 9;
+    if (aspectRatio === '9:16') {
+      targetRatio = 9 / 16;
+    } else if (aspectRatio === '1:1') {
+      targetRatio = 1;
+    }
+
+    let computedW = availW;
+    let computedH = computedW / targetRatio;
+
+    if (computedH > availH) {
+      computedH = availH;
+      computedW = computedH * targetRatio;
+    }
+
+    return { width: Math.round(computedW), height: Math.round(computedH) };
+  }, [aspectRatio, parentDimensions]);
+
   const activeOverlayStyle = useMemo(() => {
     let bgRgba = 'transparent';
     if (activeEffectiveStyle.bg_opacity > 0) {
@@ -308,7 +334,7 @@ function VideoPlayer({
 
     // Scale font size relative to the actual rendered container height so the
     // preview is pixel-accurate to the exported video (backend scales by the same ratio).
-    const containerH = parentDimensions.height > 0 ? parentDimensions.height : 550;
+    const containerH = stageDims.height > 0 ? stageDims.height : 550;
     const referenceVideoH = aspectRatio === '9:16' ? 1920 : aspectRatio === '1:1' ? 1080 : 1080;
     const computedFontSize = Math.round(Math.max(8, (activeEffectiveStyle.font_size || 52) * (containerH / referenceVideoH)));
 
@@ -341,7 +367,7 @@ function VideoPlayer({
       display: 'inline-block' as const,
       width: '100%',
     };
-  }, [activeEffectiveStyle, aspectRatio, parentDimensions]);
+  }, [activeEffectiveStyle, aspectRatio, stageDims]);
 
 
   const activeAnimationClass = useMemo(() => {
@@ -372,35 +398,11 @@ function VideoPlayer({
     return () => ro.disconnect();
   }, []);
 
-  // Compute exact animated target dimensions in pixel values:
-  // Browsers cannot smoothly animate between 'auto' and '100%'.
-  // Providing explicit pixel width & height enables 60fps buttery-smooth interpolation in all directions!
-  const containerDimensions = useMemo(() => {
-    const padX = 32;
-    const padY = 32;
-    const availW = Math.max(200, parentDimensions.width - padX);
-    const availH = Math.max(200, parentDimensions.height - padY);
-
-    let targetRatio = 16 / 9;
-    if (aspectRatio === '9:16') {
-      targetRatio = 9 / 16;
-    } else if (aspectRatio === '1:1') {
-      targetRatio = 1;
-    }
-
-    let computedW = availW;
-    let computedH = computedW / targetRatio;
-
-    if (computedH > availH) {
-      computedH = availH;
-      computedW = computedH * targetRatio;
-    }
-
-    return {
-      width: `${Math.round(computedW)}px`,
-      height: `${Math.round(computedH)}px`,
-    };
-  }, [aspectRatio, parentDimensions]);
+  // Provide explicit pixel width & height so the stage animates smoothly between aspect ratios.
+  const containerDimensions = useMemo(
+    () => ({ width: `${stageDims.width}px`, height: `${stageDims.height}px` }),
+    [stageDims]
+  );
 
 
   return (

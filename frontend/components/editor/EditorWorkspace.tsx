@@ -1223,7 +1223,10 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
       const downloadUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = downloadUrl;
-      a.download = `rendered_${videoFilename}`;
+      // Name the file after the project (fall back to the video name); strip characters filesystems reject
+      const exportName = projectName.replace(/[\\/:*?"<>|]+/g, '-').trim().replace(/\s+/g, '_')
+        || videoFilename.replace(/\.[^.]+$/, '');
+      a.download = `${exportName}.mp4`;
       a.click();
       URL.revokeObjectURL(downloadUrl);
 

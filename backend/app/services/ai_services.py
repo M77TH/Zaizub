@@ -163,6 +163,7 @@ def transcribe_audio_whisperx(audio_path: str, srt_path: str = None) -> List[Dic
             beam_size=5,
             temperature=0.0,
             condition_on_previous_text=False,
+            initial_prompt=settings.WHISPER_PROMPT or None,
         )
 
         # Group words into subtitle chunks (<= 8 words or 3.5s)

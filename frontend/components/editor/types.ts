@@ -1,5 +1,5 @@
 export type SubtitlePosition = 'bottom' | 'center' | 'custom';
-export type SubtitleAnimation = 'none' | 'fade' | 'pop' | 'typewriter';
+export type SubtitleAnimation = 'none' | 'fade' | 'pop' | 'typewriter' | 'shake' | 'bounce' | 'slide-up';
 
 export interface SubtitleStyle {
   font_family: string;

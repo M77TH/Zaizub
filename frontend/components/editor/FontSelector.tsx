@@ -52,6 +52,18 @@ export default function FontSelector({ value, onChange }: FontSelectorProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const fontScrollRef = useRef<HTMLDivElement>(null);
 
+  // Lazy-load the extended 17-Thai-font catalog only inside the editor
+  useEffect(() => {
+    const id = 'zaizub-editor-thai-fonts';
+    if (document.getElementById(id)) return;
+    const link = document.createElement('link');
+    link.id = id;
+    link.rel = 'stylesheet';
+    link.href =
+      'https://fonts.googleapis.com/css2?family=Anuphan:wght@400;600;700&family=Athiti:wght@400;600;700&family=Bai+Jamjuree:wght@400;600;700&family=Chakra+Petch:wght@400;600;700&family=Charm:wght@400;700&family=Chonburi&family=Itim&family=Krub:wght@400;600;700&family=Mali:wght@400;600;700&family=Mitr:wght@400;600&family=Pattaya&family=Pridi:wght@400;600;700&family=Sarabun:ital,wght@0,400;0,600;0,700;1,400&family=Trirong:wght@400;600;700&display=swap';
+    document.head.appendChild(link);
+  }, []);
+
   // Smooth mouse-wheel scrolling that attaches reliably whenever the dropdown opens
   useEffect(() => {
     if (!isOpen) return;

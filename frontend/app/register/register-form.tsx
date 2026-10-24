@@ -1,157 +1,524 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useState } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { register, type AuthActionState } from '@/app/actions/auth'
-import { createClient } from '@/lib/supabase/client' // 1. นำเข้า Supabase Client
+import { createClient } from '@/lib/supabase/client'
+import AuthStudioShell from '@/components/auth/AuthStudioShell'
 
 const initialState: AuthActionState = null
 
 export default function RegisterForm() {
+  const searchParams = useSearchParams()
+  const next = searchParams.get('next') ?? '/my-video'
   const [state, formAction, pending] = useActionState(register, initialState)
+  const [showPassword, setShowPassword] = useState(false)
+  const [googlePending, setGooglePending] = useState(false)
+  const [facebookPending, setFacebookPending] = useState(false)
 
-  // 2. ฟังก์ชันจัดการล็อกอินด้วย Google
   const handleGoogleLogin = async () => {
+    if (googlePending || facebookPending) return
+    setGooglePending(true)
     const supabase = createClient()
     try {
+      const redirectTo = new URL('/auth/callback', window.location.origin)
+      if (next) {
+        redirectTo.searchParams.set('next', next)
+      }
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: redirectTo.toString(),
+          queryParams: {
+            prompt: 'select_account',
+          },
         },
       })
       if (error) throw error
     } catch (error: unknown) {
+      setGooglePending(false)
       if (process.env.NODE_ENV !== 'production') {
-        console.error('Google login error:', error instanceof Error ? error.message : error)
+        console.error(
+          'Google login error:',
+          error instanceof Error ? error.message : error
+        )
       }
     }
   }
 
+  const handleFacebookLogin = async () => {
+    if (googlePending || facebookPending) return
+    setFacebookPending(true)
+    const supabase = createClient()
+    try {
+      const redirectTo = new URL('/auth/callback', window.location.origin)
+      if (next) {
+        redirectTo.searchParams.set('next', next)
+      }
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'facebook',
+        options: {
+          redirectTo: redirectTo.toString(),
+        },
+      })
+      if (error) throw error
+    } catch (error: unknown) {
+      setFacebookPending(false)
+      if (process.env.NODE_ENV !== 'production') {
+        console.error(
+          'Facebook login error:',
+          error instanceof Error ? error.message : error
+        )
+      }
+    }
+  }
+
+  const hasError = Boolean(state?.error)
+  const isSuccess = Boolean(state?.success)
+  const successMessage =
+    state && 'success' in state && state.success ? state.message : undefined
+
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4 selection:bg-purple-500/30">
-      <div className="w-full max-w-md bg-white/5 border border-white/10 backdrop-blur-md rounded-2xl p-8 relative z-10 shadow-2xl">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">
-            สร้างบัญชีใหม่
-          </h1>
-          <p className="text-gray-400">เริ่มต้นใช้งาน ZaiZub ได้ฟรี</p>
-        </div>
+    <AuthStudioShell mode="register" hideHeader={isSuccess}>
+      {(lang) => (
+        <div>
+          {isSuccess ? (
+            <div className="space-y-5 sm:space-y-6 text-center py-2">
+              <div className="mx-auto flex h-13 w-13 sm:h-14 sm:w-14 items-center justify-center rounded-2xl bg-[#141122] border border-violet-500/30 text-violet-400 shadow-[0_0_28px_rgba(139,92,246,0.25)]">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <rect width="20" height="16" x="2" y="4" rx="3" />
+                  <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                </svg>
+              </div>
 
-        {/* --- ส่วนที่เพิ่มใหม่ 1: ปุ่ม Google Auth --- */}
-        <button
-          onClick={handleGoogleLogin}
-          type="button"
-          className="w-full flex items-center justify-center gap-3 bg-white text-gray-900 font-semibold py-3 px-4 rounded-xl hover:bg-gray-100 transition-colors mb-6 shadow-sm"
-        >
-          <svg className="w-5 h-5" viewBox="0 0 24 24">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-          </svg>
-          สมัครด้วย Google
-        </button>
+              <div className="space-y-2">
+                <h2 className="font-display text-[21px] sm:text-[22px] font-semibold text-[#f4f2f8] tracking-tight">
+                  {lang === 'en'
+                    ? 'Check your email'
+                    : 'ตรวจสอบกล่องจดหมายของคุณ'}
+                </h2>
+                <p className="text-[13.5px] sm:text-[14px] leading-relaxed text-[#8c879e] max-w-sm mx-auto">
+                  {successMessage ||
+                    (lang === 'en'
+                      ? 'Check your email to confirm your account before signing in.'
+                      : 'กรุณาตรวจสอบอีเมลของคุณเพื่อยืนยันบัญชีก่อนเข้าสู่ระบบ')}
+                </p>
+              </div>
 
-        {/* --- ส่วนที่เพิ่มใหม่ 2: เส้นคั่น --- */}
-        <div className="relative flex items-center py-2 mb-6">
-          <div className="flex-grow border-t border-gray-700"></div>
-          <span className="flex-shrink-0 mx-4 text-gray-500 text-sm">หรือใช้อีเมล</span>
-          <div className="flex-grow border-t border-gray-700"></div>
-        </div>
+              <div className="pt-2">
+                <Link
+                  href={
+                    next && next !== '/my-video'
+                      ? `/login?next=${encodeURIComponent(next)}`
+                      : '/login'
+                  }
+                  className="inline-flex w-full h-11 sm:h-12 items-center justify-center rounded-xl bg-gradient-to-b from-[#8b5cf6] to-[#6d28d9] hover:from-[#9366f9] hover:to-[#7c3aed] text-[14px] font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.4),0_0_24px_rgba(139,92,246,0.22),inset_0_1px_0_rgba(255,255,255,0.22)] transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+                >
+                  {lang === 'en'
+                    ? 'Continue to sign in'
+                    : 'ไปที่หน้าเข้าสู่ระบบ'}
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <form action={formAction} className="space-y-3 sm:space-y-3.5">
+                <input type="hidden" name="next" value={next} />
 
-        {/* ฟอร์มเดิมที่ทำงานผ่าน Server Actions */}
-        <form action={formAction} className="space-y-4">
-          <div>
-            <label
-              htmlFor="displayName"
-              className="block text-sm font-medium text-gray-300 mb-1"
-            >
-              ชื่อที่แสดง (ไม่บังคับ)
-            </label>
-            <input
-              id="displayName"
-              name="displayName"
-              type="text"
-              autoComplete="nickname"
-              maxLength={80}
-              className="w-full bg-[#0a0a0a] border border-gray-700 text-white rounded-xl px-4 py-3 outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
-              placeholder="ชื่อของคุณ"
-            />
-          </div>
+                {/* Email Input */}
+                <div className="space-y-1.5 text-left">
+                  <label
+                    htmlFor="email"
+                    className="block text-xs font-medium text-zinc-300"
+                  >
+                    {lang === 'en' ? 'Email' : 'อีเมล'}
+                  </label>
+                  <div
+                    className={`group relative flex items-center rounded-xl overflow-hidden bg-white/[0.04] hover:bg-white/[0.055] focus-within:bg-white/[0.06] border transition-all ${
+                      hasError
+                        ? 'border-red-500/60 focus-within:border-red-500 focus-within:ring-2 focus-within:ring-red-500/25'
+                        : 'border-white/[0.1] hover:border-white/[0.18] focus-within:border-violet-500 focus-within:ring-2 focus-within:ring-violet-500/30'
+                    }`}
+                  >
+                    <span className="pointer-events-none absolute left-3.5 z-10 flex items-center text-zinc-400 group-focus-within:text-violet-400 transition-colors">
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.75"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <rect width="20" height="16" x="2" y="4" rx="3" />
+                        <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                      </svg>
+                    </span>
+                    <input
+                      id="email"
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      required
+                      aria-required="true"
+                      aria-invalid={hasError ? 'true' : undefined}
+                      aria-describedby={
+                        hasError ? 'register-error-msg' : undefined
+                      }
+                      className="w-full h-11 sm:h-12 bg-transparent rounded-xl pl-10 sm:pl-10.5 pr-4 text-[14px] text-[#f4f2f8] placeholder:text-zinc-400 outline-none"
+                      placeholder={
+                        lang === 'en' ? 'name@example.com' : 'อีเมลของคุณ'
+                      }
+                    />
+                  </div>
+                </div>
 
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-gray-300 mb-1"
-            >
-              อีเมล
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              className="w-full bg-[#0a0a0a] border border-gray-700 text-white rounded-xl px-4 py-3 outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
-              placeholder="you@example.com"
-            />
-          </div>
+                {/* Password Input */}
+                <div className="space-y-1.5 text-left">
+                  <label
+                    htmlFor="password"
+                    className="block text-xs font-medium text-zinc-300"
+                  >
+                    {lang === 'en' ? 'Password' : 'รหัสผ่าน'}
+                  </label>
+                  <div
+                    className={`group relative flex items-center rounded-xl overflow-hidden bg-white/[0.04] hover:bg-white/[0.055] focus-within:bg-white/[0.06] border transition-all ${
+                      hasError
+                        ? 'border-red-500/60 focus-within:border-red-500 focus-within:ring-2 focus-within:ring-red-500/25'
+                        : 'border-white/[0.1] hover:border-white/[0.18] focus-within:border-violet-500 focus-within:ring-2 focus-within:ring-violet-500/30'
+                    }`}
+                  >
+                    <span className="pointer-events-none absolute left-3.5 z-10 flex items-center text-zinc-400 group-focus-within:text-violet-400 transition-colors">
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.75"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <rect
+                          width="18"
+                          height="11"
+                          x="3"
+                          y="11"
+                          rx="2"
+                          ry="2"
+                        />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                      </svg>
+                    </span>
+                    <input
+                      id="password"
+                      name="password"
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete="new-password"
+                      required
+                      minLength={8}
+                      aria-required="true"
+                      aria-invalid={hasError ? 'true' : undefined}
+                      aria-describedby={
+                        hasError ? 'register-error-msg' : undefined
+                      }
+                      className="w-full h-11 sm:h-12 bg-transparent rounded-xl pl-10 sm:pl-10.5 pr-11 text-[14px] text-[#f4f2f8] placeholder:text-zinc-400 outline-none"
+                      placeholder={
+                        lang === 'en'
+                          ? 'At least 8 characters'
+                          : 'อย่างน้อย 8 ตัวอักษร'
+                      }
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute inset-y-0 right-0 z-10 flex items-center pr-3.5 text-zinc-400 hover:text-white transition-colors cursor-pointer focus-visible:outline-none focus-visible:text-violet-400"
+                      aria-label={
+                        showPassword
+                          ? lang === 'en'
+                            ? 'Hide password'
+                            : 'ซ่อนรหัสผ่าน'
+                          : lang === 'en'
+                            ? 'Show password'
+                            : 'แสดงรหัสผ่าน'
+                      }
+                    >
+                      {showPassword ? (
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.75"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                          <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                          <line x1="1" y1="1" x2="23" y2="23" />
+                        </svg>
+                      ) : (
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.75"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                </div>
 
-          <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-gray-300 mb-1"
-            >
-              รหัสผ่าน
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="new-password"
-              required
-              minLength={8}
-              className="w-full bg-[#0a0a0a] border border-gray-700 text-white rounded-xl px-4 py-3 outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
-              placeholder="อย่างน้อย 8 ตัวอักษร"
-            />
-          </div>
+                {state?.error && (
+                  <div
+                    id="register-error-msg"
+                    role="alert"
+                    className="text-red-300 text-[12.5px] sm:text-[13px] bg-red-500/10 px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl border border-red-500/25 flex items-center gap-2"
+                  >
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      className="flex-shrink-0 text-red-400"
+                      aria-hidden="true"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <span>{state.error}</span>
+                  </div>
+                )}
 
-          {state?.error && (
-            <div className="text-red-400 text-sm bg-red-400/10 p-3 rounded-lg border border-red-400/20">
-              {state.error}
+                {/* Primary Create Account Button */}
+                <div className="pt-1">
+                  <button
+                    type="submit"
+                    disabled={pending || googlePending || facebookPending}
+                    className={`relative w-full h-11 sm:h-12 px-4 rounded-xl text-[14px] font-semibold text-white transition-all border border-purple-300/25 shadow-[0_1px_2px_rgba(0,0,0,0.4),0_0_24px_rgba(139,92,246,0.22),inset_0_1px_0_rgba(255,255,255,0.22)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#07060a] ${
+                      pending
+                        ? 'bg-[#6d28d9]/50 cursor-not-allowed'
+                        : 'bg-gradient-to-b from-[#8b5cf6] to-[#6d28d9] hover:from-[#9366f9] hover:to-[#7c3aed] active:scale-[0.99] cursor-pointer'
+                    }`}
+                  >
+                    {pending ? (
+                      <span className="inline-flex items-center gap-2">
+                        <svg
+                          className="animate-spin h-4 w-4 text-white"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8v8H4z"
+                          />
+                        </svg>
+                        <span>
+                          {lang === 'en'
+                            ? 'Creating account...'
+                            : 'กำลังสร้างบัญชี...'}
+                        </span>
+                      </span>
+                    ) : lang === 'en' ? (
+                      'Create account'
+                    ) : (
+                      'สมัครสมาชิก'
+                    )}
+                  </button>
+                </div>
+              </form>
+
+              {/* Hairline Divider */}
+              <div className="flex items-center gap-3.5 my-4 sm:my-5">
+                <div className="h-px flex-1 bg-white/[0.08]" />
+                <span className="text-xs text-zinc-400 uppercase tracking-wider font-mono">
+                  {lang === 'en' ? 'or' : 'หรือ'}
+                </span>
+                <div className="h-px flex-1 bg-white/[0.08]" />
+              </div>
+
+              {/* OAuth Buttons (Google & Facebook) */}
+              <div className="grid grid-cols-2 gap-3">
+                {/* Google OAuth Button */}
+                <button
+                  onClick={handleGoogleLogin}
+                  type="button"
+                  disabled={pending || googlePending || facebookPending}
+                  aria-label={
+                    lang === 'en' ? 'Continue with Google' : 'ดำเนินการต่อด้วย Google'
+                  }
+                  className={`h-11 sm:h-12 flex items-center justify-center gap-2.5 rounded-xl bg-white/[0.045] hover:bg-white/[0.08] border border-white/[0.1] hover:border-white/[0.18] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] px-3 text-[13.5px] sm:text-[14px] font-medium text-[#f4f2f8] transition-all active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#07060a] ${
+                    googlePending || facebookPending
+                      ? 'opacity-70 cursor-wait'
+                      : 'cursor-pointer'
+                  }`}
+                >
+                  {googlePending ? (
+                    <svg
+                      className="animate-spin h-4 w-4 text-white"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v8H4z"
+                      />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="w-4.5 h-4.5 shrink-0"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <path
+                        fill="#4285F4"
+                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                      />
+                      <path
+                        fill="#34A853"
+                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                      />
+                      <path
+                        fill="#FBBC05"
+                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                      />
+                      <path
+                        fill="#EA4335"
+                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                      />
+                    </svg>
+                  )}
+                  <span>
+                    {googlePending
+                      ? lang === 'en'
+                        ? 'Connecting...'
+                        : 'กำลังเชื่อมต่อ...'
+                      : 'Google'}
+                  </span>
+                </button>
+
+                {/* Facebook OAuth Button */}
+                <button
+                  onClick={handleFacebookLogin}
+                  type="button"
+                  disabled={pending || googlePending || facebookPending}
+                  aria-label={
+                    lang === 'en' ? 'Continue with Facebook' : 'ดำเนินการต่อด้วย Facebook'
+                  }
+                  className={`h-11 sm:h-12 flex items-center justify-center gap-2.5 rounded-xl bg-white/[0.045] hover:bg-white/[0.08] border border-white/[0.1] hover:border-white/[0.18] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] px-3 text-[13.5px] sm:text-[14px] font-medium text-[#f4f2f8] transition-all active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#07060a] ${
+                    googlePending || facebookPending
+                      ? 'opacity-70 cursor-wait'
+                      : 'cursor-pointer'
+                  }`}
+                >
+                  {facebookPending ? (
+                    <svg
+                      className="animate-spin h-4 w-4 text-white"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v8H4z"
+                      />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="w-4.5 h-4.5 shrink-0"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <circle cx="12" cy="12" r="12" fill="#1877F2" />
+                      <path
+                        fill="#FFFFFF"
+                        d="M16.671 15.463l.532-3.47h-3.328V9.743c0-.949.465-1.874 1.956-1.874h1.513V4.916s-1.374-.235-2.686-.235c-2.741 0-4.533 1.662-4.533 4.669v2.258H7.078v3.47h3.047v8.385a12.09 12.09 0 003.75 0v-8.385h2.796z"
+                      />
+                    </svg>
+                  )}
+                  <span>
+                    {facebookPending
+                      ? lang === 'en'
+                        ? 'Connecting...'
+                        : 'กำลังเชื่อมต่อ...'
+                      : 'Facebook'}
+                  </span>
+                </button>
+              </div>
+
+              {/* Single Clean Account Switch Prompt */}
+              <p className="mt-4 sm:mt-5 text-center text-[13px] text-zinc-400">
+                {lang === 'en'
+                  ? 'Already have an account?'
+                  : 'มีบัญชีอยู่แล้วใช่ไหม?'}{' '}
+                <Link
+                  href={
+                    next && next !== '/my-video'
+                      ? `/login?next=${encodeURIComponent(next)}`
+                      : '/login'
+                  }
+                  className="text-[#f4f2f8] hover:text-violet-400 font-medium transition-colors focus-visible:outline-none focus-visible:underline"
+                >
+                  {lang === 'en' ? 'Sign in' : 'เข้าสู่ระบบ'}
+                </Link>
+              </p>
             </div>
           )}
-
-          {state?.success && state.message && (
-            <div className="text-green-400 text-sm bg-green-400/10 p-3 rounded-lg border border-green-400/20">
-              {state.message}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={pending}
-            className={`w-full py-3 rounded-xl text-white font-semibold transition-all shadow-[0_0_15px_rgba(147,51,234,0.3)] ${
-              pending
-                ? 'bg-purple-600/50 cursor-not-allowed'
-                : 'bg-purple-600 hover:bg-purple-500 hover:shadow-[0_0_25px_rgba(147,51,234,0.5)]'
-            }`}
-          >
-            {pending ? 'กำลังสร้างบัญชี...' : 'สมัครสมาชิก'}
-          </button>
-        </form>
-
-        <p className="mt-8 text-center text-sm text-gray-400">
-          มีบัญชีอยู่แล้วใช่ไหม?{' '}
-          <Link
-            href="/login"
-            className="text-purple-400 hover:text-purple-300 font-medium transition-colors"
-          >
-            เข้าสู่ระบบเลย
-          </Link>
-        </p>
-      </div>
-    </div>
+        </div>
+      )}
+    </AuthStudioShell>
   )
 }

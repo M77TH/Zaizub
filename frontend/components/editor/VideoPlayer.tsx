@@ -373,6 +373,9 @@ function VideoPlayer({
   const activeAnimationClass = useMemo(() => {
     if (activeEffectiveStyle.animation === 'fade') return 'anim-fade';
     if (activeEffectiveStyle.animation === 'pop') return 'anim-pop';
+    if (activeEffectiveStyle.animation === 'slide-up') return 'cap-enter-rise';
+    if (activeEffectiveStyle.animation === 'bounce') return 'cap-enter-bounce';
+    if (activeEffectiveStyle.animation === 'shake') return 'cap-phrase-shake';
     return '';
   }, [activeEffectiveStyle.animation]);
 

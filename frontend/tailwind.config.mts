@@ -64,13 +64,15 @@ const config: Config = {
         },
       },
       fontFamily: {
-        display: ["var(--font-display)", "sans-serif"],
-        body: ["var(--font-body)", "sans-serif"],
-        mono: ["var(--font-mono)", "monospace"],
+        display: ["Geist", "var(--font-display)", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        geist: ["Geist", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        space: ["'Space Grotesk'", "sans-serif"],
+        body: ["var(--font-body)", "Geist", "Inter", "-apple-system", "sans-serif"],
+        mono: ["'Geist Mono'", "var(--font-mono)", "JetBrains Mono", "monospace"],
       },
       backgroundImage: {
         "hero-glow":
-          "radial-gradient(60% 50% at 12% 8%, rgba(109,40,217,0.28) 0%, rgba(109,40,217,0) 60%), radial-gradient(40% 35% at 85% 25%, rgba(139,92,246,0.10) 0%, rgba(139,92,246,0) 55%)",
+          "radial-gradient(60% 50% at 75% 28%, rgba(139,92,246,0.12) 0%, rgba(124,58,237,0.06) 40%, transparent 65%), radial-gradient(45% 40% at 15% 15%, rgba(124,58,237,0.08) 0%, transparent 60%)",
       },
       boxShadow: {
         glow: "0 0 0 1px rgba(139,92,246,0.25), 0 8px 40px -8px rgba(139,92,246,0.45)",
@@ -168,24 +170,24 @@ const config: Config = {
         },
         phoneIdleFront: {
           "0%, 100%": {
-            transform: "translate3d(0px, 0px, 0px) rotate(-8deg)",
+            transform: "translate3d(0px, 0px, 0px) rotate(-2deg)",
           },
           "33%": {
-            transform: "translate3d(5px, -18px, 0px) rotate(-6.8deg)",
+            transform: "translate3d(2px, -14px, 0px) rotate(-1deg)",
           },
           "66%": {
-            transform: "translate3d(-5px, -10px, 0px) rotate(-9.2deg)",
+            transform: "translate3d(-2px, -7px, 0px) rotate(-2.5deg)",
           },
         },
         phoneIdleBack: {
           "0%, 100%": {
-            transform: "translate3d(0px, 0px, 0px) rotate(6deg)",
+            transform: "translate3d(0px, 0px, 0px) rotate(9.5deg)",
           },
           "33%": {
-            transform: "translate3d(-6px, 16px, 0px) rotate(7.2deg)",
+            transform: "translate3d(-2px, -4px, 0px) rotate(10.5deg)",
           },
           "66%": {
-            transform: "translate3d(4px, 8px, 0px) rotate(4.8deg)",
+            transform: "translate3d(2px, 3px, 0px) rotate(8.5deg)",
           },
         },
         blobDrift: {

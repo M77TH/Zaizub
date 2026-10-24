@@ -2,18 +2,12 @@
 
 import { useEffect, useRef } from "react";
 
-type Dot = {
-  x: number;
-  y: number;
-  offsetX: number;
-  offsetY: number;
-  velocityX: number;
-  velocityY: number;
-};
-
 const DOT_COLOR = "255, 255, 255";
+const BASE_FILL = `rgba(${DOT_COLOR}, 0.04)`;
 const DOT_SPACING = 28;
 const MOUSE_RADIUS = 72;
+const MOUSE_RADIUS_SQ = MOUSE_RADIUS * MOUSE_RADIUS;
+const TWO_PI = Math.PI * 2;
 
 export default function InteractiveDots() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -26,78 +20,178 @@ export default function InteractiveDots() {
     const mouse = {
       x: 0,
       y: 0,
-      pageX: 0,
-      pageY: 0,
+      clientX: 0,
+      clientY: 0,
       active: false,
       hasPosition: false,
     };
-    let dots: Dot[] = [];
+
+    // Flat Float32Array: [x, y, offsetX, offsetY, velocityX, velocityY] per dot (stride 6)
+    let dots = new Float32Array(0);
+    let dotCount = 0;
     let animationFrame = 0;
     let width = 0;
     let height = 0;
+    let canvasLeft = 0;
+    let canvasTop = 0;
     let reducedMotion = false;
     let isVisible = true;
 
-    const updatePointerPosition = () => {
-      if (!mouse.hasPosition) return;
+    let cachedDocTop = 0;
+    let cachedDocLeft = 0;
 
+    const updateCanvasBounds = () => {
       const bounds = canvas.getBoundingClientRect();
-      const canvasPageLeft = bounds.left + window.scrollX;
-      const canvasPageTop = bounds.top + window.scrollY;
-      mouse.x = mouse.pageX - canvasPageLeft;
-      mouse.y = mouse.pageY - canvasPageTop;
+      cachedDocLeft = bounds.left + window.scrollX;
+      cachedDocTop = bounds.top + window.scrollY;
+      canvasLeft = bounds.left;
+      canvasTop = bounds.top;
+    };
+
+    const syncMouseLocal = () => {
+      if (!mouse.hasPosition) return;
+      mouse.x = mouse.clientX - canvasLeft;
+      mouse.y = mouse.clientY - canvasTop;
       mouse.active =
-        mouse.x >= 0 && mouse.x <= bounds.width && mouse.y >= 0 && mouse.y <= bounds.height;
+        mouse.x >= -MOUSE_RADIUS &&
+        mouse.x <= width + MOUSE_RADIUS &&
+        mouse.y >= -MOUSE_RADIUS &&
+        mouse.y <= height + MOUSE_RADIUS;
     };
 
     const createDots = () => {
-      dots = [];
+      const cols = Math.max(0, Math.ceil((width - DOT_SPACING / 2) / DOT_SPACING));
+      const rows = Math.max(0, Math.ceil((height - DOT_SPACING / 2) / DOT_SPACING));
+      dotCount = cols * rows;
+      dots = new Float32Array(dotCount * 6);
 
+      let idx = 0;
       for (let y = DOT_SPACING / 2; y < height; y += DOT_SPACING) {
         for (let x = DOT_SPACING / 2; x < width; x += DOT_SPACING) {
-          dots.push({ x, y, offsetX: 0, offsetY: 0, velocityX: 0, velocityY: 0 });
+          dots[idx] = x;
+          dots[idx + 1] = y;
+          idx += 6;
         }
       }
     };
 
-    const draw = () => {
-      if (!isVisible) return;
+    // Temporary buffer for dots within mouse proximity that need custom opacity
+    const activeIndices: number[] = [];
+    const activeOpacities: number[] = [];
 
-      updatePointerPosition();
+    const draw = () => {
+      animationFrame = 0;
+      if (!isVisible) return;
 
       context.clearRect(0, 0, width, height);
 
-      for (const dot of dots) {
+      activeIndices.length = 0;
+      activeOpacities.length = 0;
+      let anyMoving = false;
+
+      const mx = mouse.x;
+      const my = mouse.y;
+      const mouseActive = mouse.active && !reducedMotion;
+
+      // Batch all base-opacity dots into a single canvas path (1 draw call instead of ~2,200)
+      context.beginPath();
+
+      for (let i = 0; i < dotCount; i++) {
+        const base = i * 6;
+        const x = dots[base];
+        const y = dots[base + 1];
+        let offsetX = dots[base + 2];
+        let offsetY = dots[base + 3];
+        let velocityX = dots[base + 4];
+        let velocityY = dots[base + 5];
+
         let targetX = 0;
         let targetY = 0;
-        const distanceToMouse = mouse.active
-          ? Math.hypot(dot.x - mouse.x, dot.y - mouse.y)
-          : Number.POSITIVE_INFINITY;
+        let proximity = 0;
 
-        if (!reducedMotion && distanceToMouse > 0 && distanceToMouse < MOUSE_RADIUS) {
-          const force = (1 - distanceToMouse / MOUSE_RADIUS) * 9;
-          targetX = ((dot.x - mouse.x) / distanceToMouse) * force;
-          targetY = ((dot.y - mouse.y) / distanceToMouse) * force;
+        if (mouseActive) {
+          const dx = x - mx;
+          const dy = y - my;
+          const distSq = dx * dx + dy * dy;
+          if (distSq > 0 && distSq < MOUSE_RADIUS_SQ) {
+            const distanceToMouse = Math.sqrt(distSq);
+            proximity = 1 - distanceToMouse / MOUSE_RADIUS;
+            const wave = Math.sin(performance.now() * 0.0035 - distanceToMouse * 0.06);
+            const force = proximity * (8.5 + 1.5 * wave);
+            targetX = (dx / distanceToMouse) * force;
+            targetY = (dy / distanceToMouse) * force;
+          }
         }
 
-        dot.velocityX += (targetX - dot.offsetX) * 0.08;
-        dot.velocityY += (targetY - dot.offsetY) * 0.08;
-        dot.velocityX *= 0.82;
-        dot.velocityY *= 0.82;
-        dot.offsetX += dot.velocityX;
-        dot.offsetY += dot.velocityY;
+        if (!reducedMotion && (proximity > 0 || offsetX !== 0 || offsetY !== 0 || velocityX !== 0 || velocityY !== 0)) {
+          velocityX = (velocityX + (targetX - offsetX) * 0.08) * 0.82;
+          velocityY = (velocityY + (targetY - offsetY) * 0.08) * 0.82;
+          offsetX += velocityX;
+          offsetY += velocityY;
 
-        const proximity = Math.max(0, 1 - distanceToMouse / MOUSE_RADIUS);
-        const opacity = 0.04 + proximity * 0.20;
+          if (
+            Math.abs(velocityX) + Math.abs(velocityY) > 0.004 ||
+            Math.abs(offsetX) + Math.abs(offsetY) > 0.02
+          ) {
+            anyMoving = true;
+          } else {
+            offsetX = 0;
+            offsetY = 0;
+            velocityX = 0;
+            velocityY = 0;
+          }
 
+          dots[base + 2] = offsetX;
+          dots[base + 3] = offsetY;
+          dots[base + 4] = velocityX;
+          dots[base + 5] = velocityY;
+        }
+
+        const drawX = x + offsetX;
+        const drawY = y + offsetY;
+
+        if (proximity > 0.005) {
+          activeIndices.push(base);
+          activeOpacities.push(0.04 + proximity * 0.2);
+        } else {
+          context.moveTo(drawX + 0.9, drawY);
+          context.arc(drawX, drawY, 0.9, 0, TWO_PI);
+        }
+      }
+
+      context.fillStyle = BASE_FILL;
+      context.fill();
+
+      // Draw only the ~15-25 proximity-highlighted dots individually
+      for (let k = 0; k < activeIndices.length; k++) {
+        const base = activeIndices[k];
+        const drawX = dots[base] + dots[base + 2];
+        const drawY = dots[base + 1] + dots[base + 3];
         context.beginPath();
-        context.arc(dot.x + dot.offsetX, dot.y + dot.offsetY, 0.9, 0, Math.PI * 2);
-        context.fillStyle = `rgba(${DOT_COLOR}, ${opacity})`;
+        context.arc(drawX, drawY, 0.9, 0, TWO_PI);
+        context.fillStyle = `rgba(${DOT_COLOR}, ${activeOpacities[k].toFixed(3)})`;
         context.fill();
       }
 
-      if (!reducedMotion && isVisible) {
+      // Continuously animate while mouse is active, or sleep once all dots settle back to rest
+      if (!reducedMotion && isVisible && (anyMoving || mouseActive) && !animationFrame) {
         animationFrame = window.requestAnimationFrame(draw);
+      }
+    };
+
+    let isTicking = false;
+    const safeDraw = () => {
+      isTicking = true;
+      try {
+        draw();
+      } finally {
+        isTicking = false;
+      }
+    };
+
+    const wake = () => {
+      if (!animationFrame && isVisible && !reducedMotion && !isTicking) {
+        animationFrame = window.requestAnimationFrame(safeDraw);
       }
     };
 
@@ -112,26 +206,45 @@ export default function InteractiveDots() {
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
       context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+      updateCanvasBounds();
       createDots();
       draw();
     };
 
     const handlePointerMove = (event: PointerEvent) => {
-      mouse.pageX = event.clientX + window.scrollX;
-      mouse.pageY = event.clientY + window.scrollY;
+      if (!isVisible || reducedMotion) return;
+      mouse.clientX = event.clientX;
+      mouse.clientY = event.clientY;
       mouse.hasPosition = true;
-      updatePointerPosition();
+      syncMouseLocal();
+      if (mouse.active) {
+        wake();
+      }
+    };
+
+    const handleScroll = () => {
+      if (!isVisible) return;
+      canvasLeft = cachedDocLeft - window.scrollX;
+      canvasTop = cachedDocTop - window.scrollY;
+      if (mouse.hasPosition) {
+        syncMouseLocal();
+        if (mouse.active) wake();
+      }
     };
 
     const handlePointerLeave = () => {
       mouse.active = false;
       mouse.hasPosition = false;
+      wake();
     };
 
     const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     const handleMotionPreference = () => {
       reducedMotion = motionQuery.matches;
-      window.cancelAnimationFrame(animationFrame);
+      if (animationFrame) {
+        window.cancelAnimationFrame(animationFrame);
+        animationFrame = 0;
+      }
       draw();
     };
 
@@ -139,29 +252,50 @@ export default function InteractiveDots() {
     resize();
 
     // IntersectionObserver to pause loop when scrolled offscreen
-    const intersectionObserver = new IntersectionObserver(([entry]) => {
-      isVisible = entry.isIntersecting;
-      if (isVisible && !reducedMotion) {
-        window.cancelAnimationFrame(animationFrame);
-        animationFrame = window.requestAnimationFrame(draw);
-      }
-    }, { threshold: 0.05 });
+    const intersectionObserver = new IntersectionObserver(
+      ([entry]) => {
+        isVisible = entry.isIntersecting;
+        if (isVisible) {
+          updateCanvasBounds();
+          draw();
+        } else if (animationFrame) {
+          window.cancelAnimationFrame(animationFrame);
+          animationFrame = 0;
+        }
+      },
+      { threshold: 0.05 }
+    );
 
     intersectionObserver.observe(canvas);
 
-    window.addEventListener("resize", resize);
+    const handleVisibility = () => {
+      if (document.hidden) {
+        handlePointerLeave();
+        if (animationFrame) {
+          window.cancelAnimationFrame(animationFrame);
+          animationFrame = 0;
+        }
+      } else if (isVisible) {
+        handlePointerLeave();
+        draw();
+      }
+    };
+
+    window.addEventListener("resize", resize, { passive: true });
     window.addEventListener("pointermove", handlePointerMove, { passive: true });
-    window.addEventListener("scroll", updatePointerPosition, { passive: true });
+    window.addEventListener("scroll", handleScroll, { passive: true });
     window.addEventListener("blur", handlePointerLeave);
+    document.addEventListener("visibilitychange", handleVisibility);
     motionQuery.addEventListener("change", handleMotionPreference);
 
     return () => {
       intersectionObserver.disconnect();
-      window.cancelAnimationFrame(animationFrame);
+      if (animationFrame) window.cancelAnimationFrame(animationFrame);
       window.removeEventListener("resize", resize);
       window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("scroll", updatePointerPosition);
+      window.removeEventListener("scroll", handleScroll);
       window.removeEventListener("blur", handlePointerLeave);
+      document.removeEventListener("visibilitychange", handleVisibility);
       motionQuery.removeEventListener("change", handleMotionPreference);
     };
   }, []);

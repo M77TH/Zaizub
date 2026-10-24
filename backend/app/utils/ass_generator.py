@@ -1,5 +1,20 @@
+import os
+import json
 import re
 from typing import List, Dict, Any
+
+# Bundled fonts (backend/fonts) are handed to libass via `fontsdir`; the editor's fonts don't exist on the server otherwise.
+FONTS_DIR = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "fonts"))
+try:
+    with open(os.path.join(FONTS_DIR, "metrics.json"), encoding="utf-8") as _f:
+        _LINE_HEIGHT = {k.lower(): v for k, v in json.load(_f).items()}
+except OSError:
+    _LINE_HEIGHT = {}
+
+def libass_font_size(family: str, css_px: float) -> float:
+    """libass sizes text by line height (winAscent+winDescent), CSS by em, so a bare number draws 40-80% smaller.
+    Scale by the font's measured factor so exported glyphs match the editor preview. Unknown fonts: unchanged."""
+    return css_px * _LINE_HEIGHT.get((family or "").lower(), 1.0)
 
 def hex_to_ass_color(hex_color: str, opacity: float = 1.0) -> str:
     """
@@ -173,7 +188,7 @@ def generate_ass_content(
         raw_font_size = float(s_map.get("font_size", 52))
 
         # Scale font to video canvas height using the same ratio as the frontend preview
-        f_size = max(8, int(round(raw_font_size * scale_h)))
+        f_size = max(8.0, round(libass_font_size(f_family, raw_font_size * scale_h), 1))
 
         bld = -1 if s_map.get("bold", True) else 0
         ita = -1 if s_map.get("italic", False) else 0

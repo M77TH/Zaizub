@@ -9,7 +9,8 @@ from typing import List, Optional
 from pydantic import BaseModel
 from fastapi import APIRouter, UploadFile, File, Form, Request, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse
-from app.utils.ass_generator import generate_ass_content, compute_canvas_dimensions
+from app.utils.ass_generator import generate_ass_content, compute_canvas_dimensions, FONTS_DIR
+from app.core.config import settings
 from app.core.supabase_client import upload_to_supabase_storage, delete_from_supabase_storage
 import yt_dlp
 from starlette.concurrency import run_in_threadpool
@@ -47,8 +48,10 @@ def cleanup_files(*filepaths, delay: float = 0.0):
             except Exception as e:
                 logger.warning(f"Failed to cleanup {path}: {e}")
 
+ORIGINAL_TTL = 6 * 3600  # in_* originals are kept this long so renders use full quality, not the 720p preview
+
 def cleanup_stale_temp_storage(max_age_seconds: int = 3600):
-    """Prunes temporary files older than max_age_seconds to prevent disk buildup."""
+    """Prunes temporary files older than max_age_seconds (originals: ORIGINAL_TTL) to prevent disk buildup."""
     if not os.path.exists(TEMP_DIR):
         return
     now = time.time()
@@ -59,7 +62,8 @@ def cleanup_stale_temp_storage(max_age_seconds: int = 3600):
                 # Remove intermediate files immediately if they are out_, sub_, or scratch_
                 is_intermediate = fname.startswith(("out_", "sub_", "scratch_"))
                 file_age = now - os.path.getmtime(fpath)
-                if (is_intermediate and file_age > 120) or (file_age > max_age_seconds):
+                limit = ORIGINAL_TTL if fname.startswith("in_") else max_age_seconds
+                if (is_intermediate and file_age > 120) or (file_age > limit):
                     os.remove(fpath)
                     logger.info(f"Auto-pruned stale temp file: {fpath}")
             except Exception:
@@ -73,22 +77,21 @@ class DeleteMediaRequest(BaseModel):
 def create_web_preview(input_path: str, preview_path: str):
     """
     Transcodes or normalizes video to standard H.264 / AAC MP4 with YUV420p and faststart.
-    Optimized for Supabase Free Tier: scales to max 720p at CRF 28 and ~800k bitrate
-    so a 2-minute video is only ~8-12 MB.
+    Capped at 720p on the short side (1280x720 landscape / 720x1280 portrait), CRF 24, 1.5 Mbps ceiling
+    so a 2-minute video stays ~10-20 MB for Supabase.
     """
     cmd = [
         'ffmpeg', '-y',
         '-i', input_path,
-        '-vf', "scale='min(720,iw)':-2",
+        '-vf', "scale='if(gt(iw,ih),min(1280,iw),min(720,iw))':-2",
         '-c:v', 'libx264',
         '-pix_fmt', 'yuv420p',
-        '-preset', 'fast',
-        '-crf', '28',
-        '-b:v', '900k',
-        '-maxrate', '1200k',
-        '-bufsize', '1800k',
+        '-preset', 'medium',
+        '-crf', '24',
+        '-maxrate', '1500k',
+        '-bufsize', '3000k',
         '-c:a', 'aac',
-        '-b:a', '96k',
+        '-b:a', '128k',
         '-movflags', '+faststart',
         preview_path
     ]
@@ -123,6 +126,16 @@ def create_thumbnail(input_path: str, thumbnail_path: str):
             thumbnail_path
         ]
         subprocess.run(cmd_fallback, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+
+def audio_args(path: str) -> list[str]:
+    """Copy AAC audio untouched (no generation loss); anything else becomes high-bitrate AAC for MP4."""
+    try:
+        out = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=codec_name',
+                              '-of', 'csv=p=0', path], capture_output=True, text=True).stdout.strip()
+    except Exception:
+        out = ""
+    return ['-c:a', 'copy'] if out == 'aac' else ['-c:a', 'aac', '-b:a', '256k']
 
 
 def probe_video_dimensions(video_path: str) -> tuple[int, int]:
@@ -191,8 +204,9 @@ async def _transcribe_and_upload(job_id: int, input_video: str, engine: Optional
         subtitles, ((video_url, thumbnail_url), uploaded) = await asyncio.gather(
             transcribe(temp_audio, engine), media())
 
-        # Keep local preview/thumbnail only if the cloud upload failed
-        background_tasks.add_task(cleanup_files, input_video, temp_audio, *([preview_video, thumbnail_file] if uploaded else []))
+        # Keep the original (renders need it) and local preview/thumbnail only if the cloud upload failed
+        background_tasks.add_task(cleanup_files, temp_audio, *([f for f in (preview_video, thumbnail_file) if f != input_video] if uploaded else []))
+        background_tasks.add_task(cleanup_stale_temp_storage)
         logger.info(f'done in {(time.time() * 1000 - job_id) / 1000:.1f}s')
         return {
             "success": True,
@@ -346,21 +360,25 @@ async def render_video(
         # 2. Run FFmpeg with libass filter asynchronously in thread pool so it does NOT freeze server
         # Escape colons (C\:) so FFmpeg filtergraph parser does not interpret drive letter as option separator
         safe_ass_path = ass_file_path.replace("\\", "/").replace(":", "\\:")
+        safe_fonts_dir = FONTS_DIR.replace("\\", "/").replace(":", "\\:")
+        ass_filter = f"ass='{safe_ass_path}':fontsdir='{safe_fonts_dir}'"  # fontsdir: editor fonts aren't installed on the server
 
         # If canvas differs from video aspect ratio/size, letterbox/pillarbox to canvas before burning ASS
         if canvas_w != real_width or canvas_h != real_height:
-            filter_str = f"scale={canvas_w}:{canvas_h}:force_original_aspect_ratio=decrease,pad={canvas_w}:{canvas_h}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,ass='{safe_ass_path}'"
+            filter_str = f"scale={canvas_w}:{canvas_h}:force_original_aspect_ratio=decrease,pad={canvas_w}:{canvas_h}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,{ass_filter}"
         else:
-            filter_str = f"ass='{safe_ass_path}'"
+            filter_str = ass_filter
 
         burn_cmd = [
             'ffmpeg', '-y',
             '-i', input_video_path,
             '-vf', filter_str,
             '-c:v', 'libx264',
-            '-preset', 'veryfast',
-            '-crf', '22',
-            '-c:a', 'copy',
+            '-pix_fmt', 'yuv420p',
+            '-preset', 'medium',
+            '-crf', '18',
+            *audio_args(input_video_path),
+            '-movflags', '+faststart',
             output_video_path
         ]
 
@@ -395,6 +413,35 @@ async def render_video(
 
 
 
+# One YouTube request at a time: bursts of parallel downloads are what get a server IP flagged
+_dl_lock = asyncio.Semaphore(1)
+
+def _download(url: str, out_path: str) -> dict:
+    """Blocking yt-dlp download. Anonymous first; cookies only as a fallback if YouTube blocks/asks to sign in."""
+    base = {
+        'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4',
+        'outtmpl': out_path,
+        'quiet': True,
+        'no_warnings': True,
+        'retries': 3,
+        'extractor_retries': 2,
+        'socket_timeout': 20,
+        # Default clients only see 360p from some IPs (SABR-only rollout); these still serve 1080p.
+        # YouTube changes this often: check `yt-dlp -F <url>` with player_client=<name> if downloads drop to 360p.
+        # Also keep yt-dlp current (`pip install -U yt-dlp`): most "blocked" errors are fixed upstream within days.
+        'extractor_args': {'youtube': {'player_client': ['tv_embedded', 'android_creator', 'ios_downgraded']}},
+    }
+    cookies = os.path.expanduser(settings.YTDLP_COOKIES)
+    attempts = [{}, {'cookiefile': cookies}] if os.path.isfile(cookies) else [{}]
+    for i, extra in enumerate(attempts):
+        try:
+            with yt_dlp.YoutubeDL({**base, **extra}) as ydl:
+                return ydl.extract_info(url, download=True)
+        except yt_dlp.utils.DownloadError as e:
+            if i == len(attempts) - 1:
+                raise
+            logger.warning(f"Anonymous download failed ({str(e)[:120]}), retrying with cookies")
+
 class LinkRequest(BaseModel):
     url: str
     engine: Optional[str] = None
@@ -414,15 +461,9 @@ async def process_link(
     job_id = _new_job_id()
     input_video = os.path.join(TEMP_DIR, f"in_{job_id}.mp4")
     try:
-        ydl_opts = {
-            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4',
-            'outtmpl': input_video,
-            'quiet': True,
-            'no_warnings': True,
-        }
         logger.info('downloading video')
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(request.url, download=True)
+        async with _dl_lock:
+            info = await run_in_threadpool(_download, request.url, input_video)
         result = await _transcribe_and_upload(job_id, input_video, request.engine, background_tasks)
         result["title"] = (info or {}).get('title') or ""
         return result

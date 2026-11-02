@@ -31,10 +31,10 @@ def _new_job_id() -> int:
 # One GPU model: transcribe one clip at a time, others queue here instead of OOM-ing / racing
 _gpu_lock = asyncio.Semaphore(1)
 
-async def transcribe(audio_path: str, engine: Optional[str]):
+async def transcribe(audio_path: str, engine: Optional[str], language: Optional[str] = None):
     from app.services.ai_services import transcribe_audio
     async with _gpu_lock:
-        return await run_in_threadpool(transcribe_audio, audio_path, engine=engine)
+        return await run_in_threadpool(transcribe_audio, audio_path, engine=engine, language=language)
 
 def cleanup_files(*filepaths, delay: float = 0.0):
     """Background task to remove temporary files, with optional delay for streamed responses."""
@@ -163,7 +163,8 @@ def probe_video_dimensions(video_path: str) -> tuple[int, int]:
     return 1080, 1920
 
 
-async def _transcribe_and_upload(job_id: int, input_video: str, engine: Optional[str], background_tasks: BackgroundTasks) -> dict:
+async def _transcribe_and_upload(job_id: int, input_video: str, engine: Optional[str], background_tasks: BackgroundTasks,
+                                 language: Optional[str] = None) -> dict:
     """Shared tail of /extract-audio and /process-link: audio, preview, thumbnail, transcribe, upload."""
     preview_video = os.path.join(TEMP_DIR, f"prev_{job_id}.mp4")
     thumbnail_file = os.path.join(TEMP_DIR, f"thumb_{job_id}.jpg")
@@ -202,7 +203,7 @@ async def _transcribe_and_upload(job_id: int, input_video: str, engine: Optional
 
         logger.info('transcribing + preview in parallel')
         subtitles, ((video_url, thumbnail_url), uploaded) = await asyncio.gather(
-            transcribe(temp_audio, engine), media())
+            transcribe(temp_audio, engine, language), media())
 
         # Keep the original (renders need it) and local preview/thumbnail only if the cloud upload failed
         background_tasks.add_task(cleanup_files, temp_audio, *([f for f in (preview_video, thumbnail_file) if f != input_video] if uploaded else []))
@@ -240,7 +241,7 @@ async def extract_audio(
     try:
         with open(input_video, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-        return await _transcribe_and_upload(job_id, input_video, engine, background_tasks)
+        return await _transcribe_and_upload(job_id, input_video, engine, background_tasks, language)
     except Exception as e:
         cleanup_files(input_video)
         logger.error(f"Extract audio error: {e}")
@@ -445,6 +446,7 @@ def _download(url: str, out_path: str) -> dict:
 class LinkRequest(BaseModel):
     url: str
     engine: Optional[str] = None
+    language: Optional[str] = None  # "th", "en", ... ; omit/"auto" = detect
 
 @router.post("/process-link")
 async def process_link(
@@ -464,7 +466,7 @@ async def process_link(
         logger.info('downloading video')
         async with _dl_lock:
             info = await run_in_threadpool(_download, request.url, input_video)
-        result = await _transcribe_and_upload(job_id, input_video, request.engine, background_tasks)
+        result = await _transcribe_and_upload(job_id, input_video, request.engine, background_tasks, request.language)
         result["title"] = (info or {}).get('title') or ""
         return result
     except Exception as e:

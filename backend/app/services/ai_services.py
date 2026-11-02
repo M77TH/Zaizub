@@ -1,5 +1,7 @@
 import os
+import re
 import logging
+import unicodedata
 from functools import lru_cache
 from itertools import accumulate
 from typing import List, Dict, Any
@@ -18,6 +20,37 @@ def format_timestamp(seconds: float) -> str:
     millisecs = int((seconds - int(seconds)) * 1000)
     return f"{hours:02d}:{minutes:02d}:{secs:02d},{millisecs:03d}"
 
+def _no_stop(word: str) -> str:
+    """Drop sentence-final full stops / ellipses ("world." -> "world", "." -> ""); keeps 3.5, example.com and ? ! ,"""
+    return re.sub(r"[.。…]+$", "", word)
+
+def _latin(ch: str) -> bool:
+    return ch.isascii() and ch.isalnum()
+
+def _wordy(ch: str) -> bool:
+    return ch.isalnum() or unicodedata.category(ch).startswith("M")  # letters, digits, Thai vowel/tone marks
+
+def _join(words: List[str]) -> str:
+    """Join words into subtitle text: no spaces between Thai words, a space wherever a Latin word meets another word
+    ("Hello world", "รูป AI นี้"). Whisper's own spacing is lost when words are stripped, so rebuild it."""
+    out = ""
+    for w in words:
+        if out and (_latin(out[-1]) or _latin(w[0])) and (_wordy(out[-1]) or out[-1] in ".,!?;:)") and _wordy(w[0]):
+            out += " "
+        out += w
+    return out
+
+def _thai_words(raw: List[tuple]) -> List[tuple]:
+    """Whisper emits sub-word pieces [(text_with_leading_space, start, end)]: regroup into real Thai/Latin words,
+    timed from their first/last piece. Spaces stay in the text we tokenize, so "Let's go" keeps its word break."""
+    owner = [k for k, (t, _, _) in enumerate(raw) for _ in t]
+    out, pos = [], 0
+    for tok in word_tokenize("".join(t for t, _, _ in raw), engine="newmm"):
+        if tok.strip() and pos < len(owner):
+            out.append((tok.strip(), raw[owner[pos]][1], raw[owner[min(pos + len(tok), len(owner)) - 1]][2]))
+        pos += len(tok)
+    return out
+
 def write_srt(subtitles: List[Dict[str, Any]], srt_path: str) -> None:
     with open(srt_path, "w", encoding="utf-8") as f:
         for sub in subtitles:
@@ -25,7 +58,8 @@ def write_srt(subtitles: List[Dict[str, Any]], srt_path: str) -> None:
 
 def transcribe_audio_groq(
     audio_path: str,
-    srt_path: str = None
+    srt_path: str = None,
+    language: str = None
 ) -> List[Dict[str, Any]]:
     """
     Fast cloud transcription using Groq API (whisper-large-v3).
@@ -47,7 +81,7 @@ def transcribe_audio_groq(
                 file=(os.path.basename(audio_path), file.read()),
                 model="whisper-large-v3",
                 response_format="verbose_json",
-                language="th",
+                **({"language": language} if language and language != "auto" else {}),
                 temperature=0.0
             )
 
@@ -70,6 +104,7 @@ def transcribe_audio_groq(
             else:
                 words = [w for w in text.split(" ") if w]
 
+            words = [c for w in words if (c := _no_stop(w))]
             if not words:
                 continue
 
@@ -93,7 +128,7 @@ def transcribe_audio_groq(
             for idx, i in enumerate(range(0, len(words), chunk_size)):
                 chunk = words[i:i + chunk_size]
                 chunk_words_data = words_data[i:i + chunk_size]
-                chunk_text = "".join(chunk) if word_tokenize else " ".join(chunk)
+                chunk_text = _join(chunk)
                 c_start = chunk_words_data[0]["start"] if chunk_words_data else (seg_start + (idx * chunk_time))
                 c_end = chunk_words_data[-1]["end"] if chunk_words_data else min(seg_end, c_start + chunk_time)
 
@@ -130,8 +165,8 @@ def _preload_cuda_libs():
         logger.warning(f"CUDA preload skipped: {e}")
 
 
-@lru_cache(maxsize=1)
-def _load_model():
+@lru_cache(maxsize=2)
+def _load_model(name: str):
     _preload_cuda_libs()
     # Load once per process; reloading per request was most of the latency.
     # ctranslate2 ships its own CUDA kernels, so this works even when torch lacks them (RTX 50xx).
@@ -141,20 +176,35 @@ def _load_model():
     supported = ctranslate2.get_supported_compute_types("cuda" if gpu else "cpu")
     compute = "float16" if "float16" in supported else "int8_float32"
     model = WhisperModel(
-        settings.WHISPER_MODEL if gpu else "small",
+        name if gpu else "small",
         device="cuda" if gpu else "cpu",
         compute_type=compute,
     )
     return BatchedInferencePipeline(model)
 
 
-def transcribe_audio_whisperx(audio_path: str, srt_path: str = None) -> List[Dict[str, Any]]:
-    """Thai-tuned faster-whisper, batched, with built-in word timestamps (no wav2vec2 align pass)."""
+def detect_language(audio_path: str) -> str:
+    """Language code of the audio. Uses the general model: the Thai fine-tune calls English 'th' about half the time."""
+    from faster_whisper.audio import decode_audio
+    audio = decode_audio(audio_path, sampling_rate=16000)
+    lang, prob, _ = _load_model(settings.WHISPER_MODEL_GENERAL).model.detect_language(
+        audio, vad_filter=True, language_detection_segments=2)
+    logger.info(f"detected language: {lang} ({prob:.2f})")
+    return lang
+
+
+def transcribe_audio_whisperx(audio_path: str, srt_path: str = None, language: str = None) -> List[Dict[str, Any]]:
+    """Batched faster-whisper with built-in word timestamps. Thai -> Thai fine-tune; any other language -> general model.
+    `language`: ISO code ("th", "en", ...) or None/"auto" to detect."""
     subtitles: List[Dict[str, Any]] = []
     try:
-        segments, info = _load_model().transcribe(
+        lang = (language or "").strip().lower()
+        if lang in ("", "auto"):
+            lang = detect_language(audio_path)
+        thai = lang == "th"
+        segments, info = _load_model(settings.WHISPER_MODEL if thai else settings.WHISPER_MODEL_GENERAL).transcribe(
             audio_path,
-            language="th",
+            language=lang,
             batch_size=8,
             chunk_length=15,  # 30s chunks make Thai decoding stop early and drop the middle
             word_timestamps=True,
@@ -163,7 +213,7 @@ def transcribe_audio_whisperx(audio_path: str, srt_path: str = None) -> List[Dic
             beam_size=5,
             temperature=0.0,
             condition_on_previous_text=False,
-            initial_prompt=settings.WHISPER_PROMPT or None,
+            initial_prompt=(settings.WHISPER_PROMPT if thai else settings.WHISPER_PROMPT_EN if lang == "en" else "") or None,
         )
 
         # Group words into subtitle chunks (<= 8 words or 3.5s)
@@ -175,25 +225,20 @@ def transcribe_audio_whisperx(audio_path: str, srt_path: str = None) -> List[Dic
                     "id": len(subtitles) + 1,
                     "start": chunk[0]["start"],
                     "end": chunk[-1]["end"],
-                    "text": "".join(w["word"] for w in chunk),
+                    "text": _join([w["word"] for w in chunk]),
                     "words": list(chunk),
                 })
                 chunk.clear()
 
         for seg in segments:
             logger.info(f"transcribed {seg.end:.0f}/{info.duration:.0f}s")
-            pieces = [(w.word.strip(), w) for w in seg.words or [] if w.word.strip()]
-            # Whisper emits sub-word pieces: regroup them into real Thai words, timing from first/last piece
-            owner = [k for k, (t, _) in enumerate(pieces) for _ in t]
-            toks = word_tokenize("".join(t for t, _ in pieces), engine="newmm")
-            pos = 0
-            for tok in toks:
-                if tok.strip() and pos < len(owner):
-                    a, b = pieces[owner[pos]][1], pieces[owner[min(pos + len(tok), len(owner)) - 1]][1]
-                    chunk.append({"word": tok.strip(), "start": round(a.start, 2), "end": round(b.end, 2)})
-                    if len(chunk) >= 8 or chunk[-1]["end"] - chunk[0]["start"] >= 3.5:
-                        flush()
-                pos += len(tok)
+            raw = [(w.word, w.start, w.end) for w in seg.words or [] if w.word.strip()]
+            words = _thai_words(raw) if thai else [(t.strip(), a, b) for t, a, b in raw]
+            words = [(c, a, b) for t, a, b in words if (c := _no_stop(t))]
+            for text, start, end in words:
+                chunk.append({"word": text, "start": round(start, 2), "end": round(end, 2)})
+                if len(chunk) >= 8 or chunk[-1]["end"] - chunk[0]["start"] >= 3.5:
+                    flush()
             flush()  # never merge across segments/pauses
 
     except Exception as e:
@@ -212,7 +257,8 @@ def transcribe_audio_whisperx(audio_path: str, srt_path: str = None) -> List[Dic
 def transcribe_audio(
     audio_path: str,
     srt_path: str = None,
-    engine: str = None
+    engine: str = None,
+    language: str = None
 ) -> List[Dict[str, Any]]:
     """
     Unified transcription dispatcher.
@@ -222,9 +268,16 @@ def transcribe_audio(
 
     if selected_engine == "whisperx":
         logger.info("Using WhisperX transcription engine.")
-        return transcribe_audio_whisperx(audio_path, srt_path)
+        return transcribe_audio_whisperx(audio_path, srt_path, language)
     else:
         logger.info("Using Groq API transcription engine.")
-        return transcribe_audio_groq(audio_path, srt_path)
+        return transcribe_audio_groq(audio_path, srt_path, language)
 
 
+if __name__ == "__main__":  # python -m app.services.ai_services
+    assert [_no_stop(w) for w in ("world.", "...", "…", "3.5", "example.com", "Mr.", "ok?", "ครับ.")] == ["world", "", "", "3.5", "example.com", "Mr", "ok?", "ครับ"]
+    assert _join(["Hello", "world."]) == "Hello world." and _join(["after", "all,", "and", "can"]) == "after all, and can"
+    assert _join(["ฉัน", "ชอบ", "AI", "มาก"]) == "ฉันชอบ AI มาก"
+    assert _join([t for t, _, _ in _thai_words([(" Let", 0, .2), ("'s", .2, .3), (" go", .3, .5), (" ไป", .5, .7), ("เที่ยว", .7, 1)])]) == "Let's go ไปเที่ยว"
+    assert _join(["ที่", "นี่"]) == "ที่นี่" and _join(["ซึ่ง", "GTA"]) == "ซึ่ง GTA"
+    print("ok")

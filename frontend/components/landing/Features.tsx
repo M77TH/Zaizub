@@ -43,9 +43,9 @@ function useFast3DTilt(baseRotX = 0, baseRotY = 0, maxTilt = 2.5) {
     }
 
     if (glowRef.current) {
-      const gx = 28 + (s.currentX + 1) * 10;
-      const gy = 24 + (s.currentY + 1) * 8;
-      glowRef.current.style.background = `radial-gradient(80% 75% at ${gx.toFixed(1)}% ${gy.toFixed(1)}%, rgba(139, 92, 246, ${s.isHovered ? "0.20" : "0.14"}) 0%, rgba(76, 29, 149, 0.04) 55%, #0b0916 100%)`;
+      const tx = s.currentX * 18;
+      const ty = s.currentY * 14;
+      glowRef.current.style.transform = `translate3d(${tx.toFixed(1)}px, ${ty.toFixed(1)}px, 0)`;
     }
 
     const stillMoving =
@@ -300,13 +300,6 @@ function UploadTranscribeGraphic() {
             <stop offset="50%" stopColor="#ddd6fe" stopOpacity="0.80" />
             <stop offset="100%" stopColor="#a78bfa" stopOpacity="0.38" />
           </linearGradient>
-          <filter id="iso1NeonGlow" x="-30%" y="-30%" width="160%" height="160%">
-            <feGaussianBlur stdDeviation="3" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
         </defs>
 
         {/* Top Plate 3px Glass Thickness Edge */}
@@ -364,11 +357,24 @@ function UploadTranscribeGraphic() {
           />
         </g>
 
-        {/* Crisp Glowing Top White-Lavender Upload Arrow */}
+        {/* Crisp Glowing Top White-Lavender Upload Arrow (Vector halo without costly SVG blur filter) */}
         <g
           transform={`translate(${cx}, ${yTop}) scale(1, 0.52) rotate(-45)`}
-          filter="url(#iso1NeonGlow)"
         >
+          <path
+            d="M 0 12 V -14 M -11 -3 L 0 -14 L 11 -3"
+            stroke="rgba(167, 139, 250, 0.35)"
+            strokeWidth="8.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M -18 6 V 16 C -18 18.5 -16 20.5 -13.5 20.5 H 13.5 C 16 20.5 18 18.5 18 16 V 6"
+            stroke="rgba(167, 139, 250, 0.35)"
+            strokeWidth="8.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
           <path
             d="M 0 12 V -14 M -11 -3 L 0 -14 L 11 -3"
             stroke="#ffffff"
@@ -1338,37 +1344,6 @@ function StyleColorsGraphic({ lang = "en" }: { lang?: Lang }) {
     >
       {/* PLANE 0 (Z: -80px) — Compact background floor grid with generous breathing room */}
       <svg
-        className="pointer-events-none absolute w-[260px] sm:w-[280px] xl:w-[300px] h-auto max-h-full overflow-visible"
-        viewBox="0 0 340 190"
-        fill="none"
-        style={{ transform: "translateZ(-80px)" }}
-      >
-        <defs>
-          <radialGradient id="iso5Ambient" cx="50%" cy="50%" r="48%">
-            <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.22" />
-            <stop offset="60%" stopColor="#6d28d9" stopOpacity="0.06" />
-            <stop offset="100%" stopColor="#07060a" stopOpacity="0" />
-          </radialGradient>
-        </defs>
-
-        <ellipse cx="170" cy="98" rx="130" ry="62" fill="url(#iso5Ambient)" />
-
-        {/* Identical 2:1 Isometric Floor Cross-Grid */}
-        <g stroke="rgba(255, 255, 255, 0.05)" strokeWidth="1">
-          <line x1="36" y1="142" x2="226" y2="47" />
-          <line x1="66" y1="157" x2="256" y2="62" />
-          <line x1="96" y1="172" x2="286" y2="77" />
-          <line x1="126" y1="187" x2="316" y2="92" />
-
-          <line x1="304" y1="142" x2="114" y2="47" />
-          <line x1="274" y1="157" x2="84" y2="62" />
-          <line x1="244" y1="172" x2="54" y2="77" />
-          <line x1="214" y1="187" x2="24" y2="92" />
-        </g>
-      </svg>
-
-      {/* PLANE 0 (Z: -80px) — Compact background floor grid with generous breathing room */}
-      <svg
         className="pointer-events-none absolute w-[250px] sm:w-[270px] xl:w-[290px] h-auto max-h-full overflow-visible"
         viewBox="0 0 340 190"
         fill="none"
@@ -1624,6 +1599,7 @@ interface FeatureCardProps {
   children: React.ReactNode;
   className?: string;
   stageHeight?: string;
+  trackHoverContext?: boolean;
 }
 
 function FeatureCard({
@@ -1632,6 +1608,7 @@ function FeatureCard({
   children,
   className = "",
   stageHeight = "h-[165px] sm:h-[180px] lg:h-[175px] xl:h-[200px]",
+  trackHoverContext = false,
 }: FeatureCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const {
@@ -1645,14 +1622,14 @@ function FeatureCard({
   } = useFast3DTilt(0, 0, 2.5);
 
   const onEnter = useCallback(() => {
-    setIsHovered(true);
+    if (trackHoverContext) setIsHovered(true);
     handlePointerEnter();
-  }, [handlePointerEnter]);
+  }, [handlePointerEnter, trackHoverContext]);
 
   const onLeave = useCallback(() => {
-    setIsHovered(false);
+    if (trackHoverContext) setIsHovered(false);
     handlePointerLeave();
-  }, [handlePointerLeave]);
+  }, [handlePointerLeave, trackHoverContext]);
 
   return (
     <FeatureCardHoverContext.Provider value={isHovered}>
@@ -1661,19 +1638,19 @@ function FeatureCard({
         onPointerMove={handlePointerMove}
         onPointerEnter={onEnter}
         onPointerLeave={onLeave}
-        className={`group relative flex flex-col justify-start overflow-hidden rounded-[18px] sm:rounded-[20px] lg:rounded-[18px] xl:rounded-[22px] border border-white/[0.08] bg-[#0b0916] transition-all duration-300 ease-out hover:-translate-y-[1px] hover:border-purple-400/40 hover:shadow-[0_12px_36px_-8px_rgba(139,92,246,0.22)] ${className}`}
+        className={`group relative flex flex-col justify-start overflow-hidden rounded-[18px] sm:rounded-[20px] lg:rounded-[18px] xl:rounded-[22px] border border-white/[0.08] bg-[#0b0916] transition-all duration-300 ease-out hover:-translate-y-[1px] hover:border-purple-400/40 hover:shadow-[0_12px_36px_-8px_rgba(139,92,246,0.22)] [contain:layout_paint] ${className}`}
         style={{
           boxShadow:
             "inset 0 1px 0 0 rgba(255, 255, 255, 0.08), 0 16px 36px -12px rgba(0, 0, 0, 0.75)",
         }}
       >
-        {/* Dynamic Pointer-Tracked Radial Glow matching reference cards */}
+        {/* Dynamic Pointer-Tracked Radial Glow (GPU transform-driven, zero repaint) */}
         <div
           ref={glowRef}
-          className="pointer-events-none absolute inset-0"
+          className="pointer-events-none absolute -inset-8 will-change-transform opacity-75 group-hover:opacity-100 transition-opacity duration-300"
           style={{
             background:
-              "radial-gradient(80% 75% at 24% 20%, rgba(139, 92, 246, 0.16) 0%, rgba(76, 29, 149, 0.05) 55%, #0b0916 100%)",
+              "radial-gradient(80% 75% at 32% 28%, rgba(139, 92, 246, 0.20) 0%, rgba(76, 29, 149, 0.05) 55%, #0b0916 100%)",
           }}
           aria-hidden="true"
         />
@@ -1744,6 +1721,7 @@ export default function Features({ lang = "en" }: { lang?: Lang }) {
           <FeatureCard
             className="lg:col-span-7"
             stageHeight="h-[165px] sm:h-[185px] lg:h-[185px] xl:h-[215px] [@media(max-height:760px)]:h-[150px]"
+            trackHoverContext
             title={items[1]?.title || "Card-by-Card Subtitle Editor"}
             description={
               items[1]?.body ||
@@ -1787,6 +1765,7 @@ export default function Features({ lang = "en" }: { lang?: Lang }) {
           {/* Card 5: Custom Styles & Viral Templates */}
           <FeatureCard
             stageHeight="h-[145px] sm:h-[160px] lg:h-[155px] xl:h-[185px] [@media(max-height:760px)]:h-[135px]"
+            trackHoverContext
             title={items[4]?.title || (lang === "en" ? "Custom Styles & Viral Templates" : "ปรับแต่งสไตล์ & เทมเพลตสำเร็จรูป")}
             description={
               items[4]?.body ||

@@ -8,6 +8,7 @@ const DOT_SPACING = 28;
 const MOUSE_RADIUS = 72;
 const MOUSE_RADIUS_SQ = MOUSE_RADIUS * MOUSE_RADIUS;
 const TWO_PI = Math.PI * 2;
+const POINTER_IDLE_MS = 140;
 
 export default function InteractiveDots() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -17,6 +18,9 @@ export default function InteractiveDots() {
     const context = canvas?.getContext("2d");
     if (!canvas || !context) return;
 
+    const baseCanvas = document.createElement("canvas");
+    const baseContext = baseCanvas.getContext("2d");
+
     const mouse = {
       x: 0,
       y: 0,
@@ -24,6 +28,7 @@ export default function InteractiveDots() {
       clientY: 0,
       active: false,
       hasPosition: false,
+      lastMoveTime: 0,
     };
 
     // Flat Float32Array: [x, y, offsetX, offsetY, velocityX, velocityY] per dot (stride 6)
@@ -59,23 +64,40 @@ export default function InteractiveDots() {
         mouse.y <= height + MOUSE_RADIUS;
     };
 
-    const createDots = () => {
+    const createDots = (pixelRatio: number) => {
       const cols = Math.max(0, Math.ceil((width - DOT_SPACING / 2) / DOT_SPACING));
       const rows = Math.max(0, Math.ceil((height - DOT_SPACING / 2) / DOT_SPACING));
       dotCount = cols * rows;
       dots = new Float32Array(dotCount * 6);
+
+      baseCanvas.width = Math.max(1, Math.floor(width * pixelRatio));
+      baseCanvas.height = Math.max(1, Math.floor(height * pixelRatio));
+      if (baseContext) {
+        baseContext.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+        baseContext.clearRect(0, 0, width, height);
+        baseContext.beginPath();
+      }
 
       let idx = 0;
       for (let y = DOT_SPACING / 2; y < height; y += DOT_SPACING) {
         for (let x = DOT_SPACING / 2; x < width; x += DOT_SPACING) {
           dots[idx] = x;
           dots[idx + 1] = y;
+          if (baseContext) {
+            baseContext.moveTo(x + 0.9, y);
+            baseContext.arc(x, y, 0.9, 0, TWO_PI);
+          }
           idx += 6;
         }
       }
+
+      if (baseContext) {
+        baseContext.fillStyle = BASE_FILL;
+        baseContext.fill();
+      }
     };
 
-    // Temporary buffer for dots within mouse proximity that need custom opacity
+    // Temporary buffer for dots that are displaced or within mouse proximity
     const activeIndices: number[] = [];
     const activeOpacities: number[] = [];
 
@@ -83,7 +105,14 @@ export default function InteractiveDots() {
       animationFrame = 0;
       if (!isVisible) return;
 
+      const now = performance.now();
+      const pointerRecentlyMoved = now - mouse.lastMoveTime < POINTER_IDLE_MS;
+      const mouseActive = mouse.active && pointerRecentlyMoved && !reducedMotion;
+
       context.clearRect(0, 0, width, height);
+      if (baseCanvas.width > 0 && baseCanvas.height > 0) {
+        context.drawImage(baseCanvas, 0, 0, width, height);
+      }
 
       activeIndices.length = 0;
       activeOpacities.length = 0;
@@ -91,10 +120,6 @@ export default function InteractiveDots() {
 
       const mx = mouse.x;
       const my = mouse.y;
-      const mouseActive = mouse.active && !reducedMotion;
-
-      // Batch all base-opacity dots into a single canvas path (1 draw call instead of ~2,200)
-      context.beginPath();
 
       for (let i = 0; i < dotCount; i++) {
         const base = i * 6;
@@ -111,15 +136,19 @@ export default function InteractiveDots() {
 
         if (mouseActive) {
           const dx = x - mx;
-          const dy = y - my;
-          const distSq = dx * dx + dy * dy;
-          if (distSq > 0 && distSq < MOUSE_RADIUS_SQ) {
-            const distanceToMouse = Math.sqrt(distSq);
-            proximity = 1 - distanceToMouse / MOUSE_RADIUS;
-            const wave = Math.sin(performance.now() * 0.0035 - distanceToMouse * 0.06);
-            const force = proximity * (8.5 + 1.5 * wave);
-            targetX = (dx / distanceToMouse) * force;
-            targetY = (dy / distanceToMouse) * force;
+          if (dx > -MOUSE_RADIUS && dx < MOUSE_RADIUS) {
+            const dy = y - my;
+            if (dy > -MOUSE_RADIUS && dy < MOUSE_RADIUS) {
+              const distSq = dx * dx + dy * dy;
+              if (distSq > 0 && distSq < MOUSE_RADIUS_SQ) {
+                const distanceToMouse = Math.sqrt(distSq);
+                proximity = 1 - distanceToMouse / MOUSE_RADIUS;
+                const wave = Math.sin(now * 0.0035 - distanceToMouse * 0.06);
+                const force = proximity * (8.5 + 1.5 * wave);
+                targetX = (dx / distanceToMouse) * force;
+                targetY = (dy / distanceToMouse) * force;
+              }
+            }
           }
         }
 
@@ -147,22 +176,15 @@ export default function InteractiveDots() {
           dots[base + 5] = velocityY;
         }
 
-        const drawX = x + offsetX;
-        const drawY = y + offsetY;
-
-        if (proximity > 0.005) {
+        if (proximity > 0.005 || offsetX !== 0 || offsetY !== 0) {
           activeIndices.push(base);
           activeOpacities.push(0.04 + proximity * 0.2);
-        } else {
-          context.moveTo(drawX + 0.9, drawY);
-          context.arc(drawX, drawY, 0.9, 0, TWO_PI);
+          // Erase the static base dot at its resting coordinate before drawing the displaced dot
+          context.clearRect(x - 1.5, y - 1.5, 3, 3);
         }
       }
 
-      context.fillStyle = BASE_FILL;
-      context.fill();
-
-      // Draw only the ~15-25 proximity-highlighted dots individually
+      // Draw only the ~15-25 proximity-highlighted / displaced dots individually
       for (let k = 0; k < activeIndices.length; k++) {
         const base = activeIndices[k];
         const drawX = dots[base] + dots[base + 2];
@@ -173,7 +195,7 @@ export default function InteractiveDots() {
         context.fill();
       }
 
-      // Continuously animate while mouse is active, or sleep once all dots settle back to rest
+      // Continuously animate only while pointer is actively moving or dots are settling back to rest
       if (!reducedMotion && isVisible && (anyMoving || mouseActive) && !animationFrame) {
         animationFrame = window.requestAnimationFrame(draw);
       }
@@ -196,7 +218,7 @@ export default function InteractiveDots() {
     };
 
     const resize = () => {
-      const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
       const rect = canvas.parentElement?.getBoundingClientRect();
       width = rect?.width || window.innerWidth;
       height = rect?.height || window.innerHeight;
@@ -207,7 +229,7 @@ export default function InteractiveDots() {
       canvas.style.height = `${height}px`;
       context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
       updateCanvasBounds();
-      createDots();
+      createDots(pixelRatio);
       draw();
     };
 
@@ -216,6 +238,7 @@ export default function InteractiveDots() {
       mouse.clientX = event.clientX;
       mouse.clientY = event.clientY;
       mouse.hasPosition = true;
+      mouse.lastMoveTime = performance.now();
       syncMouseLocal();
       if (mouse.active) {
         wake();
@@ -228,7 +251,10 @@ export default function InteractiveDots() {
       canvasTop = cachedDocTop - window.scrollY;
       if (mouse.hasPosition) {
         syncMouseLocal();
-        if (mouse.active) wake();
+        if (mouse.active) {
+          mouse.lastMoveTime = performance.now();
+          wake();
+        }
       }
     };
 

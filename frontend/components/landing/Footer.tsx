@@ -123,6 +123,7 @@ export default function Footer({ lang = "en" }: { lang?: Lang }) {
     let h = 0;
     let dpr = 1;
     let mouseInside = false;
+    let lastMoveTime = 0;
     let targetX = -1e5;
     let targetY = -1e5;
     let curX = -1e5;
@@ -144,7 +145,7 @@ export default function Footer({ lang = "en" }: { lang?: Lang }) {
       cachedRect = rect;
       w = Math.max(1, Math.round(rect.width));
       h = Math.max(1, Math.round(rect.height));
-      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      dpr = Math.min(window.devicePixelRatio || 1, 1.5);
       canvas.width = Math.round(w * dpr);
       canvas.height = Math.round(h * dpr);
 
@@ -237,6 +238,7 @@ export default function Footer({ lang = "en" }: { lang?: Lang }) {
       const rSq = r * r;
       const ringAge = ring.t < 0 ? 1e9 : now - ring.t;
       const ringR = ringAge * 0.9;
+      const pointerRecentlyMoved = mouseInside && now - lastMoveTime < 160;
       let moving = false;
       warmIndices.length = 0;
       warmValues.length = 0;
@@ -267,8 +269,8 @@ export default function Footer({ lang = "en" }: { lang?: Lang }) {
             }
           }
 
-          // 2. Continuous fluid ripple & mouse follow animation
-          if (r > 0 && curX > -1e4) {
+          // 2. Continuous fluid ripple & mouse follow animation while pointer is moving
+          if (pointerRecentlyMoved && r > 0 && curX > -1e4) {
             const dx = x - curX;
             const dy = y - curY;
             if (Math.abs(dx) < r && Math.abs(dy) < r) {
@@ -304,7 +306,7 @@ export default function Footer({ lang = "en" }: { lang?: Lang }) {
 
           if (speed > 0.015 || distFromHome > 0.05) {
             moving = true;
-          } else if (!mouseInside && ringAge >= 900) {
+          } else if (!pointerRecentlyMoved && ringAge >= 900) {
             x = hx;
             y = hy;
             vx = 0;
@@ -328,7 +330,7 @@ export default function Footer({ lang = "en" }: { lang?: Lang }) {
           if (cd < glowRadius) {
             const prox = Math.max(0, 1 - cd / glowRadius);
             const falloff = prox * prox;
-            const shimmer = 0.85 + 0.15 * Math.sin(now * 0.0035 - cd * 0.08);
+            const shimmer = pointerRecentlyMoved ? 0.85 + 0.15 * Math.sin(now * 0.0035 - cd * 0.08) : 0.92;
             const cursorK = falloff * 0.42 * shimmer;
             if (cursorK > k) k = cursorK;
           }
@@ -369,7 +371,7 @@ export default function Footer({ lang = "en" }: { lang?: Lang }) {
         ctx.globalAlpha = 1;
       }
 
-      awake = mouseInside || moving || ringAge < 900;
+      awake = pointerRecentlyMoved || moving || ringAge < 900;
     };
 
     let isTicking = false;
@@ -432,6 +434,7 @@ export default function Footer({ lang = "en" }: { lang?: Lang }) {
       cachedRect = canvas.getBoundingClientRect();
       const p = toLocal(e);
       mouseInside = true;
+      lastMoveTime = performance.now();
       targetX = p[0];
       targetY = p[1];
       if (curX < -1e4) {
@@ -444,6 +447,7 @@ export default function Footer({ lang = "en" }: { lang?: Lang }) {
       if (!opts.current.interactive) return;
       const p = toLocal(e);
       mouseInside = true;
+      lastMoveTime = performance.now();
       targetX = p[0];
       targetY = p[1];
       if (curX < -1e4) {

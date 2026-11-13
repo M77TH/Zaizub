@@ -118,7 +118,7 @@ export default async function MyVideoPage() {
             </Link>
             <span className="text-zinc-700 font-mono text-xs select-none">/</span>
             <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
-              Archive
+              My Video
             </span>
           </div>
 

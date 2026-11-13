@@ -46,7 +46,6 @@ interface MyVideoClientProps {
 
 export default function MyVideoClient({
   initialVideos = [],
-  userName = 'Creator',
 }: MyVideoClientProps) {
   const [videos, setVideos] = useState<VideoProject[]>(initialVideos);
   const [queueItems, setQueueItems] = useState<QueuedCardState[]>([]);
@@ -572,30 +571,10 @@ export default function MyVideoClient({
     <div className="min-h-[calc(100vh-56px)] bg-[#070709] text-zinc-200">
       <div className="w-full max-w-[1480px] mx-auto px-4 sm:px-8 md:px-10 py-6 sm:py-8">
         {/* 1. EDITORIAL ARCHIVE MASTHEAD */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-5 pb-5 border-b border-[#1c1b24]">
-          <div>
-            <div className="font-mono text-[10.5px] font-semibold uppercase tracking-[0.2em] text-zinc-500 mb-2.5">
-              POST-PRODUCTION VAULT // {userName.toUpperCase()}
-            </div>
-            <h1 className="font-display text-3xl sm:text-[40px] leading-[1.08] font-extrabold text-white tracking-[-0.03em]">
-              คลังฟุตเทจและซับไตเติล
-            </h1>
-            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-xs text-zinc-400 tabular-nums">
-              <span>
-                <strong className="text-white font-bold">{String(counts.all).padStart(2, '0')}</strong> คลิปทั้งหมด
-              </span>
-              <span className="text-zinc-700">/</span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-[1px] bg-emerald-400" />
-                <strong className="text-zinc-200 font-semibold">{counts.done}</strong> เรนเดอร์แล้ว
-              </span>
-              <span className="text-zinc-700">/</span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-[1px] bg-[#a78bfa]" />
-                <strong className="text-zinc-200 font-semibold">{counts.draft}</strong> แบบร่าง
-              </span>
-            </div>
-          </div>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 pb-5 border-b border-[#1c1b24]">
+          <h1 className="font-display text-3xl sm:text-[40px] leading-[1.08] font-extrabold text-white tracking-[-0.03em]">
+            คลังวิดิโอ
+          </h1>
 
           <div className="flex items-center gap-3">
             <button
@@ -696,12 +675,6 @@ export default function MyVideoClient({
                   >
                     {spotlightVideo.title}
                   </Link>
-
-                  {spotlightVideo.sampleLine && (
-                    <p className="mt-0.5 text-[11px] text-zinc-400 truncate">
-                      &ldquo;{spotlightVideo.sampleLine}&rdquo;
-                    </p>
-                  )}
                 </div>
 
                 <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-[#191822]">

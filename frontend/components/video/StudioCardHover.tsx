@@ -1,6 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+
+const CARD_OUTER_RADIUS = {
+  xl: 'rounded-xl',
+  '2xl': 'rounded-2xl',
+} as const;
 
 const CARD_INNER_RADIUS = {
   xl: 'rounded-[11px]',
@@ -10,46 +15,53 @@ const CARD_INNER_RADIUS = {
 const MONITOR_VARIANT_CONFIG = {
   grid: {
     compact: false,
-    reticleBoxClass: 'inset-1.5',
-    cornerSizeClass: 'w-3 h-3',
-    topCornerRadiusClass: 'rounded-tl-[5px]',
-    topRightCornerRadiusClass: 'rounded-tr-[5px]',
-    bottomCornerRadiusClass: '',
-    bottomRightCornerRadiusClass: '',
+    reticleBoxClass: 'inset-[7px]',
+    cornerSizeClass: 'w-2.5 h-2.5',
+    topCornerRadiusClass: 'rounded-tl-[8px]',
+    topRightCornerRadiusClass: 'rounded-tr-[8px]',
+    bottomCornerRadiusClass: 'rounded-bl-[2px]',
+    bottomRightCornerRadiusClass: 'rounded-br-[2px]',
+    playSizeClass: 'h-10 w-10',
+    playIconClass: 'w-4 h-4',
   },
   spotlight: {
     compact: false,
-    reticleBoxClass: 'inset-1.5',
-    cornerSizeClass: 'w-3 h-3',
-    topCornerRadiusClass: 'rounded-tl-[3px]',
-    topRightCornerRadiusClass: 'rounded-tr-[3px] sm:rounded-tr-none',
-    bottomCornerRadiusClass: 'rounded-bl-[3px]',
-    bottomRightCornerRadiusClass: 'rounded-br-[3px] sm:rounded-br-none',
+    reticleBoxClass: 'inset-[7px]',
+    cornerSizeClass: 'w-2.5 h-2.5',
+    topCornerRadiusClass: 'rounded-tl-[1px] sm:rounded-tl-[4px]',
+    topRightCornerRadiusClass: 'rounded-tr-[1px] sm:rounded-tr-none',
+    bottomCornerRadiusClass: 'rounded-bl-[1px] sm:rounded-bl-[4px]',
+    bottomRightCornerRadiusClass: 'rounded-br-[1px] sm:rounded-br-none',
+    playSizeClass: 'h-9 w-9',
+    playIconClass: 'w-3.5 h-3.5',
   },
   strip: {
     compact: true,
     reticleBoxClass: 'studio-reticle-compact inset-1',
-    cornerSizeClass: 'w-2 h-2',
+    cornerSizeClass: 'w-1.5 h-1.5',
     topCornerRadiusClass: 'rounded-tl-[3px]',
     topRightCornerRadiusClass: 'rounded-tr-[3px]',
     bottomCornerRadiusClass: 'rounded-bl-[3px]',
     bottomRightCornerRadiusClass: 'rounded-br-[3px]',
+    playSizeClass: 'h-5 w-5',
+    playIconClass: 'w-2.5 h-2.5',
   },
 } as const;
 
 export type MonitorVariant = keyof typeof MONITOR_VARIANT_CONFIG;
 
 /**
- * Shared hover lighting layers: subtle top purple wash, flowing light-purple
- * border beam around the perimeter, and an optional left active-track rail.
+ * Shared hover lighting layers: subtle top purple wash and flowing light-purple
+ * border beam positioned directly over the 1px card perimeter.
  */
 export function CardHoverChrome({
   rounded = '2xl',
-  showLeftRail = false,
+  beamMode = 'orbit',
 }: {
   rounded?: keyof typeof CARD_INNER_RADIUS;
-  showLeftRail?: boolean;
+  beamMode?: 'orbit' | 'wide';
 }) {
+  const outerRadius = CARD_OUTER_RADIUS[rounded];
   const innerRadius = CARD_INNER_RADIUS[rounded];
 
   return (
@@ -60,16 +72,14 @@ export function CardHoverChrome({
       />
       <div
         aria-hidden="true"
-        className={`studio-beam-mask pointer-events-none absolute inset-0 ${innerRadius} overflow-hidden z-[10]`}
+        className={`studio-beam-mask pointer-events-none absolute -inset-px ${outerRadius} overflow-hidden z-[10]`}
       >
-        <div className="studio-beam-spinner" />
-      </div>
-      {showLeftRail && (
         <div
-          aria-hidden="true"
-          className="studio-card-rail pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-r-full bg-gradient-to-b from-[#c084fc] via-[#a78bfa] to-[#7c3aed] shadow-[0_0_10px_rgba(139,92,246,0.7)] z-[10]"
+          className={
+            beamMode === 'wide' ? 'studio-beam-glider' : 'studio-beam-spinner'
+          }
         />
-      )}
+      </div>
     </>
   );
 }
@@ -77,10 +87,16 @@ export function CardHoverChrome({
 /**
  * Bottom light-purple scrub line animated horizontally on card hover.
  */
-export function StudioScrubBar({ zIndexClass = 'z-[4]' }: { zIndexClass?: string }) {
+export function StudioScrubBar({
+  zIndexClass = 'z-[4]',
+}: {
+  zIndexClass?: string;
+}) {
   return (
-    <div className={`pointer-events-none absolute inset-x-0 bottom-0 h-[2px] overflow-hidden ${zIndexClass}`}>
-      <div className="studio-card-scrub h-full bg-gradient-to-r from-[#7c3aed] via-[#a78bfa] to-[#c084fc] shadow-[0_0_8px_rgba(139,92,246,0.7)]" />
+    <div
+      className={`pointer-events-none absolute inset-x-0 bottom-0 h-[1.5px] overflow-hidden ${zIndexClass}`}
+    >
+      <div className="studio-card-scrub h-full bg-gradient-to-r from-[#7c3aed] via-[#a78bfa] to-[#c084fc] shadow-[0_0_6px_rgba(139,92,246,0.6)]" />
     </div>
   );
 }
@@ -94,28 +110,49 @@ export function CardThumbnailMedia({
   videoUrl,
   title,
   variant = 'grid',
+  showScrubBar = true,
   emptyFallback,
 }: {
   thumbnailUrl: string;
   videoUrl: string;
   title: string;
   variant?: MonitorVariant;
+  showScrubBar?: boolean;
   emptyFallback?: React.ReactNode;
 }) {
+  const imgRef = useRef<HTMLImageElement | null>(null);
   const [failedThumbUrl, setFailedThumbUrl] = useState<string | null>(null);
   const [failedVideoUrl, setFailedVideoUrl] = useState<string | null>(null);
 
   const config = MONITOR_VARIANT_CONFIG[variant];
   const mediaClass =
-    'studio-card-media w-full h-full object-cover object-[center_25%]';
+    'studio-card-media w-full h-full object-cover object-[center_25%] text-transparent select-none';
 
   const showThumbnail = Boolean(thumbnailUrl && failedThumbUrl !== thumbnailUrl);
   const showVideo = Boolean(!showThumbnail && videoUrl && failedVideoUrl !== videoUrl);
+
+  useEffect(() => {
+    const el = imgRef.current;
+    if (!showThumbnail || !el) return;
+    // Catch cached/pre-hydration image load failures that settled before onError bound
+    if (el.complete && el.naturalWidth === 0) {
+      let cancelled = false;
+      queueMicrotask(() => {
+        if (!cancelled) {
+          setFailedThumbUrl(thumbnailUrl);
+        }
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+  }, [showThumbnail, thumbnailUrl]);
 
   return (
     <>
       {showThumbnail ? (
         <img
+          ref={imgRef}
           src={thumbnailUrl}
           alt={title}
           onError={() => setFailedThumbUrl(thumbnailUrl)}
@@ -152,7 +189,7 @@ export function CardThumbnailMedia({
         className="studio-card-vignette pointer-events-none absolute inset-0 z-[1]"
       />
 
-      {/* Viewfinder brackets tucked into the true frame corners */}
+      {/* Viewfinder brackets tucked cleanly inside corner radii */}
       <div
         aria-hidden="true"
         className={`pointer-events-none absolute ${config.reticleBoxClass} z-[2]`}
@@ -174,12 +211,10 @@ export function CardThumbnailMedia({
       {/* Center frosted glass play reveal (no scale zoom) */}
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center z-[2]">
         <span
-          className={`studio-card-play flex items-center justify-center rounded-full border border-[#a78bfa]/40 bg-[#0a0814]/75 text-[#d8b4fe] backdrop-blur-md ${
-            config.compact ? 'h-6 w-6' : 'h-10 w-10'
-          }`}
+          className={`studio-card-play flex items-center justify-center rounded-full border border-[#a78bfa]/40 bg-[#0a0814]/75 text-[#d8b4fe] backdrop-blur-md ${config.playSizeClass}`}
         >
           <svg
-            className={config.compact ? 'w-2.5 h-2.5' : 'w-4 h-4'}
+            className={config.playIconClass}
             fill="currentColor"
             viewBox="0 0 24 24"
           >
@@ -188,7 +223,7 @@ export function CardThumbnailMedia({
         </span>
       </div>
 
-      <StudioScrubBar />
+      {showScrubBar && <StudioScrubBar />}
     </>
   );
 }

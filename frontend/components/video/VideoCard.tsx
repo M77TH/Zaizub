@@ -161,10 +161,10 @@ export default function VideoCard({
             ? hasUploadError
               ? 'border-rose-500/40 bg-[#120b10]'
               : 'border-[#8b5cf6]/45 bg-[#0e0c18] shadow-[0_0_24px_-12px_rgba(139,92,246,0.45)]'
-            : 'studio-card border-[#1f1e29] bg-[#0c0b11] hover:border-[#a78bfa]/40 hover:bg-[#100d19] hover:shadow-[0_10px_28px_-10px_rgba(167,139,250,0.28),0_6px_18px_rgba(0,0,0,0.5)]'
+            : 'studio-card border-[#1f1e29] bg-[#0c0b11] hover:border-[#8b5cf6]/25 hover:bg-[#100d19] hover:shadow-[0_10px_28px_-10px_rgba(167,139,250,0.28),0_6px_18px_rgba(0,0,0,0.5)]'
         } ${menuOpen ? 'z-30' : ''}`}
       >
-        {!isProcessing && <CardHoverChrome rounded="xl" showLeftRail />}
+        {!isProcessing && <CardHoverChrome rounded="xl" beamMode="wide" />}
 
         <div className="relative z-[2] flex items-center gap-3.5 min-w-0 flex-1">
           <span className="font-mono text-xs font-bold text-zinc-600 group-hover:text-[#c4b5fd] transition-colors duration-200 tabular-nums w-6 flex-shrink-0">
@@ -424,7 +424,7 @@ export default function VideoCard({
 
   return (
     <div
-      className={`studio-card group relative flex flex-col rounded-2xl border border-[#1f1e29] bg-[#0c0b11] hover:border-[#a78bfa]/40 hover:bg-[#100d19] hover:shadow-[0_10px_30px_-10px_rgba(167,139,250,0.28),0_8px_24px_rgba(0,0,0,0.58)] transition-[border-color,background-color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none overflow-visible ${
+      className={`studio-card group relative flex flex-col rounded-2xl border border-[#1f1e29] bg-[#0c0b11] hover:border-[#8b5cf6]/25 hover:bg-[#100d19] hover:shadow-[0_10px_30px_-10px_rgba(167,139,250,0.28),0_8px_24px_rgba(0,0,0,0.58)] transition-[border-color,background-color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none overflow-visible ${
         menuOpen ? 'z-30' : ''
       }`}
     >
@@ -433,7 +433,7 @@ export default function VideoCard({
       {/* 1. Full-Bleed Rounded Top Monitor Viewport */}
       <Link
         href={`/editor?id=${video.id}`}
-        className="relative z-[2] aspect-video w-full rounded-t-[15px] overflow-hidden block cursor-pointer bg-[#050508] border-b border-white/[0.05] group-hover:border-[#a78bfa]/25 transition-colors duration-300"
+        className="relative z-[2] aspect-video w-full rounded-t-[15px] overflow-hidden block cursor-pointer bg-[#050508] border-b border-white/[0.05]"
       >
         <CardThumbnailMedia
           thumbnailUrl={resolvedThumbnailUrl}
@@ -447,14 +447,14 @@ export default function VideoCard({
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#0c0b11]/90 via-black/20 to-transparent" />
 
         {/* Top-Left Status Badge */}
-        <div className="pointer-events-none absolute top-3 left-3 z-[5] inline-flex items-center gap-1.5 rounded-md bg-[#09080d]/75 backdrop-blur-md border border-white/10 group-hover:border-white/25 transition-colors duration-200 px-2 py-0.5 font-mono text-[10px] font-bold tracking-wider">
+        <div className="pointer-events-none absolute top-3.5 left-3.5 z-[5] inline-flex items-center gap-1.5 rounded-md bg-[#09080d]/75 backdrop-blur-md border border-white/10 group-hover:border-white/25 transition-colors duration-200 px-2 py-0.5 font-mono text-[10px] font-bold tracking-wider">
           <span className={`w-1.5 h-1.5 rounded-full ${statusMeta.dot}`} />
           <span className={statusMeta.color}>{statusMeta.label}</span>
         </div>
 
         {/* Top-Right Telemetry Chip (Aspect Ratio & Duration) */}
         {(video.aspectRatio || video.duration) && (
-          <div className="pointer-events-none absolute top-3 right-3 z-[5] inline-flex items-center gap-1.5 rounded-md bg-black/70 backdrop-blur-md border border-white/10 group-hover:border-white/25 transition-colors duration-200 px-2 py-0.5 font-mono text-[10px] font-semibold text-zinc-100 tabular-nums">
+          <div className="pointer-events-none absolute top-3.5 right-3.5 z-[5] inline-flex items-center gap-1.5 rounded-md bg-black/70 backdrop-blur-md border border-white/10 group-hover:border-white/25 transition-colors duration-200 px-2 py-0.5 font-mono text-[10px] font-semibold text-zinc-100 tabular-nums">
             {video.aspectRatio && (
               <span className="text-zinc-400">{video.aspectRatio}</span>
             )}

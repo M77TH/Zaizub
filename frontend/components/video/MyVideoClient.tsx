@@ -606,20 +606,21 @@ export default function MyVideoClient({
         {spotlightVideo && (
           <section className="mt-4 mb-6">
             <div
-              className="studio-card group/spotlight relative flex flex-col sm:flex-row items-stretch rounded-xl border border-[#22202d] bg-[#0b0a0f] hover:border-[#a78bfa]/40 hover:bg-[#100d19] hover:shadow-[0_10px_30px_-10px_rgba(167,139,250,0.28),0_10px_26px_rgba(0,0,0,0.56)] transition-[border-color,background-color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none overflow-hidden"
+              className="studio-card group/spotlight relative flex flex-col sm:flex-row items-stretch rounded-xl border border-[#22202d] bg-[#0b0a0f] hover:border-[#8b5cf6]/25 hover:bg-[#100d19] hover:shadow-[0_10px_30px_-10px_rgba(167,139,250,0.28),0_10px_26px_rgba(0,0,0,0.56)] transition-[border-color,background-color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none overflow-visible"
             >
-              <CardHoverChrome rounded="xl" showLeftRail />
+              <CardHoverChrome rounded="xl" beamMode="wide" />
 
               {/* Left Compact 1:1 Monitor Thumbnail */}
               <Link
                 href={`/editor?id=${spotlightVideo.id}`}
-                className="relative z-[2] mx-auto mt-3 sm:m-0 w-40 h-40 md:w-[164px] md:h-[164px] aspect-square flex-shrink-0 self-center bg-[#040406] rounded-lg sm:rounded-none border sm:border-0 sm:border-r border-[#1c1b24] sm:group-hover/spotlight:border-[#a78bfa]/30 transition-colors duration-300 overflow-hidden block"
+                className="relative z-[2] mx-auto mt-3 sm:m-0 w-40 h-40 md:w-[164px] md:h-[164px] aspect-square flex-shrink-0 self-center bg-[#040406] rounded-lg sm:rounded-none sm:rounded-l-[11px] border sm:border-0 sm:border-r border-[#1c1b24] sm:group-hover/spotlight:border-[#a78bfa]/30 transition-colors duration-300 overflow-hidden block"
               >
                 <CardThumbnailMedia
                   thumbnailUrl={spotlightThumb}
                   videoUrl={spotlightSrc}
                   title={spotlightVideo.title}
                   variant="spotlight"
+                  showScrubBar={false}
                   emptyFallback={
                     <div className="w-full h-full flex items-center justify-center text-zinc-700 group-hover/spotlight:text-purple-300 transition-colors duration-300">
                       <span className="font-mono text-[10px] uppercase tracking-widest">NO VIDEO SIGNAL</span>
@@ -629,13 +630,13 @@ export default function MyVideoClient({
 
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
 
-                <div className="pointer-events-none absolute top-3 left-3 z-[5] font-mono text-[9px] font-bold tracking-wider text-zinc-200 bg-black/75 border border-white/10 group-hover/spotlight:border-white/25 transition-colors px-1.5 py-0.5 rounded">
+                <div className="pointer-events-none absolute top-3.5 left-3.5 z-[5] font-mono text-[9px] font-bold tracking-wider text-zinc-200 bg-black/75 border border-white/10 group-hover/spotlight:border-white/25 transition-colors px-1.5 py-0.5 rounded">
                   PRV // {spotlightVideo.aspectRatio || '9:16'}
                   {spotlightVideo.duration ? ` · ${spotlightVideo.duration}` : ''}
                 </div>
 
                 {spotlightVideo.sampleLine && (
-                  <div className="pointer-events-none absolute inset-x-4 bottom-2.5 z-[5] flex justify-center">
+                  <div className="pointer-events-none absolute inset-x-5 bottom-3 z-[5] flex justify-center">
                     <span
                       className="max-w-full truncate font-bold text-[11px] text-[#e9d5ff] tracking-tight"
                       style={{
@@ -733,7 +734,9 @@ export default function MyVideoClient({
                 </div>
               </div>
 
-              <StudioScrubBar zIndexClass="z-[5]" />
+              <div className="pointer-events-none absolute inset-0 rounded-[11px] overflow-hidden z-[5]">
+                <StudioScrubBar />
+              </div>
             </div>
           </section>
         )}
@@ -753,7 +756,7 @@ export default function MyVideoClient({
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`relative flex items-center gap-2 pb-3 text-xs sm:text-sm font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                  className={`relative flex items-center gap-2 pb-3 text-xs sm:text-sm font-semibold whitespace-nowrap transition-colors cursor-pointer focus:outline-none focus-visible:text-white focus-visible:ring-1 focus-visible:ring-[#a78bfa]/70 focus-visible:rounded-md ${
                     isActive ? 'text-white' : 'text-zinc-500 hover:text-zinc-200'
                   }`}
                 >

@@ -218,12 +218,12 @@ export default function VideoCard({
   if (layout === 'strip') {
     return (
       <div
-        className={`group relative flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 transition-[transform,border-color,background-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none motion-reduce:transform-none ${
+        className={`group relative flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 transition-[border-color,background-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
           isProcessing
             ? hasUploadError
               ? 'border-rose-500/40 bg-[#120b10]'
               : 'border-[#8b5cf6]/45 bg-[#0e0c18] shadow-[0_0_24px_-12px_rgba(139,92,246,0.45)]'
-            : 'border-[#1f1e29] bg-[#0c0b11] hover:border-[#8b5cf6]/50 hover:bg-[#100e17] hover:shadow-[0_12px_30px_-10px_rgba(124,58,237,0.24),0_6px_18px_rgba(0,0,0,0.48)] hover:-translate-y-0.5'
+            : 'border-[#1f1e29] bg-[#0c0b11] hover:border-[#8b5cf6]/50 hover:bg-[#100e17] hover:shadow-[0_12px_30px_-10px_rgba(124,58,237,0.24),0_6px_18px_rgba(0,0,0,0.48)]'
         } ${menuOpen ? 'z-30' : ''}`}
       >
         <div className="flex items-center gap-3.5 min-w-0 flex-1">
@@ -484,7 +484,7 @@ export default function VideoCard({
 
   return (
     <div
-      className={`group relative flex flex-col rounded-2xl border border-[#1f1e29] bg-[#0c0b11] hover:border-[#8b5cf6]/55 hover:bg-[#100e17] hover:shadow-[0_14px_36px_-10px_rgba(124,58,237,0.28),0_8px_24px_rgba(0,0,0,0.6)] hover:-translate-y-1 transition-[transform,border-color,background-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none motion-reduce:transform-none overflow-visible ${
+      className={`group relative flex flex-col rounded-2xl border border-[#1f1e29] bg-[#0c0b11] hover:border-[#8b5cf6]/55 hover:bg-[#100e17] hover:shadow-[0_14px_36px_-10px_rgba(124,58,237,0.28),0_8px_24px_rgba(0,0,0,0.6)] transition-[border-color,background-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none overflow-visible ${
         menuOpen ? 'z-30' : ''
       }`}
     >

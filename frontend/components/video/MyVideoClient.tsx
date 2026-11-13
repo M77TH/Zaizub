@@ -600,7 +600,7 @@ export default function MyVideoClient({
         {/* 2. LATEST SESSION SPOTLIGHT (Compact Studio Cut Bar) */}
         {spotlightVideo && (
           <section className="mt-4 mb-6">
-            <div className="group/spotlight relative flex flex-col sm:flex-row items-stretch rounded-xl border border-[#22202d] bg-[#0b0a0f] hover:border-[#8b5cf6]/55 hover:bg-[#0f0d15] hover:-translate-y-0.5 hover:shadow-[0_16px_40px_-12px_rgba(124,58,237,0.28),0_10px_28px_rgba(0,0,0,0.55)] transition-[transform,border-color,background-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none motion-reduce:transform-none overflow-hidden">
+            <div className="group/spotlight relative flex flex-col sm:flex-row items-stretch rounded-xl border border-[#22202d] bg-[#0b0a0f] hover:border-[#8b5cf6]/55 hover:bg-[#0f0d15] hover:shadow-[0_16px_40px_-12px_rgba(124,58,237,0.28),0_10px_28px_rgba(0,0,0,0.55)] transition-[border-color,background-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none overflow-hidden">
               {/* Left Compact 1:1 Monitor Thumbnail */}
               <Link
                 href={`/editor?id=${spotlightVideo.id}`}

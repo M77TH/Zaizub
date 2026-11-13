@@ -6,7 +6,7 @@ import VideoCard, { VideoProject, resolveMediaUrl } from './VideoCard';
 import {
   CardHoverChrome,
   CardThumbnailMedia,
-  handleCardPointerMove,
+  StudioScrubBar,
 } from './StudioCardHover';
 import UploadVideoModal from './UploadVideoModal';
 import DeleteConfirmModal from './DeleteConfirmModal';
@@ -606,8 +606,7 @@ export default function MyVideoClient({
         {spotlightVideo && (
           <section className="mt-4 mb-6">
             <div
-              onMouseMove={handleCardPointerMove}
-              className="studio-card group/spotlight relative flex flex-col sm:flex-row items-stretch rounded-xl border border-[#22202d] bg-[#0b0a0f] hover:border-[#8b5cf6]/35 hover:bg-[#0f0d15] hover:shadow-[0_14px_36px_-12px_rgba(124,58,237,0.22),0_10px_28px_rgba(0,0,0,0.55)] transition-[border-color,background-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none overflow-hidden"
+              className="studio-card group/spotlight relative flex flex-col sm:flex-row items-stretch rounded-xl border border-[#22202d] bg-[#0b0a0f] hover:border-[#8b5cf6]/45 hover:bg-[#100d1a] hover:shadow-[0_12px_36px_-10px_rgba(124,58,237,0.34),0_10px_28px_rgba(0,0,0,0.6)] transition-[border-color,background-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none overflow-hidden"
             >
               <CardHoverChrome rounded="xl" showLeftRail />
 
@@ -620,6 +619,7 @@ export default function MyVideoClient({
                   thumbnailUrl={spotlightThumb}
                   videoUrl={spotlightSrc}
                   title={spotlightVideo.title}
+                  variant="spotlight"
                   emptyFallback={
                     <div className="w-full h-full flex items-center justify-center text-zinc-700 group-hover/spotlight:text-purple-400 transition-colors duration-300">
                       <span className="font-mono text-[10px] uppercase tracking-widest">NO VIDEO SIGNAL</span>
@@ -629,13 +629,13 @@ export default function MyVideoClient({
 
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
 
-                <div className="pointer-events-none absolute top-2 left-2 font-mono text-[9px] font-bold tracking-wider text-zinc-200 bg-black/75 border border-white/10 group-hover/spotlight:border-white/25 transition-colors px-1.5 py-0.5 rounded">
+                <div className="pointer-events-none absolute top-2 left-2 z-[5] font-mono text-[9px] font-bold tracking-wider text-zinc-200 bg-black/75 border border-white/10 group-hover/spotlight:border-white/25 transition-colors px-1.5 py-0.5 rounded">
                   PRV // {spotlightVideo.aspectRatio || '9:16'}
                   {spotlightVideo.duration ? ` · ${spotlightVideo.duration}` : ''}
                 </div>
 
                 {spotlightVideo.sampleLine && (
-                  <div className="pointer-events-none absolute inset-x-2 bottom-2 flex justify-center">
+                  <div className="pointer-events-none absolute inset-x-2 bottom-2 z-[5] flex justify-center">
                     <span
                       className="max-w-full truncate font-bold text-[11px] text-[#e9d5ff] tracking-tight"
                       style={{
@@ -700,9 +700,13 @@ export default function MyVideoClient({
                   <div className="flex items-center gap-1.5 ml-auto">
                     <Link
                       href={`/editor?id=${spotlightVideo.id}`}
-                      className="group/cta inline-flex items-center gap-1.5 rounded-lg bg-[#7c3aed] hover:bg-[#8b5cf6] text-white px-3 py-1.5 text-xs font-bold transition-colors"
+                      className="group/cta relative overflow-hidden inline-flex items-center gap-1.5 rounded-lg bg-[#7c3aed] hover:bg-[#8b5cf6] group-hover/spotlight:bg-[#8b5cf6] group-hover/spotlight:shadow-[0_0_24px_-4px_rgba(139,92,246,0.75)] text-white px-3 py-1.5 text-xs font-bold transition-all duration-300"
                     >
-                      <span>เปิดแก้ไขต่อ</span>
+                      <span
+                        aria-hidden="true"
+                        className="studio-cta-sheen pointer-events-none absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-transparent via-white/25 to-transparent"
+                      />
+                      <span className="relative z-[1]">เปิดแก้ไขต่อ</span>
                       <svg
                         width="12"
                         height="12"
@@ -710,7 +714,7 @@ export default function MyVideoClient({
                         fill="none"
                         stroke="currentColor"
                         strokeWidth="2.4"
-                        className="transition-transform duration-200 group-hover/spotlight:translate-x-0.5 group-hover/cta:translate-x-1"
+                        className="relative z-[1] transition-transform duration-200 group-hover/spotlight:translate-x-0.5 group-hover/cta:translate-x-1"
                       >
                         <path d="M5 12h14M13 6l6 6-6 6" />
                       </svg>
@@ -732,6 +736,8 @@ export default function MyVideoClient({
                   </div>
                 </div>
               </div>
+
+              <StudioScrubBar zIndexClass="z-[5]" />
             </div>
           </section>
         )}

@@ -4,6 +4,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { resolveMediaUrl } from '@/lib/api';
 import type { VideoProject } from '@/lib/projects/projectMapper';
+import {
+  CardHoverChrome,
+  CardThumbnailMedia,
+  handleCardPointerMove,
+} from './StudioCardHover';
 
 export { resolveMediaUrl };
 export type { VideoProject };
@@ -17,72 +22,6 @@ interface VideoCardProps {
   onDuplicate?: (id: string) => void;
   onRetryUpload?: (id: string) => void;
   onDismissUpload?: (id: string) => void;
-}
-
-function CardThumbnailMedia({
-  thumbnailUrl,
-  videoUrl,
-  title,
-  compact = false,
-}: {
-  thumbnailUrl: string;
-  videoUrl: string;
-  title: string;
-  compact?: boolean;
-}) {
-  const mediaClass =
-    'w-full h-full object-cover object-[center_25%] opacity-90 group-hover:opacity-100 group-hover:scale-[1.05] transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none motion-reduce:transform-none';
-
-  return (
-    <>
-      {thumbnailUrl ? (
-        <img src={thumbnailUrl} alt={title} className={mediaClass} />
-      ) : videoUrl ? (
-        <video
-          src={`${videoUrl}#t=0.5`}
-          muted
-          playsInline
-          preload="metadata"
-          className={mediaClass}
-        />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#0d0c14] to-[#060609] text-zinc-700 group-hover:text-purple-400 transition-colors duration-300">
-          <svg
-            className={compact ? 'w-4 h-4' : 'w-8 h-8 transition-transform duration-300 group-hover:scale-110'}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <rect x="3" y="5" width="18" height="14" rx="2" strokeWidth="1.4" />
-            <polygon points="10 9 15 12 10 15 10 9" fill="currentColor" stroke="none" />
-          </svg>
-        </div>
-      )}
-
-      {/* Subtle violet rim vignette on hover */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(139,92,246,0.16),transparent_70%)] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
-      {/* Center play badge reveal */}
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-        <span
-          className={`flex items-center justify-center rounded-full border border-white/25 bg-black/60 text-white backdrop-blur-md shadow-[0_6px_20px_rgba(0,0,0,0.55)] opacity-0 scale-75 group-hover:opacity-100 group-hover:scale-100 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
-            compact ? 'h-7 w-7' : 'h-10 w-10'
-          }`}
-        >
-          <svg
-            className={compact ? 'w-3 h-3 translate-x-[0.5px]' : 'w-4 h-4 translate-x-[1px]'}
-            fill="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <polygon points="6 4 20 12 6 20 6 4" />
-          </svg>
-        </span>
-      </div>
-
-      {/* Bottom violet accent hairline */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[2px] bg-gradient-to-r from-[#7c3aed] via-[#a78bfa] to-[#7c3aed] scale-x-0 group-hover:scale-x-100 origin-left transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none" />
-    </>
-  );
 }
 
 export default function VideoCard({
@@ -218,16 +157,19 @@ export default function VideoCard({
   if (layout === 'strip') {
     return (
       <div
+        onMouseMove={!isProcessing ? handleCardPointerMove : undefined}
         className={`group relative flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 transition-[border-color,background-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
           isProcessing
             ? hasUploadError
               ? 'border-rose-500/40 bg-[#120b10]'
               : 'border-[#8b5cf6]/45 bg-[#0e0c18] shadow-[0_0_24px_-12px_rgba(139,92,246,0.45)]'
-            : 'border-[#1f1e29] bg-[#0c0b11] hover:border-[#8b5cf6]/50 hover:bg-[#100e17] hover:shadow-[0_12px_30px_-10px_rgba(124,58,237,0.24),0_6px_18px_rgba(0,0,0,0.48)]'
+            : 'studio-card border-[#1f1e29] bg-[#0c0b11] hover:border-[#8b5cf6]/35 hover:bg-[#100e17] hover:shadow-[0_12px_30px_-10px_rgba(124,58,237,0.22),0_6px_18px_rgba(0,0,0,0.48)]'
         } ${menuOpen ? 'z-30' : ''}`}
       >
-        <div className="flex items-center gap-3.5 min-w-0 flex-1">
-          <span className="font-mono text-xs font-bold text-zinc-600 group-hover:text-[#a78bfa] transition-colors duration-200 tabular-nums w-6 flex-shrink-0">
+        {!isProcessing && <CardHoverChrome rounded="xl" showLeftRail />}
+
+        <div className="relative z-[2] flex items-center gap-3.5 min-w-0 flex-1">
+          <span className="font-mono text-xs font-bold text-zinc-600 group-hover:text-[#c4b5fd] transition-colors duration-200 tabular-nums w-6 flex-shrink-0">
             #{formattedIndex}
           </span>
 
@@ -247,7 +189,7 @@ export default function VideoCard({
           ) : (
             <Link
               href={`/editor?id=${video.id}`}
-              className="relative h-12 w-20 sm:h-13 sm:w-24 rounded-lg overflow-hidden bg-[#050508] border border-white/[0.08] group-hover:border-[#8b5cf6]/35 transition-colors duration-300 flex-shrink-0"
+              className="relative h-12 w-20 sm:h-13 sm:w-24 rounded-lg overflow-hidden bg-[#050508] border border-white/[0.08] group-hover:border-[#8b5cf6]/45 transition-colors duration-300 flex-shrink-0"
             >
               <CardThumbnailMedia
                 thumbnailUrl={resolvedThumbnailUrl}
@@ -277,7 +219,7 @@ export default function VideoCard({
             ) : (
               <Link
                 href={`/editor?id=${video.id}`}
-                className="block font-semibold text-sm text-zinc-100 group-hover:text-purple-300 truncate transition-colors"
+                className="block font-semibold text-sm text-zinc-100 group-hover:text-[#ede9fe] truncate transition-colors duration-200"
                 title={video.title}
               >
                 {video.title}
@@ -295,8 +237,8 @@ export default function VideoCard({
           </div>
         </div>
 
-        <div className="flex items-center justify-between sm:justify-end gap-4 pl-9 sm:pl-0 flex-shrink-0">
-          <div className="flex items-center gap-3 font-mono text-[11px] text-zinc-500 tabular-nums">
+        <div className={`relative ${menuOpen ? 'z-30' : 'z-[2]'} flex items-center justify-between sm:justify-end gap-4 pl-9 sm:pl-0 flex-shrink-0`}>
+          <div className="flex items-center gap-3 font-mono text-[11px] text-zinc-500 group-hover:text-zinc-400 transition-colors duration-200 tabular-nums">
             {video.aspectRatio && (
               <span className="text-zinc-400">{video.aspectRatio}</span>
             )}
@@ -484,17 +426,17 @@ export default function VideoCard({
 
   return (
     <div
-      className={`group relative flex flex-col rounded-2xl border border-[#1f1e29] bg-[#0c0b11] hover:border-[#8b5cf6]/55 hover:bg-[#100e17] hover:shadow-[0_14px_36px_-10px_rgba(124,58,237,0.28),0_8px_24px_rgba(0,0,0,0.6)] transition-[border-color,background-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none overflow-visible ${
+      onMouseMove={handleCardPointerMove}
+      className={`studio-card group relative flex flex-col rounded-2xl border border-[#1f1e29] bg-[#0c0b11] hover:border-[#8b5cf6]/35 hover:bg-[#100e17] hover:shadow-[0_14px_36px_-10px_rgba(124,58,237,0.24),0_8px_24px_rgba(0,0,0,0.6)] transition-[border-color,background-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none overflow-visible ${
         menuOpen ? 'z-30' : ''
       }`}
     >
-      {/* Subtle inner edge rim glow on hover */}
-      <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/[0.06] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      <CardHoverChrome rounded="2xl" />
 
       {/* 1. Full-Bleed Rounded Top Monitor Viewport */}
       <Link
         href={`/editor?id=${video.id}`}
-        className="relative aspect-video w-full rounded-t-[15px] overflow-hidden block cursor-pointer bg-[#050508] border-b border-white/[0.05]"
+        className="relative z-[2] aspect-video w-full rounded-t-[15px] overflow-hidden block cursor-pointer bg-[#050508] border-b border-white/[0.05] group-hover:border-[#8b5cf6]/25 transition-colors duration-300"
       >
         <CardThumbnailMedia
           thumbnailUrl={resolvedThumbnailUrl}
@@ -507,14 +449,14 @@ export default function VideoCard({
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#0c0b11]/90 via-black/20 to-transparent" />
 
         {/* Top-Left Status Badge */}
-        <div className="pointer-events-none absolute top-2.5 left-2.5 inline-flex items-center gap-1.5 rounded-md bg-[#09080d]/75 backdrop-blur-md border border-white/10 group-hover:border-white/20 transition-colors duration-200 px-2 py-0.5 font-mono text-[10px] font-bold tracking-wider">
+        <div className="pointer-events-none absolute top-2.5 left-2.5 inline-flex items-center gap-1.5 rounded-md bg-[#09080d]/75 backdrop-blur-md border border-white/10 group-hover:border-white/25 transition-colors duration-200 px-2 py-0.5 font-mono text-[10px] font-bold tracking-wider">
           <span className={`w-1.5 h-1.5 rounded-full ${statusMeta.dot}`} />
           <span className={statusMeta.color}>{statusMeta.label}</span>
         </div>
 
         {/* Top-Right Telemetry Chip (Aspect Ratio & Duration) */}
         {(video.aspectRatio || video.duration) && (
-          <div className="pointer-events-none absolute top-2.5 right-2.5 inline-flex items-center gap-1.5 rounded-md bg-black/70 backdrop-blur-md border border-white/10 group-hover:border-white/20 transition-colors duration-200 px-2 py-0.5 font-mono text-[10px] font-semibold text-zinc-100 tabular-nums">
+          <div className="pointer-events-none absolute top-2.5 right-2.5 inline-flex items-center gap-1.5 rounded-md bg-black/70 backdrop-blur-md border border-white/10 group-hover:border-white/25 transition-colors duration-200 px-2 py-0.5 font-mono text-[10px] font-semibold text-zinc-100 tabular-nums">
             {video.aspectRatio && (
               <span className="text-zinc-400">{video.aspectRatio}</span>
             )}
@@ -527,7 +469,7 @@ export default function VideoCard({
       </Link>
 
       {/* 2. Card Content Body */}
-      <div className="p-3.5 pt-3 flex flex-col justify-between flex-1 gap-3">
+      <div className={`relative ${menuOpen ? 'z-30' : 'z-[2]'} p-3.5 pt-3 flex flex-col justify-between flex-1 gap-3`}>
         <div className="min-w-0">
           {isRenaming ? (
             <form onSubmit={handleRenameSubmit}>
@@ -543,7 +485,7 @@ export default function VideoCard({
           ) : (
             <Link
               href={`/editor?id=${video.id}`}
-              className="block font-display font-semibold text-[14px] leading-normal text-zinc-100 group-hover:text-purple-300 truncate transition-colors"
+              className="block font-display font-semibold text-[14px] leading-normal text-zinc-100 group-hover:text-[#ede9fe] truncate transition-colors duration-200"
               title={video.title}
             >
               {video.title}
@@ -552,8 +494,8 @@ export default function VideoCard({
         </div>
 
         {/* 3. Footer: Metadata + Direct Actions */}
-        <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-white/[0.06]">
-          <div className="flex items-center gap-1.5 min-w-0 text-[11px] font-mono text-zinc-500 truncate tabular-nums">
+        <div className="flex items-center justify-between gap-2 pt-2.5 border-t border-white/[0.06] group-hover:border-[#8b5cf6]/20 transition-colors duration-300">
+          <div className="flex items-center gap-1.5 min-w-0 text-[11px] font-mono text-zinc-500 group-hover:text-zinc-400 transition-colors duration-200 truncate tabular-nums">
             <span className="truncate">{video.updated_at}</span>
             {video.captionCount !== undefined && (
               <>
@@ -564,7 +506,7 @@ export default function VideoCard({
           </div>
 
           {/* Context Menu (...) */}
-          <div className="relative flex-shrink-0" ref={menuRef}>
+          <div className="relative z-30 flex-shrink-0" ref={menuRef}>
             <button
               type="button"
               onClick={(e) => {

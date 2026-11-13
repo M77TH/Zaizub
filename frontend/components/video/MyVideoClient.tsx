@@ -3,6 +3,11 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import VideoCard, { VideoProject, resolveMediaUrl } from './VideoCard';
+import {
+  CardHoverChrome,
+  CardThumbnailMedia,
+  handleCardPointerMove,
+} from './StudioCardHover';
 import UploadVideoModal from './UploadVideoModal';
 import DeleteConfirmModal from './DeleteConfirmModal';
 import { apiUrl } from '@/lib/api';
@@ -600,44 +605,31 @@ export default function MyVideoClient({
         {/* 2. LATEST SESSION SPOTLIGHT (Compact Studio Cut Bar) */}
         {spotlightVideo && (
           <section className="mt-4 mb-6">
-            <div className="group/spotlight relative flex flex-col sm:flex-row items-stretch rounded-xl border border-[#22202d] bg-[#0b0a0f] hover:border-[#8b5cf6]/55 hover:bg-[#0f0d15] hover:shadow-[0_16px_40px_-12px_rgba(124,58,237,0.28),0_10px_28px_rgba(0,0,0,0.55)] transition-[border-color,background-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none overflow-hidden">
+            <div
+              onMouseMove={handleCardPointerMove}
+              className="studio-card group/spotlight relative flex flex-col sm:flex-row items-stretch rounded-xl border border-[#22202d] bg-[#0b0a0f] hover:border-[#8b5cf6]/35 hover:bg-[#0f0d15] hover:shadow-[0_14px_36px_-12px_rgba(124,58,237,0.22),0_10px_28px_rgba(0,0,0,0.55)] transition-[border-color,background-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none overflow-hidden"
+            >
+              <CardHoverChrome rounded="xl" showLeftRail />
+
               {/* Left Compact 1:1 Monitor Thumbnail */}
               <Link
                 href={`/editor?id=${spotlightVideo.id}`}
-                className="relative mx-auto mt-3 sm:m-0 w-40 h-40 md:w-[164px] md:h-[164px] aspect-square flex-shrink-0 self-center bg-[#040406] rounded-lg sm:rounded-none border sm:border-0 sm:border-r border-[#1c1b24] overflow-hidden block"
+                className="relative z-[2] mx-auto mt-3 sm:m-0 w-40 h-40 md:w-[164px] md:h-[164px] aspect-square flex-shrink-0 self-center bg-[#040406] rounded-lg sm:rounded-none border sm:border-0 sm:border-r border-[#1c1b24] sm:group-hover/spotlight:border-[#8b5cf6]/35 transition-colors duration-300 overflow-hidden block"
               >
-                {spotlightThumb ? (
-                  <img
-                    src={spotlightThumb}
-                    alt={spotlightVideo.title}
-                    className="w-full h-full object-cover object-[center_25%] opacity-90 group-hover/spotlight:opacity-100 group-hover/spotlight:scale-[1.05] transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none motion-reduce:transform-none"
-                  />
-                ) : spotlightSrc ? (
-                  <video
-                    src={`${spotlightSrc}#t=0.5`}
-                    muted
-                    playsInline
-                    preload="metadata"
-                    className="w-full h-full object-cover object-[center_25%] opacity-90 group-hover/spotlight:opacity-100 group-hover/spotlight:scale-[1.05] transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none motion-reduce:transform-none"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-zinc-700 group-hover/spotlight:text-purple-400 transition-colors duration-300">
-                    <span className="font-mono text-[10px] uppercase tracking-widest">NO VIDEO SIGNAL</span>
-                  </div>
-                )}
+                <CardThumbnailMedia
+                  thumbnailUrl={spotlightThumb}
+                  videoUrl={spotlightSrc}
+                  title={spotlightVideo.title}
+                  emptyFallback={
+                    <div className="w-full h-full flex items-center justify-center text-zinc-700 group-hover/spotlight:text-purple-400 transition-colors duration-300">
+                      <span className="font-mono text-[10px] uppercase tracking-widest">NO VIDEO SIGNAL</span>
+                    </div>
+                  }
+                />
 
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(139,92,246,0.16),transparent_70%)] opacity-0 group-hover/spotlight:opacity-100 transition-opacity duration-300" />
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
 
-                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full border border-white/25 bg-black/60 text-white backdrop-blur-md shadow-[0_6px_20px_rgba(0,0,0,0.55)] opacity-0 scale-75 group-hover/spotlight:opacity-100 group-hover/spotlight:scale-100 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none">
-                    <svg className="w-4 h-4 translate-x-[1px]" fill="currentColor" viewBox="0 0 24 24">
-                      <polygon points="6 4 20 12 6 20 6 4" />
-                    </svg>
-                  </span>
-                </div>
-
-                <div className="pointer-events-none absolute top-2 left-2 font-mono text-[9px] font-bold tracking-wider text-zinc-200 bg-black/75 border border-white/10 group-hover/spotlight:border-white/20 transition-colors px-1.5 py-0.5 rounded">
+                <div className="pointer-events-none absolute top-2 left-2 font-mono text-[9px] font-bold tracking-wider text-zinc-200 bg-black/75 border border-white/10 group-hover/spotlight:border-white/25 transition-colors px-1.5 py-0.5 rounded">
                   PRV // {spotlightVideo.aspectRatio || '9:16'}
                   {spotlightVideo.duration ? ` · ${spotlightVideo.duration}` : ''}
                 </div>
@@ -655,12 +647,10 @@ export default function MyVideoClient({
                     </span>
                   </div>
                 )}
-
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[2px] bg-gradient-to-r from-[#7c3aed] via-[#a78bfa] to-[#7c3aed] scale-x-0 group-hover/spotlight:scale-x-100 origin-left transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none" />
               </Link>
 
               {/* Right Compact Spec & Action Strip */}
-              <div className="flex-1 min-w-0 p-3.5 sm:px-4 sm:py-3 flex flex-col justify-between gap-2.5">
+              <div className="relative z-[2] flex-1 min-w-0 p-3.5 sm:px-4 sm:py-3 flex flex-col justify-between gap-2.5">
                 <div>
                   <div className="flex items-center justify-between gap-2 font-mono text-[10px]">
                     <div className="flex items-center gap-2 uppercase tracking-[0.14em] text-[#c4b5fd] font-bold truncate">

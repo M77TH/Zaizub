@@ -700,3 +700,171 @@ header::-webkit-scrollbar, header *::-webkit-scrollbar {
   transform-origin: bottom;
 }
 
+/* ============================================================
+   Studio Card Hover System (No Lift, No Zoom)
+   ============================================================ */
+@keyframes studioMonitorSheen {
+  0% {
+    opacity: 0;
+    transform: translate3d(-170%, 0, 0) skewX(-18deg);
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(260%, 0, 0) skewX(-18deg);
+  }
+}
+
+.studio-card {
+  --spot-x: 50%;
+  --spot-y: 0%;
+}
+
+.studio-card-surface-glow {
+  background: radial-gradient(
+    360px circle at var(--spot-x) var(--spot-y),
+    rgba(139, 92, 246, 0.13),
+    rgba(124, 58, 237, 0.04) 42%,
+    transparent 74%
+  );
+  opacity: 0;
+  transition: opacity 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.studio-card-border-glow {
+  padding: 1px;
+  background: radial-gradient(
+    240px circle at var(--spot-x) var(--spot-y),
+    rgba(216, 180, 254, 0.85),
+    rgba(139, 92, 246, 0.45) 42%,
+    transparent 75%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.studio-card-top-rim {
+  opacity: 0;
+  transition: opacity 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.studio-card-media {
+  opacity: 0.88;
+  filter: brightness(0.95) contrast(0.99);
+  transition:
+    opacity 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.studio-card-sheen {
+  opacity: 0;
+  transform: translate3d(-170%, 0, 0) skewX(-18deg);
+  will-change: transform, opacity;
+}
+
+.studio-card-vignette {
+  opacity: 0;
+  transition: opacity 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.studio-card-play {
+  opacity: 0;
+  transition:
+    opacity 240ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 240ms ease,
+    box-shadow 240ms ease;
+}
+
+.studio-card-play svg {
+  transform: translateX(-2px);
+  transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.studio-card-scrub {
+  width: 0%;
+  opacity: 0.4;
+  transition:
+    width 460ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 220ms ease;
+}
+
+.studio-card-rail {
+  opacity: 0;
+  height: 36%;
+  transition:
+    opacity 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.studio-card:hover .studio-card-surface-glow,
+.studio-card:has(a:focus-visible, button:focus-visible) .studio-card-surface-glow,
+.studio-card:hover .studio-card-border-glow,
+.studio-card:has(a:focus-visible, button:focus-visible) .studio-card-border-glow,
+.studio-card:hover .studio-card-top-rim,
+.studio-card:has(a:focus-visible, button:focus-visible) .studio-card-top-rim,
+.studio-card:hover .studio-card-vignette,
+.studio-card:has(a:focus-visible) .studio-card-vignette {
+  opacity: 1;
+}
+
+.studio-card:hover .studio-card-media,
+.studio-card:has(a:focus-visible) .studio-card-media {
+  opacity: 1;
+  filter: brightness(1.06) contrast(1.03);
+}
+
+.studio-card:hover .studio-card-sheen {
+  animation: studioMonitorSheen 680ms cubic-bezier(0.22, 1, 0.36, 1) 1 forwards;
+}
+
+.studio-card:hover .studio-card-play,
+.studio-card:has(a:focus-visible) .studio-card-play {
+  opacity: 1;
+  border-color: rgba(216, 180, 254, 0.55);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.62), 0 0 22px rgba(139, 92, 246, 0.35);
+}
+
+.studio-card:hover .studio-card-play svg,
+.studio-card:has(a:focus-visible) .studio-card-play svg {
+  transform: translateX(1px);
+}
+
+.studio-card:hover .studio-card-scrub,
+.studio-card:has(a:focus-visible) .studio-card-scrub {
+  width: 100%;
+  opacity: 1;
+}
+
+.studio-card:hover .studio-card-rail,
+.studio-card:has(a:focus-visible) .studio-card-rail {
+  opacity: 1;
+  height: 64%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .studio-card-surface-glow,
+  .studio-card-border-glow,
+  .studio-card-top-rim,
+  .studio-card-media,
+  .studio-card-vignette,
+  .studio-card-play,
+  .studio-card-play svg,
+  .studio-card-scrub,
+  .studio-card-rail {
+    transition-duration: 1ms;
+  }
+
+  .studio-card:hover .studio-card-sheen {
+    animation: none;
+  }
+}
+

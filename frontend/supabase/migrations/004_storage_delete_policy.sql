@@ -1,6 +1,7 @@
 -- 004_storage_delete_policy.sql: Allow authenticated users to delete video files
 -- Execute in Supabase SQL editor if direct storage deletions with user JWT are desired:
 
+drop policy if exists "Allow authenticated users to delete from videos bucket" on storage.objects;
 create policy "Allow authenticated users to delete from videos bucket"
   on storage.objects
   for delete

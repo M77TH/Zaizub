@@ -1,4 +1,4 @@
-﻿-- 002_projects.sql: User video projects
+﻿-- 002_projects.sql: Legacy user video projects table (superseded by public.videos in 003)
 -- Owner key: projects.user_id = auth.users.id (= auth.uid())
 
 create table if not exists public.projects (

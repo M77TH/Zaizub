@@ -10,18 +10,21 @@ create table if not exists public.profiles (
 
 alter table public.profiles enable row level security;
 
+drop policy if exists "profiles_select_own" on public.profiles;
 create policy "profiles_select_own"
   on public.profiles
   for select
   to authenticated
   using (auth.uid() = id);
 
+drop policy if exists "profiles_insert_own" on public.profiles;
 create policy "profiles_insert_own"
   on public.profiles
   for insert
   to authenticated
   with check (auth.uid() = id);
 
+drop policy if exists "profiles_update_own" on public.profiles;
 create policy "profiles_update_own"
   on public.profiles
   for update
@@ -29,7 +32,7 @@ create policy "profiles_update_own"
   using (auth.uid() = id)
   with check (auth.uid() = id);
 
--- Auto-create a profile row when a user signs up.
+-- Auto-create a profile row when a user signs up (supports email and OAuth metadata).
 -- Runs as security definer so insert succeeds before the session is fully usable.
 create or replace function public.handle_new_user()
 returns trigger
@@ -41,8 +44,19 @@ begin
   insert into public.profiles (id, display_name)
   values (
     new.id,
-    nullif(trim(coalesce(new.raw_user_meta_data->>'display_name', '')), '')
-  );
+    nullif(
+      trim(
+        coalesce(
+          new.raw_user_meta_data->>'display_name',
+          new.raw_user_meta_data->>'full_name',
+          new.raw_user_meta_data->>'name',
+          ''
+        )
+      ),
+      ''
+    )
+  )
+  on conflict (id) do nothing;
   return new;
 end;
 $$;

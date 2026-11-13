@@ -606,7 +606,7 @@ export default function MyVideoClient({
         {spotlightVideo && (
           <section className="mt-4 mb-6">
             <div
-              className="studio-card group/spotlight relative flex flex-col sm:flex-row items-stretch rounded-xl border border-[#22202d] bg-[#0b0a0f] hover:border-[#a78bfa]/40 hover:bg-[#100d19] hover:shadow-[0_10px_30px_-10px_rgba(167,139,250,0.28),0_10px_26px_rgba(0,0,0,0.56)] transition-[border-color,background-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none overflow-hidden"
+              className="studio-card group/spotlight relative flex flex-col sm:flex-row items-stretch rounded-xl border border-[#22202d] bg-[#0b0a0f] hover:border-[#a78bfa]/40 hover:bg-[#100d19] hover:shadow-[0_10px_30px_-10px_rgba(167,139,250,0.28),0_10px_26px_rgba(0,0,0,0.56)] transition-[border-color,background-color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none overflow-hidden"
             >
               <CardHoverChrome rounded="xl" showLeftRail />
 

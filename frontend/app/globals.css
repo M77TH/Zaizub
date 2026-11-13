@@ -721,7 +721,7 @@ header::-webkit-scrollbar, header *::-webkit-scrollbar {
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
   opacity: 0;
-  transition: opacity 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 380ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .studio-beam-spinner {
@@ -757,7 +757,7 @@ header::-webkit-scrollbar, header *::-webkit-scrollbar {
     transparent 80%
   );
   opacity: 0;
-  transition: opacity 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* Monitor media stays 1:1 (zero zoom), clean subtle clarity lift on hover */
@@ -765,8 +765,8 @@ header::-webkit-scrollbar, header *::-webkit-scrollbar {
   opacity: 0.9;
   filter: brightness(0.96) contrast(0.99);
   transition:
-    opacity 280ms cubic-bezier(0.22, 1, 0.36, 1),
-    filter 280ms cubic-bezier(0.22, 1, 0.36, 1);
+    opacity 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* Subtle focal scrim behind play icon & corner brackets */
@@ -778,7 +778,7 @@ header::-webkit-scrollbar, header *::-webkit-scrollbar {
     rgba(139, 92, 246, 0.08) 100%
   );
   opacity: 0;
-  transition: opacity 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 380ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* Corner viewfinder brackets sliding softly inward from the edges */
@@ -786,8 +786,8 @@ header::-webkit-scrollbar, header *::-webkit-scrollbar {
   opacity: 0;
   filter: drop-shadow(0 0 5px rgba(139, 92, 246, 0.72));
   transition:
-    transform 280ms cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 200ms ease;
+    transform 480ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 340ms ease;
 }
 
 .studio-reticle-tl {
@@ -826,14 +826,14 @@ header::-webkit-scrollbar, header *::-webkit-scrollbar {
 .studio-card-play {
   opacity: 0;
   transition:
-    opacity 220ms cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 240ms ease,
-    box-shadow 240ms ease;
+    opacity 380ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 380ms ease,
+    box-shadow 380ms ease;
 }
 
 .studio-card-play svg {
   transform: translateX(-2px);
-  transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* Bottom scrub accent line */
@@ -841,8 +841,8 @@ header::-webkit-scrollbar, header *::-webkit-scrollbar {
   width: 0%;
   opacity: 0.45;
   transition:
-    width 440ms cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 220ms ease;
+    width 700ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 360ms ease;
 }
 
 /* Left active-track rail */
@@ -850,8 +850,8 @@ header::-webkit-scrollbar, header *::-webkit-scrollbar {
   opacity: 0;
   height: 32%;
   transition:
-    opacity 240ms cubic-bezier(0.22, 1, 0.36, 1),
-    height 280ms cubic-bezier(0.16, 1, 0.3, 1);
+    opacity 380ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 480ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* Hover & keyboard focus-visible activation */
@@ -866,7 +866,7 @@ header::-webkit-scrollbar, header *::-webkit-scrollbar {
 
 .studio-card:hover .studio-beam-spinner,
 .studio-card:has(a:focus-visible, button:focus-visible) .studio-beam-spinner {
-  animation: studioBeamRotate 2.6s linear infinite;
+  animation: studioBeamRotate 6s linear infinite;
 }
 
 .studio-card:hover .studio-card-media,

@@ -156,7 +156,7 @@ export default function VideoCard({
   if (layout === 'strip') {
     return (
       <div
-        className={`group relative flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 transition-[border-color,background-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+        className={`group relative flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 transition-[border-color,background-color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
           isProcessing
             ? hasUploadError
               ? 'border-rose-500/40 bg-[#120b10]'
@@ -424,7 +424,7 @@ export default function VideoCard({
 
   return (
     <div
-      className={`studio-card group relative flex flex-col rounded-2xl border border-[#1f1e29] bg-[#0c0b11] hover:border-[#a78bfa]/40 hover:bg-[#100d19] hover:shadow-[0_10px_30px_-10px_rgba(167,139,250,0.28),0_8px_24px_rgba(0,0,0,0.58)] transition-[border-color,background-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none overflow-visible ${
+      className={`studio-card group relative flex flex-col rounded-2xl border border-[#1f1e29] bg-[#0c0b11] hover:border-[#a78bfa]/40 hover:bg-[#100d19] hover:shadow-[0_10px_30px_-10px_rgba(167,139,250,0.28),0_8px_24px_rgba(0,0,0,0.58)] transition-[border-color,background-color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none overflow-visible ${
         menuOpen ? 'z-30' : ''
       }`}
     >

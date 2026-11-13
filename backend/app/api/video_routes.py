@@ -31,6 +31,37 @@ def _new_job_id() -> int:
 # One GPU model: transcribe one clip at a time, others queue here instead of OOM-ing / racing
 _gpu_lock = asyncio.Semaphore(1)
 
+def probe_av_timeline_base(video_path: str) -> int:
+    """Return 16kHz sample offset matching the earliest A/V stream start_time.
+
+    Preserves positive audio delays (when `audio start_time > video start_time`)
+    during WAV extraction while avoiding bogus silence if both streams share an
+    offset container origin.
+    """
+    try:
+        res = subprocess.run(
+            [
+                "ffprobe", "-v", "error",
+                "-show_entries", "stream=codec_type,start_time",
+                "-of", "json",
+                video_path,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=True,
+        )
+        data = json.loads(res.stdout or "{}")
+        starts: List[float] = []
+        for st in data.get("streams", []):
+            if st.get("codec_type") in ("video", "audio") and st.get("start_time") not in (None, "N/A"):
+                starts.append(float(st["start_time"]))
+        if not starts:
+            return 0
+        return max(0, int(round(min(starts) * 16000)))
+    except Exception:
+        return 0
+
 async def transcribe(audio_path: str, engine: Optional[str], language: Optional[str] = None):
     from app.services.ai_services import transcribe_audio
     async with _gpu_lock:
@@ -171,8 +202,13 @@ async def _transcribe_and_upload(job_id: int, input_video: str, engine: Optional
     temp_audio = os.path.join(TEMP_DIR, f"aud_{job_id}.wav")
     try:
         logger.info('extracting audio')
-        await asyncio.to_thread(subprocess.run, ['ffmpeg', '-y', '-i', input_video, '-vn', '-ac', '1', '-ar', '16000', temp_audio],
-                                check=True, capture_output=True)
+        base_pts = await asyncio.to_thread(probe_av_timeline_base, input_video)
+        await asyncio.to_thread(
+            subprocess.run,
+            ['ffmpeg', '-y', '-i', input_video, '-vn', '-af', f'aresample=async=1:first_pts={base_pts}', '-ac', '1', '-ar', '16000', temp_audio],
+            check=True,
+            capture_output=True,
+        )
 
         async def media():
             # CPU/network work; overlaps with GPU transcription below

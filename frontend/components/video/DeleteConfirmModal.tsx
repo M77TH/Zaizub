@@ -35,14 +35,14 @@ export default function DeleteConfirmModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/75 backdrop-blur-sm transition-opacity animate-in fade-in duration-200"
+        className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
         onClick={!isDeleting ? onClose : undefined}
       />
 
       {/* Modal Dialog Card */}
-      <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#151226]/95 p-6 shadow-2xl backdrop-blur-xl animate-in zoom-in-95 duration-200 text-center">
-        {/* Warning Icon with red glow */}
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-rose-500/20 bg-rose-500/10 text-rose-500 shadow-[0_0_30px_rgba(244,63,94,0.2)]">
+      <div className="relative overflow-hidden w-full max-w-md rounded-2xl border border-[#262433] bg-[#0b0a10] p-6 sm:p-7 shadow-[0_28px_80px_rgba(0,0,0,0.92)] text-center">
+        {/* Warning Icon */}
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-rose-500/25 bg-rose-500/10 text-rose-400">
           <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path
               strokeLinecap="round"

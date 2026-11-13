@@ -119,25 +119,53 @@ export default function SmoothScroll({ children }: { children: ReactNode }) {
 
     let isRunning = true;
     let rafId: number = 0;
+    let idleFrames = 0;
+
     function raf(time: number) {
+      rafId = 0;
       if (!isRunning) return;
       lenisInstance.raf(time);
-      rafId = requestAnimationFrame(raf);
+      if (lenisInstance.isScrolling) {
+        idleFrames = 0;
+        rafId = requestAnimationFrame(raf);
+      } else if (idleFrames < 3) {
+        idleFrames += 1;
+        rafId = requestAnimationFrame(raf);
+      }
     }
+
+    const wakeRaf = () => {
+      if (!isRunning || document.hidden) return;
+      idleFrames = 0;
+      if (!rafId) {
+        rafId = requestAnimationFrame(raf);
+      }
+    };
+
+    const originalScrollTo = lenisInstance.scrollTo.bind(lenisInstance);
+    lenisInstance.scrollTo = ((...args: Parameters<Lenis["scrollTo"]>) => {
+      wakeRaf();
+      return originalScrollTo(...args);
+    }) as Lenis["scrollTo"];
+
     rafId = requestAnimationFrame(raf);
 
     const handleVisibility = () => {
       if (document.hidden) {
         isRunning = false;
-        if (rafId) cancelAnimationFrame(rafId);
-      } else {
-        if (!isRunning) {
-          isRunning = true;
-          rafId = requestAnimationFrame(raf);
+        if (rafId) {
+          cancelAnimationFrame(rafId);
+          rafId = 0;
         }
+      } else {
+        isRunning = true;
+        wakeRaf();
       }
     };
     document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("wheel", wakeRaf, { passive: true });
+    window.addEventListener("touchstart", wakeRaf, { passive: true });
+    window.addEventListener("keydown", wakeRaf, { passive: true });
 
     // Global interceptor for in-page anchor links
     const handleAnchorClick = (e: MouseEvent) => {
@@ -166,8 +194,11 @@ export default function SmoothScroll({ children }: { children: ReactNode }) {
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("wheel", wakeRaf);
+      window.removeEventListener("touchstart", wakeRaf);
+      window.removeEventListener("keydown", wakeRaf);
       document.removeEventListener("click", handleAnchorClick);
-      cancelAnimationFrame(rafId);
+      if (rafId) cancelAnimationFrame(rafId);
       lenisInstance.destroy();
       (window as unknown as { __lenis?: Lenis }).__lenis = undefined;
     };

@@ -55,12 +55,20 @@ export default function PhoneMockup({
         if (v1) {
           v1.defaultMuted = true;
           v1.muted = activeIndex === 0 ? isMuted : true;
-          v1.play().catch(() => {});
+          if (activeIndex === 0) {
+            v1.play().catch(() => {});
+          } else {
+            v1.pause();
+          }
         }
         if (v2) {
           v2.defaultMuted = true;
           v2.muted = activeIndex === 1 ? isMuted : true;
-          v2.play().catch(() => {});
+          if (activeIndex === 1) {
+            v2.play().catch(() => {});
+          } else {
+            v2.pause();
+          }
         }
       }
     };
@@ -82,7 +90,7 @@ export default function PhoneMockup({
     };
   }, [activeIndex, isMuted]);
 
-  // Audio synchronization: only active front clip can be unmuted
+  // Audio synchronization: only active front clip plays and can be unmuted
   useEffect(() => {
     if (!isInView) return;
     const v1 = video1Ref.current;
@@ -91,13 +99,21 @@ export default function PhoneMockup({
     if (v1) {
       v1.defaultMuted = true;
       v1.muted = activeIndex === 0 ? isMuted : true;
-      v1.play().catch(() => {});
+      if (activeIndex === 0) {
+        v1.play().catch(() => {});
+      } else {
+        v1.pause();
+      }
     }
 
     if (v2) {
       v2.defaultMuted = true;
       v2.muted = activeIndex === 1 ? isMuted : true;
-      v2.play().catch(() => {});
+      if (activeIndex === 1) {
+        v2.play().catch(() => {});
+      } else {
+        v2.pause();
+      }
     }
   }, [activeIndex, isMuted, isInView]);
 
@@ -139,15 +155,12 @@ export default function PhoneMockup({
             >
               {/* Device Frame */}
               <div
-                style={{
-                  animationPlayState: isInView ? "running" : "paused",
-                }}
-                className={`h-full w-full rounded-[2.2rem] bg-[#07060a] p-1.5 shadow-[0_24px_60px_rgba(0,0,0,0.95),0_0_20px_rgba(139,92,246,0.14)] ring-1 will-change-transform transform-gpu [backface-visibility:hidden] transition-all duration-500 ${
+                className={`h-full w-full rounded-[2.2rem] bg-[#07060a] p-1.5 shadow-[0_24px_60px_rgba(0,0,0,0.95),0_0_20px_rgba(139,92,246,0.14)] ring-1 transform-gpu [backface-visibility:hidden] transition-all duration-500 ${
                   isFront
                     ? isPulsing
-                      ? "ring-purple-400/90 shadow-[0_28px_70px_rgba(0,0,0,0.98),0_0_36px_rgba(139,92,246,0.35)]"
-                      : "ring-white/12 hover:ring-purple-400/35 hover:shadow-[0_28px_70px_rgba(0,0,0,0.98),0_0_26px_rgba(139,92,246,0.22)] animate-phoneIdleFront"
-                    : "ring-white/[0.08] hover:ring-purple-400/30 hover:scale-[1.01] animate-phoneIdleBack"
+                      ? "-rotate-2 ring-purple-400/90 shadow-[0_28px_70px_rgba(0,0,0,0.98),0_0_36px_rgba(139,92,246,0.35)]"
+                      : "-rotate-2 ring-white/12 hover:ring-purple-400/35 hover:shadow-[0_28px_70px_rgba(0,0,0,0.98),0_0_26px_rgba(139,92,246,0.22)]"
+                    : "rotate-[9.5deg] ring-white/[0.08] hover:ring-purple-400/30 hover:scale-[1.01]"
                 }`}
               >
                 {/* Screen Bezel & Container */}
@@ -159,11 +172,16 @@ export default function PhoneMockup({
                       isFront ? "opacity-100" : "opacity-90"
                     }`}
                     src={clip.src}
-                    autoPlay
+                    autoPlay={isFront}
                     muted={isFront ? isMuted : true}
                     loop
                     playsInline
-                    preload="auto"
+                    preload={isFront ? "auto" : "metadata"}
+                    onLoadedMetadata={(e) => {
+                      if (!isFront && e.currentTarget.currentTime === 0) {
+                        e.currentTarget.currentTime = 0.05;
+                      }
+                    }}
                   />
 
                   {/* Sleek Dynamic Island */}
@@ -172,10 +190,10 @@ export default function PhoneMockup({
                   </div>
 
                   {/* Delicate Screen Glass Sheen */}
-                  <div className="pointer-events-none absolute inset-0 z-20 rounded-[1.72rem] bg-gradient-to-tr from-transparent via-white/[0.02] to-white/[0.06] mix-blend-overlay" />
+                  <div className="pointer-events-none absolute inset-0 z-20 rounded-[1.72rem] bg-gradient-to-tr from-transparent via-white/[0.015] to-white/[0.04]" />
 
                   {/* Bottom Home Indicator */}
-                  <div className="pointer-events-none absolute bottom-1.5 left-1/2 -translate-x-1/2 z-30 h-1 w-10 sm:w-12 rounded-full bg-white/25 backdrop-blur-sm" />
+                  <div className="pointer-events-none absolute bottom-1.5 left-1/2 -translate-x-1/2 z-30 h-1 w-10 sm:w-12 rounded-full bg-white/30" />
 
                   {/* Sound Toggle (Only on Active Front Phone) */}
                   {isFront && (
@@ -194,7 +212,7 @@ export default function PhoneMockup({
                             ? "ปิดเสียง"
                             : "Mute video"
                       }
-                      className="group/sound absolute bottom-3 right-2 sm:bottom-3.5 sm:right-2.5 z-30 flex items-center gap-1.5 rounded-full bg-black/75 px-2 py-0.5 sm:py-1 text-[9px] sm:text-[10px] font-mono font-medium text-white/90 backdrop-blur-md border border-white/15 hover:border-purple-400/50 hover:bg-black/90 transition-all shadow-[0_2px_12px_rgba(0,0,0,0.7)] cursor-pointer"
+                      className="group/sound absolute bottom-3 right-2 sm:bottom-3.5 sm:right-2.5 z-30 flex items-center gap-1.5 rounded-full bg-[#090810]/90 px-2 py-0.5 sm:py-1 text-[9px] sm:text-[10px] font-mono font-medium text-white/90 border border-white/15 hover:border-purple-400/50 hover:bg-black/95 transition-all shadow-[0_2px_12px_rgba(0,0,0,0.7)] cursor-pointer"
                     >
                       {isMuted ? (
                         <>

@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import { needsSpaceBetweenWords } from './types';
 
 interface EditorHeaderProps {
   projectName: string;
@@ -16,6 +17,8 @@ interface EditorHeaderProps {
   selectedSubtitleId: number | string | null;
   onResetStyles: () => void;
   onExportSRT: () => void;
+  onExportSubtitle?: (format: 'srt' | 'vtt' | 'txt') => void;
+  onCopyTranscript?: () => void;
   onSave?: () => void;
   onRenderVideo: () => void;
   isRendering: boolean;
@@ -27,6 +30,74 @@ interface EditorHeaderProps {
   captionLengthMode?: 'normal' | 'short' | 'custom';
   customWordCount?: number;
   onRegroupSubtitles?: (mode: 'normal' | 'short' | 'custom', wordCount?: number) => void;
+}
+
+const SAMPLE_CAPTION_WORDS = [
+  'วิธีทำ',
+  'คลิปสั้น',
+  'ให้คน',
+  'หยุดดู',
+  'จนจบ',
+  'ภายใน',
+  '3',
+  'วินาที',
+  'แรก',
+  'แบบ',
+  'มืออาชีพ',
+  'ทันที',
+] as const;
+
+type HeaderMenu = 'ratio' | 'speed' | 'captionLength' | 'export' | null;
+
+const EXPORT_FORMAT_OPTIONS: ReadonlyArray<{
+  format: 'srt' | 'vtt' | 'txt';
+  ext: string;
+  label: string;
+  desc: string;
+}> = [
+  { format: 'srt', ext: '.SRT', label: 'ไฟล์ซับไตเติล', desc: 'Premiere · CapCut · YouTube' },
+  { format: 'vtt', ext: '.VTT', label: 'เว็บซับไตเติล', desc: 'HTML5 Player · Web Video' },
+  { format: 'txt', ext: '.TXT', label: 'ข้อความล้วน', desc: 'สคริปต์บทพูด ไม่มีไทม์โค้ด' },
+];
+
+const ASPECT_RATIO_OPTIONS: ReadonlyArray<{
+  value: '9:16' | '16:9' | '1:1';
+  label: string;
+  desc: string;
+}> = [
+  { value: '9:16', label: '9:16 แนวตั้ง', desc: 'TikTok / Reels / Shorts' },
+  { value: '16:9', label: '16:9 แนวนอน', desc: 'YouTube / Widescreen' },
+  { value: '1:1', label: '1:1 จัตุรัส', desc: 'Square Post' },
+];
+
+function AspectRatioIcon({
+  ratio,
+  size = 12,
+  className = '',
+}: {
+  ratio: '16:9' | '9:16' | '1:1';
+  size?: number;
+  className?: string;
+}) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.1"
+      className={className}
+    >
+      {ratio === '9:16' ? (
+        <rect x="7" y="2" width="10" height="20" rx="2" />
+      ) : ratio === '16:9' ? (
+        <rect x="2" y="5" width="20" height="14" rx="2" />
+      ) : (
+        <rect x="4" y="4" width="16" height="16" rx="2" />
+      )}
+    </svg>
+  );
 }
 
 function EditorHeader({
@@ -42,10 +113,11 @@ function EditorHeader({
   selectedSubtitleId,
   onResetStyles,
   onExportSRT,
+  onExportSubtitle,
+  onCopyTranscript,
   onSave,
   onRenderVideo,
   isRendering,
-  showToast,
   onUndo,
   onRedo,
   canUndo = false,
@@ -54,32 +126,33 @@ function EditorHeader({
   customWordCount = 4,
   onRegroupSubtitles,
 }: EditorHeaderProps) {
-  const [isRatioOpen, setIsRatioOpen] = useState(false);
-  const [isSpeedOpen, setIsSpeedOpen] = useState(false);
-  const [isCaptionLengthOpen, setIsCaptionLengthOpen] = useState(false);
-  const [tempWordCount, setTempWordCount] = useState<number>(customWordCount);
+  const [openMenu, setOpenMenu] = useState<HeaderMenu>(null);
 
   const ratioDropdownRef = useRef<HTMLDivElement>(null);
   const speedDropdownRef = useRef<HTMLDivElement>(null);
   const captionLengthDropdownRef = useRef<HTMLDivElement>(null);
+  const exportDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Keep local temp word count synced with prop
-  useEffect(() => {
-    setTempWordCount(customWordCount);
-  }, [customWordCount]);
+  const isRatioOpen = openMenu === 'ratio';
+  const isSpeedOpen = openMenu === 'speed';
+  const isCaptionLengthOpen = openMenu === 'captionLength';
+  const isExportOpen = openMenu === 'export';
 
-  // Close dropdowns on outside click (supports both mouse and touch taps)
+  const toggleMenu = (menu: Exclude<HeaderMenu, null>) => {
+    setOpenMenu((prev) => (prev === menu ? null : menu));
+  };
+
   useEffect(() => {
     const handleClickOutside = (event: PointerEvent) => {
       const target = event.target as Node;
-      if (ratioDropdownRef.current && !ratioDropdownRef.current.contains(target)) {
-        setIsRatioOpen(false);
-      }
-      if (speedDropdownRef.current && !speedDropdownRef.current.contains(target)) {
-        setIsSpeedOpen(false);
-      }
-      if (captionLengthDropdownRef.current && !captionLengthDropdownRef.current.contains(target)) {
-        setIsCaptionLengthOpen(false);
+      const refs = [
+        ratioDropdownRef.current,
+        speedDropdownRef.current,
+        captionLengthDropdownRef.current,
+        exportDropdownRef.current,
+      ];
+      if (!refs.some((ref) => ref && ref.contains(target))) {
+        setOpenMenu(null);
       }
     };
 
@@ -88,92 +161,86 @@ function EditorHeader({
       document.removeEventListener('pointerdown', handleClickOutside);
     };
   }, []);
+
   return (
-    <header className="relative flex h-12 items-center justify-between border-b border-[#1c1a28] bg-[#0c0b11]/95 backdrop-blur-md px-2 sm:px-4 select-none z-50 gap-1.5 sm:gap-2 overflow-visible">
-      {/* Left: Back arrow, Project Name, Status badge */}
-      <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0 min-w-0">
+    <header className="relative flex h-12 items-center justify-between md:grid md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] border-b border-[#1b1a24] bg-[#09080d] px-2.5 sm:px-4 select-none z-50 gap-2 overflow-visible">
+      {/* 1. LEFT: Back Navigation & Project Title */}
+      <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 md:justify-self-start md:max-w-full">
         <Link
           href="/my-video"
-          className="flex h-8 w-8 items-center justify-center rounded-xl text-gray-400 hover:bg-[#1c1a29] hover:text-white transition-all active:scale-95 flex-shrink-0"
-          title="กลับสู่หน้าวิดีโอของฉัน"
+          className="group flex h-8 w-8 items-center justify-center rounded-lg border border-[#22202d] bg-[#100f16] text-zinc-400 hover:border-[#8b5cf6]/60 hover:text-white transition-colors flex-shrink-0"
+          title="กลับสู่คลังฟุตเทจ"
+          aria-label="กลับสู่คลังฟุตเทจ"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="transition-transform duration-150 group-hover:-translate-x-0.5"
+          >
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
         </Link>
-        <input
-          type="text"
-          value={projectName}
-          onChange={(e) => {
-            setProjectName(e.target.value);
-            setHasChanges(true);
-          }}
-          className="bg-transparent font-medium text-xs sm:text-sm text-gray-200 hover:text-white focus:text-white focus:outline-none focus:ring-1 focus:ring-purple-500/40 rounded px-1.5 py-0.5 w-[85px] sm:w-[150px] md:w-[200px] transition-colors truncate"
-        />
-        <span
-          className={`hidden md:inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[9px] font-medium tracking-wide transition-colors ${
-            saveStatus === 'saving'
-              ? 'bg-purple-500/10 text-purple-300 border border-purple-500/30 animate-pulse'
-              : hasChanges || saveStatus === 'unsaved'
-              ? 'bg-amber-500/10 text-amber-300 border border-amber-500/25'
-              : 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/25'
-          }`}
-        >
-          <span
-            className={`w-1.5 h-1.5 rounded-full ${
-              saveStatus === 'saving'
-                ? 'bg-purple-400 animate-ping'
-                : hasChanges || saveStatus === 'unsaved'
-                ? 'bg-amber-400'
-                : 'bg-emerald-400'
-            }`}
+
+        <div className="hidden sm:block h-4 w-[1px] bg-[#1e1d28] flex-shrink-0" />
+
+        {/* Project Title Input */}
+        <div className="relative flex items-center min-w-0 flex-1 md:flex-initial rounded-md border border-transparent hover:border-[#242230] focus-within:border-white/35 focus-within:bg-[#100f16] px-2 py-0.5 transition-colors">
+          <input
+            type="text"
+            value={projectName}
+            onChange={(e) => {
+              setProjectName(e.target.value);
+              setHasChanges(true);
+            }}
+            aria-label="ชื่อโปรเจกต์"
+            className="font-display bg-transparent font-bold text-xs sm:text-[13px] text-white placeholder-zinc-500 focus:outline-none py-0.5 w-[90px] sm:w-[140px] xl:w-[190px] max-w-full truncate"
           />
-          {saveStatus === 'saving'
-            ? 'กำลังบันทึก...'
-            : hasChanges || saveStatus === 'unsaved'
-            ? 'ยังไม่บันทึก'
-            : 'บันทึกอัตโนมัติแล้ว'}
-        </span>
+        </div>
       </div>
 
-      {/* Center: Tools, Ratio, Speed, Undo/Redo - Unified Segmented Pill Theme */}
-      <div className="flex items-center gap-1 rounded-xl bg-[#1a1827] p-1 text-xs flex-shrink-0 overflow-visible">
-        {/* Caption Length Dropdown (Normal sentence vs Custom words) */}
+      {/* 2. CENTER: Hardware Control Well */}
+      <div className="flex items-center gap-1 rounded-lg bg-[#100f16] p-1 border border-[#201e2b] text-xs flex-shrink-0 overflow-visible md:justify-self-center">
+        {/* A. Caption Pacing / Words-per-Card Dropdown */}
         <div className="relative" ref={captionLengthDropdownRef}>
           <button
             type="button"
-            onPointerDown={(e) => {
-              e.stopPropagation();
-            }}
-            onClick={() => {
-              setIsCaptionLengthOpen((prev) => !prev);
-              setIsRatioOpen(false);
-              setIsSpeedOpen(false);
-            }}
-            className={`flex h-7 sm:h-8 items-center gap-1.5 rounded-lg px-2.5 sm:px-3 text-xs font-semibold transition-all ${
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => toggleMenu('captionLength')}
+            className={`flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-colors border cursor-pointer ${
               isCaptionLengthOpen
-                ? 'bg-[#2d2250] text-[#c4b5fd] shadow-sm'
-                : 'text-white/80 hover:text-white hover:bg-white/[0.04]'
+                ? 'bg-[#1f1d2b] text-white border-[#343146]'
+                : 'border-transparent text-zinc-300 hover:text-white hover:bg-white/[0.04]'
             }`}
             title="ปรับความยาวแคปชัน (คำต่อการ์ด / จังหวะประโยค)"
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={isCaptionLengthOpen ? 'text-[#c4b5fd]' : 'text-purple-400'}>
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={isCaptionLengthOpen ? 'text-[#a78bfa]' : 'text-zinc-400'}
+            >
               <rect x="3" y="4" width="18" height="16" rx="3" />
               <path d="M7 9h10" />
               <path d="M7 15h6" />
             </svg>
-            <div className="flex items-baseline gap-1 hidden sm:flex">
-              <span className="text-[10px] text-[#a78bfa] font-semibold uppercase tracking-wider">คำต่อการ์ด:</span>
-              <span className="font-semibold text-xs">
-                {captionLengthMode === 'normal'
-                  ? 'ประโยคเต็ม'
-                  : captionLengthMode === 'short'
-                  ? '3 คำ'
-                  : `${customWordCount} คำ`}
-              </span>
-            </div>
-            <span className="font-semibold sm:hidden">
-              {captionLengthMode === 'normal' ? 'ประโยค' : `${customWordCount}คำ`}
+            <span className="hidden xl:inline text-[11px] text-zinc-400 font-medium">คำต่อการ์ด:</span>
+            <span className="font-mono text-[11px] font-semibold text-[#c4b5fd]">
+              {captionLengthMode === 'normal'
+                ? 'ประโยค'
+                : captionLengthMode === 'short'
+                ? '3 คำ'
+                : `${customWordCount} คำ`}
             </span>
             <svg
               width="10"
@@ -182,7 +249,9 @@ function EditorHeader({
               fill="none"
               stroke="currentColor"
               strokeWidth="2.5"
-              className={`transition-transform duration-200 ${isCaptionLengthOpen ? 'rotate-180 text-[#c4b5fd]' : 'text-gray-400'}`}
+              className={`transition-transform duration-200 ${
+                isCaptionLengthOpen ? 'rotate-180 text-[#a78bfa]' : 'text-zinc-500'
+              }`}
             >
               <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
@@ -191,210 +260,204 @@ function EditorHeader({
           {isCaptionLengthOpen && (
             <div
               onPointerDown={(e) => e.stopPropagation()}
-              className="absolute left-0 top-full mt-2 w-80 rounded-2xl bg-[#141220] border border-[#2d2250] p-3.5 shadow-2xl shadow-black/80 z-[999] backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150 space-y-3"
+              className="absolute left-0 top-full mt-2 w-72 max-w-[calc(100vw-24px)] rounded-xl bg-[#0b0a10] border border-[#262433] p-3 shadow-[0_24px_60px_rgba(0,0,0,0.92)] z-[999] origin-top-left anim-dropdown space-y-2.5"
             >
-              {/* Header */}
-              <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#2d2250] text-[#c4b5fd]">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="4" width="18" height="16" rx="3" />
-                      <path d="M7 9h10M7 15h6" />
-                    </svg>
-                  </div>
-                  <div>
-                    <span className="text-xs font-bold text-white block leading-tight">จำนวนคำต่อการ์ด</span>
-                    <span className="text-[10px] text-gray-400 leading-none">แบ่งซับไตเติลตามจังหวะคำ</span>
-                  </div>
+              {/* Popover Header */}
+              <div className="flex items-baseline justify-between px-0.5 pb-2 border-b border-white/[0.06]">
+                <div>
+                  <span className="text-xs font-semibold text-white block leading-tight">
+                    จังหวะคำต่อการ์ด
+                  </span>
+                  <span className="text-[10.5px] text-zinc-500 block mt-0.5 leading-tight">
+                    จัดกลุ่มคำพูดอัตโนมัติตามเสียง
+                  </span>
                 </div>
-                <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-[#2d2250] text-[#c4b5fd]">
-                  AI Auto
+                <span className="font-mono text-[11px] font-semibold text-[#c4b5fd] tabular-nums">
+                  {captionLengthMode === 'normal'
+                    ? 'ประโยค'
+                    : captionLengthMode === 'short'
+                    ? '3 คำ'
+                    : `${customWordCount} คำ`}
                 </span>
               </div>
 
-              {/* Mode Preset Cards */}
-              <div className="grid grid-cols-2 gap-2">
-                {/* 1. Sentence Mode */}
+              {/* Mode Presets */}
+              <div className="grid grid-cols-2 gap-1.5">
                 <button
                   type="button"
                   onClick={() => {
                     onRegroupSubtitles?.('normal');
-                    setIsCaptionLengthOpen(false);
+                    setOpenMenu(null);
                   }}
-                  className={`group relative flex flex-col p-2.5 rounded-xl border text-left transition-all ${
+                  className={`flex flex-col rounded-lg border px-2.5 py-2 text-left transition-colors cursor-pointer ${
                     captionLengthMode === 'normal'
-                      ? 'bg-[#2d2250] text-white border-purple-500/50 shadow-sm'
-                      : 'bg-[#181528] border-white/5 hover:border-purple-500/30 hover:bg-[#201c36]'
+                      ? 'bg-[#1c1630] border-[#8b5cf6]/70 text-white'
+                      : 'bg-[#111018] border-[#211f2d] text-zinc-300 hover:border-[#343146] hover:text-white'
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-bold text-white">ประโยคปกติ</span>
-                    <span className={`h-2 w-2 rounded-full ${captionLengthMode === 'normal' ? 'bg-[#c4b5fd] shadow-[0_0_6px_#c084fc]' : 'bg-gray-600'}`} />
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-xs font-semibold leading-tight">ประโยคเต็ม</span>
+                    {captionLengthMode === 'normal' && (
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" className="text-[#a78bfa] flex-shrink-0">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
                   </div>
-                  <span className="text-[10px] text-gray-400 leading-tight">ตามจังหวะพูดธรรมชาติ</span>
-                  <div className="mt-2 text-[9px] px-1.5 py-0.5 rounded bg-black/30 text-[#c4b5fd] font-mono w-fit">
-                    ~8-12 คำ/การ์ด
-                  </div>
+                  <span className="mt-1 text-[10.5px] text-zinc-400 leading-tight">
+                    ตามจังหวะพูด
+                  </span>
+                  <span className="mt-1 font-mono text-[10px] text-zinc-500 leading-none">
+                    ~8–12 คำ
+                  </span>
                 </button>
 
-                {/* 2. Punchy TikTok Mode (Short) */}
                 <button
                   type="button"
                   onClick={() => {
-                    setTempWordCount(3);
                     onRegroupSubtitles?.('short', 3);
-                    setIsCaptionLengthOpen(false);
+                    setOpenMenu(null);
                   }}
-                  className={`group relative flex flex-col p-2.5 rounded-xl border text-left transition-all ${
+                  className={`flex flex-col rounded-lg border px-2.5 py-2 text-left transition-colors cursor-pointer ${
                     captionLengthMode === 'short'
-                      ? 'bg-[#2d2250] text-white border-purple-500/50 shadow-sm'
-                      : 'bg-[#181528] border-white/5 hover:border-purple-500/30 hover:bg-[#201c36]'
+                      ? 'bg-[#1c1630] border-[#8b5cf6]/70 text-white'
+                      : 'bg-[#111018] border-[#211f2d] text-zinc-300 hover:border-[#343146] hover:text-white'
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-bold text-white">คำสั้นกระชับ</span>
-                    <span className={`h-2 w-2 rounded-full ${captionLengthMode === 'short' ? 'bg-[#c4b5fd] shadow-[0_0_6px_#c084fc]' : 'bg-gray-600'}`} />
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-xs font-semibold leading-tight">คำสั้นไวรัล</span>
+                    {captionLengthMode === 'short' && (
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" className="text-[#a78bfa] flex-shrink-0">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
                   </div>
-                  <span className="text-[10px] text-gray-400 leading-tight">เหมาะกับ Reels/TikTok</span>
-                  <div className="mt-2 text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 font-semibold border border-amber-500/30 w-fit">
-                    ⚡ ยอดฮิต (3 คำ)
-                  </div>
+                  <span className="mt-1 text-[10.5px] text-zinc-400 leading-tight">
+                    TikTok / Reels
+                  </span>
+                  <span className="mt-1 font-mono text-[10px] text-[#a78bfa] leading-none">
+                    3 คำต่อการ์ด
+                  </span>
                 </button>
               </div>
 
               {/* Custom Word Count Section */}
-              <div className="rounded-xl bg-[#181528] border border-white/[0.06] p-3 space-y-2.5">
+              <div className="border-t border-white/[0.06] pt-2.5 space-y-2">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-gray-200">กำหนดคำเอง</span>
-                    <span className="text-[10px] text-gray-400">(Custom)</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-base font-black text-[#c4b5fd] tabular-nums font-mono">
-                      {tempWordCount}
-                    </span>
-                    <span className="text-[11px] font-semibold text-gray-400">คำ/การ์ด</span>
-                  </div>
-                </div>
-
-                {/* Quick select pills */}
-                <div className="grid grid-cols-6 gap-1">
-                  {[1, 2, 3, 4, 6, 8].map((n) => (
-                    <button
-                      key={n}
-                      type="button"
-                      onClick={() => {
-                        setTempWordCount(n);
-                        onRegroupSubtitles?.('custom', n);
-                        setIsCaptionLengthOpen(false);
-                      }}
-                      className={`h-7 rounded-lg text-xs font-bold transition-all ${
-                        captionLengthMode === 'custom' && customWordCount === n
-                          ? 'bg-[#2d2250] text-[#c4b5fd] shadow-sm border border-purple-500/40'
-                          : 'bg-[#221e38] text-gray-300 hover:bg-[#2c264a] hover:text-white border border-transparent'
-                      }`}
-                    >
-                      {n}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Stepper + Slider Control */}
-                <div className="pt-1.5 border-t border-white/5 space-y-2">
-                  <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-medium text-zinc-300">กำหนดจำนวนคำเอง</span>
+                  <div className="flex items-center rounded-md bg-[#111018] border border-[#22202d] p-0.5">
                     <button
                       type="button"
+                      disabled={customWordCount <= 1}
                       onClick={() => {
-                        const next = Math.max(1, tempWordCount - 1);
-                        setTempWordCount(next);
+                        const next = Math.max(1, customWordCount - 1);
                         onRegroupSubtitles?.('custom', next);
                       }}
-                      className="h-7 w-8 rounded-lg bg-[#241f3b] hover:bg-[#312a52] text-white font-bold text-sm transition-all flex items-center justify-center border border-white/5 active:scale-90"
+                      className="flex h-5 w-5 items-center justify-center rounded text-zinc-300 hover:bg-white/[0.07] hover:text-white disabled:opacity-35 disabled:pointer-events-none transition-colors font-mono text-xs cursor-pointer"
                       title="ลดจำนวนคำ"
+                      aria-label="ลดจำนวนคำ"
                     >
-                      -
+                      −
                     </button>
-
-                    <div className="relative flex-1 flex items-center">
-                      <input
-                        type="range"
-                        min="1"
-                        max="12"
-                        step="1"
-                        value={tempWordCount}
-                        onChange={(e) => {
-                          const val = parseInt(e.target.value);
-                          setTempWordCount(val);
-                          onRegroupSubtitles?.('custom', val);
-                        }}
-                        className="w-full h-1.5 bg-[#25203b] rounded-lg appearance-none cursor-pointer accent-purple-400 focus:outline-none"
-                      />
-                    </div>
-
+                    <span className="min-w-[44px] px-1.5 text-center font-mono text-[11px] font-semibold tabular-nums text-[#c4b5fd]">
+                      {customWordCount} คำ
+                    </span>
                     <button
                       type="button"
+                      disabled={customWordCount >= 12}
                       onClick={() => {
-                        const next = Math.min(12, tempWordCount + 1);
-                        setTempWordCount(next);
+                        const next = Math.min(12, customWordCount + 1);
                         onRegroupSubtitles?.('custom', next);
                       }}
-                      className="h-7 w-8 rounded-lg bg-[#241f3b] hover:bg-[#312a52] text-white font-bold text-sm transition-all flex items-center justify-center border border-white/5 active:scale-90"
+                      className="flex h-5 w-5 items-center justify-center rounded text-zinc-300 hover:bg-white/[0.07] hover:text-white disabled:opacity-35 disabled:pointer-events-none transition-colors font-mono text-xs cursor-pointer"
                       title="เพิ่มจำนวนคำ"
+                      aria-label="เพิ่มจำนวนคำ"
                     >
                       +
                     </button>
                   </div>
-
-                  {/* Live Visual Preview Pill Box */}
-                  <div className="flex items-center justify-between bg-[#12101e] rounded-lg px-2.5 py-1.5 text-[11px] border border-white/5">
-                    <span className="text-gray-400">ตัวอย่าง:</span>
-                    <div className="flex items-center gap-1 font-medium">
-                      {Array.from({ length: Math.min(tempWordCount, 5) }).map((_, idx) => (
-                        <span key={idx} className="px-1.5 py-0.5 rounded bg-[#2d2250] text-[#c4b5fd] font-mono text-[10px] border border-purple-500/30">
-                          {idx === 0 ? 'สวัสดี' : idx === 1 ? 'ครับ' : idx === 2 ? 'ทุกคน' : idx === 3 ? 'วัน' : 'นี้'}
-                        </span>
-                      ))}
-                      {tempWordCount > 5 && (
-                        <span className="text-gray-400 text-[10px]">+{tempWordCount - 5}</span>
-                      )}
-                    </div>
-                  </div>
                 </div>
+
+                {/* Unified Segmented Quick Select */}
+                <div className="grid grid-cols-6 gap-0.5 rounded-lg bg-[#111018] border border-[#211f2d] p-0.5">
+                  {[1, 2, 3, 4, 6, 8].map((n) => {
+                    const isSelected = captionLengthMode === 'custom' && customWordCount === n;
+                    return (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => {
+                          onRegroupSubtitles?.('custom', n);
+                          setOpenMenu(null);
+                        }}
+                        className={`h-7 rounded-md font-mono text-xs font-semibold transition-colors cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#7c3aed] text-white'
+                            : 'text-zinc-400 hover:text-white hover:bg-white/[0.05]'
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Clean Subtitle-Style Live Preview */}
+                {(() => {
+                  const count = Math.max(1, Math.min(12, customWordCount));
+                  const visible = SAMPLE_CAPTION_WORDS.slice(0, Math.min(count, 6));
+                  const highlightIdx = Math.min(1, visible.length - 1);
+                  return (
+                    <div className="rounded-lg bg-[#07060a] border border-white/[0.05] px-2.5 py-2 text-center">
+                      <div className="text-[10px] text-zinc-500 mb-0.5">
+                        ตัวอย่างต่อ 1 การ์ด
+                      </div>
+                      <div className="text-xs font-medium text-zinc-300 leading-relaxed truncate">
+                        {visible.map((word, idx) => (
+                          <span
+                            key={idx}
+                            className={idx === highlightIdx ? 'text-[#c4b5fd] font-semibold' : undefined}
+                          >
+                            {idx > 0 && needsSpaceBetweenWords(visible[idx - 1], word) ? ' ' : ''}
+                            {word}
+                          </span>
+                        ))}
+                        {count > 6 && (
+                          <span className="ml-1 font-mono text-[10px] text-zinc-500">
+                            +{count - 6} คำ
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}
         </div>
 
-        {/* Custom Aspect Ratio Dropdown */}
+        <div className="h-4 w-[1px] bg-white/[0.08]" />
+
+        {/* B. Aspect Ratio: Compact Universal Dropdown */}
         <div className="relative" ref={ratioDropdownRef}>
           <button
             type="button"
-            onPointerDown={(e) => {
-              e.stopPropagation();
-            }}
-            onClick={() => {
-              setIsRatioOpen((prev) => !prev);
-              setIsSpeedOpen(false);
-            }}
-            className={`flex h-7 sm:h-8 items-center gap-1.5 rounded-lg px-2.5 sm:px-3 text-xs font-semibold transition-all ${
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => toggleMenu('ratio')}
+            className={`flex h-7 items-center gap-1.5 rounded-md px-2 sm:px-2.5 text-xs font-mono font-semibold transition-colors border cursor-pointer ${
               isRatioOpen
-                ? 'bg-[#2d2250] text-[#c4b5fd] shadow-sm'
-                : 'text-white/80 hover:text-white hover:bg-white/[0.04]'
+                ? 'bg-[#1f1d2b] text-white border-[#343146]'
+                : 'border-transparent text-zinc-200 hover:text-white hover:bg-white/[0.04]'
             }`}
             title="เปลี่ยนสัดส่วนวิดีโอ"
+            aria-expanded={isRatioOpen}
+            aria-haspopup="menu"
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={isRatioOpen ? 'text-[#c4b5fd]' : 'text-purple-400'}>
-              {aspectRatio === '9:16' ? (
-                <rect x="7" y="2" width="10" height="20" rx="2" />
-              ) : aspectRatio === '16:9' ? (
-                <rect x="2" y="5" width="20" height="14" rx="2" />
-              ) : (
-                <rect x="4" y="4" width="16" height="16" rx="2" />
-              )}
-            </svg>
-            <span className="font-semibold">
-              {aspectRatio}
-            </span>
+            <AspectRatioIcon
+              ratio={aspectRatio}
+              size={12}
+              className={isRatioOpen ? 'text-[#a78bfa]' : 'text-[#a78bfa]/90'}
+            />
+            <span>{aspectRatio}</span>
             <svg
               width="10"
               height="10"
@@ -402,108 +465,123 @@ function EditorHeader({
               fill="none"
               stroke="currentColor"
               strokeWidth="2.5"
-              className={`transition-transform duration-200 ${isRatioOpen ? 'rotate-180 text-[#c4b5fd]' : 'text-gray-400'}`}
+              className={`transition-transform duration-200 ${
+                isRatioOpen ? 'rotate-180 text-[#a78bfa]' : 'text-zinc-500'
+              }`}
             >
-              <polyline points="6 9 12 15 18 9" />
+              <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
 
           {isRatioOpen && (
-            <div className="absolute top-full left-0 mt-1.5 w-48 max-w-[90vw] rounded-xl bg-[#141220] border border-[#2d2250] p-1.5 shadow-2xl shadow-black/80 z-[100] animate-in fade-in zoom-in-95 duration-100 space-y-1">
-              {[
-                { value: '9:16', label: '9:16 แนวตั้ง', desc: 'Reels / TikTok', icon: <rect x="8" y="3" width="8" height="18" rx="1.5" /> },
-                { value: '16:9', label: '16:9 แนวนอน', desc: 'YouTube / Widescreen', icon: <rect x="3" y="6" width="18" height="12" rx="1.5" /> },
-                { value: '1:1', label: '1:1 จัตุรัส', desc: 'Square Post', icon: <rect x="4" y="4" width="16" height="16" rx="1.5" /> },
-              ].map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => {
-                    setAspectRatio(opt.value as '16:9' | '9:16' | '1:1');
-                    setIsRatioOpen(false);
-                  }}
-                  className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors ${
-                    aspectRatio === opt.value
-                      ? 'bg-[#2d2250] text-[#c4b5fd] font-semibold'
-                      : 'text-gray-300 hover:bg-white/5 hover:text-white'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[#c4b5fd]">
-                      {opt.icon}
-                    </svg>
-                    <div>
-                      <div className="leading-tight">{opt.label}</div>
-                      <div className="text-[9px] text-gray-500 leading-none mt-0.5">{opt.desc}</div>
+            <div
+              role="menu"
+              onPointerDown={(e) => e.stopPropagation()}
+              className="absolute top-full left-0 mt-2 w-52 max-w-[90vw] rounded-xl bg-[#0b0a10] border border-[#262433] p-1.5 shadow-[0_24px_60px_rgba(0,0,0,0.92)] z-[999] origin-top-left anim-dropdown space-y-0.5"
+            >
+              <div className="px-2.5 pt-1 pb-1.5 mb-1 border-b border-white/[0.06]">
+                <span className="text-[11px] font-semibold text-zinc-400">สัดส่วนเฟรมวิดีโอ</span>
+              </div>
+              {ASPECT_RATIO_OPTIONS.map((opt) => {
+                const isSelected = aspectRatio === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={isSelected}
+                    onClick={() => {
+                      setAspectRatio(opt.value);
+                      setOpenMenu(null);
+                    }}
+                    className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs transition-colors border cursor-pointer ${
+                      isSelected
+                        ? 'bg-[#1c1630] text-white border-[#8b5cf6]/70 font-semibold'
+                        : 'border-transparent text-zinc-300 hover:bg-white/[0.04] hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <AspectRatioIcon
+                        ratio={opt.value}
+                        size={13}
+                        className={isSelected ? 'text-[#a78bfa]' : 'text-zinc-500'}
+                      />
+                      <div>
+                        <div className="leading-tight font-mono">{opt.label}</div>
+                        <div className="text-[10px] text-zinc-500 leading-none mt-0.5 font-sans">
+                          {opt.desc}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  {aspectRatio === opt.value && (
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-[#c4b5fd]">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  )}
-                </button>
-              ))}
+                    {isSelected && (
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        className="text-[#a78bfa] flex-shrink-0"
+                      >
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
 
-        {/* Custom Playback Speed Dropdown */}
+        <div className="h-4 w-[1px] bg-white/[0.08]" />
+
+        {/* C. Playback Speed Selector */}
         <div className="relative" ref={speedDropdownRef}>
           <button
             type="button"
-            onPointerDown={(e) => {
-              e.stopPropagation();
-            }}
-            onClick={() => {
-              setIsSpeedOpen((prev) => !prev);
-              setIsRatioOpen(false);
-            }}
-            className={`flex h-7 sm:h-8 items-center gap-1.5 rounded-lg px-2.5 sm:px-3 text-xs font-semibold transition-all ${
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => toggleMenu('speed')}
+            className={`flex h-7 items-center gap-1 rounded-md px-2 sm:px-2.5 text-xs font-mono font-semibold tabular-nums transition-colors border cursor-pointer ${
               isSpeedOpen
-                ? 'bg-[#2d2250] text-[#c4b5fd] shadow-sm'
-                : 'text-white/80 hover:text-white hover:bg-white/[0.04]'
+                ? 'bg-[#1f1d2b] text-white border-[#343146]'
+                : 'border-transparent text-zinc-300 hover:text-white hover:bg-white/[0.04]'
             }`}
             title="ความเร็วการเล่นวิดีโอ"
           >
-            {/* Speedometer Gauge Icon */}
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={isSpeedOpen ? 'text-[#c4b5fd]' : 'text-purple-400'}>
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className={isSpeedOpen ? 'text-[#a78bfa]' : 'text-zinc-400'}
+            >
               <path d="M12 14v-4" />
               <path d="M3.34 19a10 10 0 1 1 17.32 0" />
             </svg>
             <span>{speed}x</span>
-            <svg
-              width="10"
-              height="10"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              className={`transition-transform duration-200 ${isSpeedOpen ? 'rotate-180 text-[#c4b5fd]' : 'text-gray-400'}`}
-            >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
           </button>
 
           {isSpeedOpen && (
-            <div className="absolute top-full left-0 mt-1.5 w-32 rounded-xl bg-[#141220] border border-[#2d2250] p-1 shadow-2xl shadow-black/80 z-[100] animate-in fade-in zoom-in-95 duration-100 space-y-0.5">
+            <div className="absolute top-full left-0 mt-2 w-36 rounded-xl bg-[#0b0a10] border border-[#262433] p-1.5 shadow-[0_24px_60px_rgba(0,0,0,0.92)] z-[100] origin-top-left anim-dropdown space-y-0.5">
               {[0.5, 0.75, 1, 1.25, 1.5, 2].map((s) => (
                 <button
                   key={s}
                   type="button"
                   onClick={() => {
                     setSpeed(s);
-                    setIsSpeedOpen(false);
+                    setOpenMenu(null);
                   }}
-                  className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs transition-colors ${
+                  className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-mono transition-colors cursor-pointer border ${
                     speed === s
-                      ? 'bg-[#2d2250] text-[#c4b5fd] font-semibold'
-                      : 'text-gray-300 hover:bg-white/5 hover:text-white'
+                      ? 'bg-[#1f1d2b] text-white border-[#343146] font-semibold'
+                      : 'border-transparent text-zinc-300 hover:bg-white/[0.04] hover:text-white'
                   }`}
                 >
                   <span>{s === 1 ? '1.0x (ปกติ)' : `${s}x`}</span>
                   {speed === s && (
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-[#c4b5fd]">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-[#a78bfa]">
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
                   )}
@@ -515,16 +593,17 @@ function EditorHeader({
 
         <div className="h-4 w-[1px] bg-white/[0.08]" />
 
-        {/* Undo / Redo */}
+        {/* D. Undo / Redo */}
         <button
+          type="button"
           onClick={onUndo}
           disabled={!canUndo}
-          className={`flex h-7 sm:h-8 w-7 sm:w-8 items-center justify-center rounded-lg transition-all ${
+          className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors ${
             canUndo
-              ? 'text-white/80 hover:text-white hover:bg-white/[0.04] active:scale-95'
-              : 'text-white/20 cursor-not-allowed'
+              ? 'text-zinc-300 hover:text-white hover:bg-white/[0.05] active:scale-95 cursor-pointer'
+              : 'text-zinc-600 cursor-not-allowed'
           }`}
-          title="เลิกทำ (Undo)"
+          title="เลิกทำ (Ctrl+Z)"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M3 7v6h6" />
@@ -532,14 +611,15 @@ function EditorHeader({
           </svg>
         </button>
         <button
+          type="button"
           onClick={onRedo}
           disabled={!canRedo}
-          className={`flex h-7 sm:h-8 w-7 sm:w-8 items-center justify-center rounded-lg transition-all ${
+          className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors ${
             canRedo
-              ? 'text-white/80 hover:text-white hover:bg-white/[0.04] active:scale-95'
-              : 'text-white/20 cursor-not-allowed'
+              ? 'text-zinc-300 hover:text-white hover:bg-white/[0.05] active:scale-95 cursor-pointer'
+              : 'text-zinc-600 cursor-not-allowed'
           }`}
-          title="ทำซ้ำ (Redo)"
+          title="ทำซ้ำ (Ctrl+Y)"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M21 7v6h-6" />
@@ -547,47 +627,217 @@ function EditorHeader({
           </svg>
         </button>
 
-        <div className="h-4 w-[1px] bg-white/[0.08]" />
+        <div className="hidden sm:block h-4 w-[1px] bg-white/[0.08]" />
 
-        {/* Reset */}
+        {/* E. Reset */}
         <button
+          type="button"
           onClick={onResetStyles}
-          className="flex h-7 sm:h-8 items-center rounded-lg px-2.5 sm:px-3 text-xs font-semibold text-white/80 hover:text-rose-300 hover:bg-rose-500/15 transition-all active:scale-95"
-          title={selectedSubtitleId !== null ? 'รีเซ็ตสไตล์แคปชันนี้กลับเป็นสไตล์รวม' : 'รีเซ็ตสไตล์เริ่มต้นทั้งหมด'}
+          className="hidden sm:flex h-7 items-center gap-1 rounded-md px-2.5 text-xs font-semibold text-zinc-400 hover:text-rose-300 hover:bg-rose-500/15 transition-colors active:scale-95 cursor-pointer"
+          title={selectedSubtitleId !== null ? 'รีเซ็ตแคปชันและสไตล์ทั้งหมด' : 'รีเซ็ตค่าเริ่มต้นทั้งหมด'}
         >
-          รีเซ็ต
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+            <path d="M3 3v5h5" />
+          </svg>
+          <span className="hidden md:inline">รีเซ็ต</span>
         </button>
       </div>
 
-      {/* Right: Export SRT, Render Button */}
-      <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+      {/* 3. RIGHT: Inline Save Status & Unified Primary Render Split Button */}
+      <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0 md:justify-self-end">
+        {/* Restraint Inline Save Status Trigger */}
         <button
-          onClick={onExportSRT}
-          className="flex h-8 items-center gap-1.5 rounded-xl bg-[#151322] hover:bg-[#1f1c32] border border-[#262238] px-2.5 sm:px-3 text-xs text-gray-300 hover:text-white transition-all active:scale-95 shadow-sm"
-          title="ส่งออก SRT"
+          type="button"
+          onClick={() => onSave?.()}
+          title="คลิกเพื่อบันทึกโปรเจกต์ทันที"
+          className={`hidden md:inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-mono text-[10px] font-semibold tracking-wider uppercase transition-colors cursor-pointer flex-shrink-0 ${
+            saveStatus === 'saving'
+              ? 'text-zinc-300'
+              : hasChanges || saveStatus === 'unsaved'
+              ? 'text-[#c4b5fd] hover:bg-[#8b5cf6]/10'
+              : 'text-zinc-500 hover:text-zinc-300'
+          }`}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-          <span className="font-medium hidden md:inline">ส่งออก SRT</span>
+          <span
+            className={`w-1.5 h-1.5 rounded-[1px] ${
+              saveStatus === 'saving'
+                ? 'bg-[#8b5cf6] animate-pulse'
+                : hasChanges || saveStatus === 'unsaved'
+                ? 'bg-[#a78bfa]'
+                : 'bg-emerald-400'
+            }`}
+          />
+          <span>
+            {saveStatus === 'saving'
+              ? 'SAVING'
+              : hasChanges || saveStatus === 'unsaved'
+              ? 'UNSAVED'
+              : 'SAVED'}
+          </span>
         </button>
 
-        <button
-          onClick={onRenderVideo}
-          disabled={isRendering}
-          className="flex h-8 items-center gap-1.5 sm:gap-2 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] text-white px-3 sm:px-4 text-xs font-bold transition-all shadow-md shadow-purple-500/25 active:scale-95 disabled:opacity-50"
-          title="เรนเดอร์วิดีโอ"
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-            <polygon points="5 3 19 12 5 21 5 3" />
-          </svg>
-          <span>เรนเดอร์</span>
-        </button>
+        <div className="relative" ref={exportDropdownRef}>
+          <div
+            className={`flex h-8 items-stretch rounded-lg border transition-colors ${
+              isRendering
+                ? 'bg-[#262138] border-[#3a3354]'
+                : 'bg-[#7c3aed] border-[#a78bfa]/35'
+            }`}
+          >
+            {/* Left Hitbox: Immediate Render & Download MP4 */}
+            <button
+              type="button"
+              onClick={onRenderVideo}
+              disabled={isRendering}
+              className={`flex items-center gap-2 rounded-l-[7px] px-3 sm:px-3.5 text-xs font-bold transition-colors ${
+                isRendering
+                  ? 'text-zinc-300 cursor-wait'
+                  : 'text-white hover:bg-[#8b5cf6] active:bg-[#6d28d9] cursor-pointer'
+              }`}
+              title="เรนเดอร์และดาวน์โหลดวิดีโอ MP4"
+            >
+              {isRendering ? (
+                <>
+                  <svg className="animate-spin h-3.5 w-3.5 text-[#c4b5fd]" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                  </svg>
+                  <span>กำลังเรนเดอร์...</span>
+                </>
+              ) : (
+                <>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3" />
+                  </svg>
+                  <span>เรนเดอร์ MP4</span>
+                </>
+              )}
+            </button>
+
+            {/* Hairline Divider Between Render Hitbox & Dropdown Section */}
+            <span
+              aria-hidden="true"
+              className={`my-1.5 w-[1px] flex-shrink-0 ${
+                isRendering ? 'bg-white/15' : 'bg-white/25'
+              }`}
+            />
+
+            {/* Right Hitbox: Downward Arrow Opening Export Options */}
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={() => toggleMenu('export')}
+              aria-expanded={isExportOpen}
+              aria-haspopup="menu"
+              aria-label="ตัวเลือกส่งออก (.SRT / .VTT / .TXT / คัดลอก)"
+              title="ตัวเลือกส่งออก (.SRT / .VTT / .TXT / คัดลอก)"
+              className={`flex items-center justify-center rounded-r-[7px] px-2 transition-colors cursor-pointer ${
+                isRendering
+                  ? 'text-zinc-300 hover:bg-white/10'
+                  : isExportOpen
+                  ? 'bg-[#6d28d9] text-white'
+                  : 'text-white/90 hover:bg-[#8b5cf6] hover:text-white active:bg-[#6d28d9]'
+              }`}
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                className={`transition-transform duration-200 ${
+                  isExportOpen ? 'rotate-180' : ''
+                }`}
+              >
+                <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </div>
+
+          {isExportOpen && (
+            <div
+              role="menu"
+              onPointerDown={(e) => e.stopPropagation()}
+              className="absolute right-0 top-full mt-2 w-60 max-w-[calc(100vw-24px)] rounded-xl bg-[#0b0a10] border border-[#262433] p-1.5 shadow-[0_24px_60px_rgba(0,0,0,0.92)] z-[999] origin-top-right anim-dropdown"
+            >
+              <div className="px-2.5 pt-1 pb-1.5 mb-1 border-b border-white/[0.06]">
+                <span className="text-[11px] font-semibold text-zinc-400">
+                  ส่งออกไฟล์และข้อความ
+                </span>
+              </div>
+
+              <div className="space-y-0.5">
+                {EXPORT_FORMAT_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.format}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      if (onExportSubtitle) {
+                        onExportSubtitle(opt.format);
+                      } else if (opt.format === 'srt') {
+                        onExportSRT();
+                      }
+                      setOpenMenu(null);
+                    }}
+                    className="group flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-[#191626] text-zinc-200 hover:text-white cursor-pointer"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-xs font-medium leading-tight">{opt.label}</div>
+                      <div className="text-[10.5px] text-zinc-500 group-hover:text-zinc-400 leading-tight mt-0.5 truncate">
+                        {opt.desc}
+                      </div>
+                    </div>
+                    <span className="flex-shrink-0 font-mono text-[10.5px] font-semibold text-[#c4b5fd] bg-[#141220] border border-[#2a2540] group-hover:border-[#8b5cf6]/50 px-1.5 py-0.5 rounded">
+                      {opt.ext}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {onCopyTranscript && (
+                <>
+                  <div className="my-1 border-t border-white/[0.06]" />
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      onCopyTranscript();
+                      setOpenMenu(null);
+                    }}
+                    className="group flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-[#191626] text-zinc-200 hover:text-white cursor-pointer"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-xs font-medium leading-tight">คัดลอกข้อความทั้งหมด</div>
+                      <div className="text-[10.5px] text-zinc-500 group-hover:text-zinc-400 leading-tight mt-0.5">
+                        วางลงแคปชันโซเชียลได้ทันที
+                      </div>
+                    </div>
+                    <svg
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="flex-shrink-0 text-zinc-500 group-hover:text-[#a78bfa] transition-colors"
+                    >
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    </svg>
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );
 }
 
-export default React.memo(EditorHeader);
+export default React.memo(EditorHeader);

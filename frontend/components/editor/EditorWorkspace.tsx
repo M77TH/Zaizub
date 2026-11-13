@@ -7,18 +7,30 @@ import VideoPlayer from './VideoPlayer';
 import TransportControls from './TransportControls';
 import StylePanel from './StylePanel';
 import TemplatePanel, { SubtitleTemplate } from './TemplatePanel';
-import EditorTabs, { EditorTabType } from './EditorTabs';
+import type { EditorTabType } from './EditorTabs';
 import {
   SubtitleSegment,
   SubtitleStyle,
   DEFAULT_STYLES,
   DEFAULT_SUBTITLES,
   normaliseSubtitles,
+  normalizeSubtitleStyle,
+  getSubtitleTokensWithTiming,
   CaptionLengthMode,
   regroupSubtitles,
+  shiftSegmentWords,
+  splitSegmentByTime,
+  splitSegmentAtCursor,
+  mergeSegmentPair,
 } from './types';
-import { apiUrl, API_BASE_URL } from '@/lib/api';
+import { apiUrl, API_BASE_URL, resolveMediaUrl } from '@/lib/api';
 import { saveProjectAction } from '@/app/actions/project';
+import {
+  extractProjectEnvelope,
+  normalizeProjectStatus,
+  parseDurationSeconds,
+  sanitizeVideoFilename,
+} from '@/lib/projects/projectMapper';
 
 /** Pure utility function for formatting time codes */
 export function formatTime(timeInSeconds: number): string {
@@ -28,32 +40,52 @@ export function formatTime(timeInSeconds: number): string {
   return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
 }
 
+function formatSubtitleTimestamp(seconds: number, decimalSep: ',' | '.'): string {
+  const totalMs = Math.max(0, Math.round(seconds * 1000));
+  const hrs = Math.floor(totalMs / 3_600_000);
+  const mins = Math.floor((totalMs % 3_600_000) / 60_000);
+  const secs = Math.floor((totalMs % 60_000) / 1000);
+  const ms = totalMs % 1000;
+  return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}${decimalSep}${String(ms).padStart(3, '0')}`;
+}
+
+/** Triggers a reliable browser download and delays revoking the object URL so large blobs complete cleanly. */
+function triggerBlobDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
 interface VideoEditorPageProps {
   initialProject?: any;
 }
 
 export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
   // State
-  const initialSubtitlesRaw = initialProject?.subtitles?.items ?? initialProject?.subtitles;
-  const initialStylesRaw = initialProject?.subtitles?.styles ?? initialProject?.styles;
-  const initialFilenameRaw = initialProject?.subtitles?.video_filename ?? initialProject?.video_filename ?? 'sample_video.mp4';
-  const initialSubtitlesParsed = initialSubtitlesRaw ? normaliseSubtitles(initialSubtitlesRaw) : DEFAULT_SUBTITLES;
-
-  const formatVideoUrl = (url?: string) => {
-    if (!url) return '';
-    if (
-      url.startsWith('http://') ||
-      url.startsWith('https://') ||
-      url.startsWith('blob:') ||
-      url.startsWith('data:')
-    ) {
-      return url;
-    }
-    return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
-  };
+  const initialEnvelope = extractProjectEnvelope<SubtitleSegment, Partial<SubtitleStyle>>(
+    initialProject
+  );
+  const initialSubtitlesParsed =
+    initialProject?.subtitles !== undefined
+      ? normaliseSubtitles(initialEnvelope.items)
+      : DEFAULT_SUBTITLES;
+  const initialStylesRaw =
+    Object.keys(initialEnvelope.styles).length > 0
+      ? initialEnvelope.styles
+      : initialProject?.styles;
+  const initialFilenameRaw =
+    initialEnvelope.video_filename ??
+    sanitizeVideoFilename(initialProject?.video_filename) ??
+    '';
 
   const [projectId, setProjectId] = useState<string | null>(initialProject?.id || null);
-  const [videoUrl, setVideoUrl] = useState<string>(formatVideoUrl(initialProject?.video_url));
+  const [videoUrl, setVideoUrl] = useState<string>(resolveMediaUrl(initialProject?.video_url));
   const [thumbnailUrl, setThumbnailUrl] = useState<string>(initialProject?.thumbnail_url || '');
   const [videoFilename, setVideoFilename] = useState<string>(initialFilenameRaw);
   const [subtitles, setSubtitles] = useState<SubtitleSegment[]>(initialSubtitlesParsed);
@@ -146,20 +178,43 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
     }
   }, []);
 
-  const [globalStyles, setGlobalStyles] = useState<SubtitleStyle>(
-    initialStylesRaw && Object.keys(initialStylesRaw).length ? initialStylesRaw : DEFAULT_STYLES
-  );
+  const parsedInitialStyles = useMemo(() => {
+    if (initialStylesRaw && Object.keys(initialStylesRaw).length) {
+      return normalizeSubtitleStyle(initialStylesRaw);
+    }
+    return DEFAULT_STYLES;
+  }, [initialStylesRaw]);
+
+  const [globalStyles, setGlobalStyles] = useState<SubtitleStyle>(parsedInitialStyles);
   const [selectedSubtitleId, setSelectedSubtitleId] = useState<number | string | null>(null);
   const [isSyncOn, setIsSyncOn] = useState<boolean>(true);
-  const [captionLengthMode, setCaptionLengthMode] = useState<CaptionLengthMode>('custom');
-  const [customWordCount, setCustomWordCount] = useState<number>(4);
+  const [captionLengthMode, setCaptionLengthMode] = useState<CaptionLengthMode>(
+    parsedInitialStyles.caption_length_mode || 'custom'
+  );
+  const [customWordCount, setCustomWordCount] = useState<number>(
+    parsedInitialStyles.custom_word_count || 4
+  );
 
   const [projectName, setProjectName] = useState<string>(
     initialProject?.title || `โปรเจกต์ ${new Date().toLocaleDateString('th-TH')}`
   );
   const [hasChanges, setHasChanges] = useState<boolean>(!initialProject);
-  const [aspectRatio, setAspectRatio] = useState<'16:9' | '9:16' | '1:1'>('9:16');
+  const [aspectRatio, setAspectRatio] = useState<'16:9' | '9:16' | '1:1'>(
+    parsedInitialStyles.aspect_ratio || '9:16'
+  );
+  const hasSavedAspectRatioRef = useRef<boolean>(Boolean(initialStylesRaw?.aspect_ratio));
+
+  const handleSetAspectRatio = useCallback((nextRatio: '16:9' | '9:16' | '1:1') => {
+    hasSavedAspectRatioRef.current = true;
+    setAspectRatio(nextRatio);
+    setGlobalStyles((prev) => ({ ...prev, aspect_ratio: nextRatio }));
+    setHasChanges(true);
+  }, []);
   const [speed, setSpeed] = useState<number>(1);
+  const speedRef = useRef<number>(1);
+  useEffect(() => {
+    speedRef.current = speed;
+  }, [speed]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeTab, setActiveTab] = useState<EditorTabType>('styles');
   const [mobileView, setMobileView] = useState<'player' | 'subtitles' | 'styles' | 'templates'>('player');
@@ -167,7 +222,7 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
   // Playback state
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(
-    initialProject?.duration ? Number(initialProject.duration) : 9.1
+    parseDurationSeconds(initialProject?.duration) ?? 9.1
   );
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [volume, setVolume] = useState<number>(1);
@@ -175,13 +230,27 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
 
   // Status & modal states
   const [isRendering, setIsRendering] = useState<boolean>(false);
-  const [renderProgress, setRenderProgress] = useState<string>('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Toast notification helper
-  const showToast = useCallback((msg: string) => {
+  const showToast = useCallback((msg: string, durationMs = 3000) => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3000);
+    toastTimerRef.current = setTimeout(() => {
+      setToastMessage(null);
+      toastTimerRef.current = null;
+    }, durationMs);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+    };
   }, []);
 
   // Responsive default panel widths helper based on device screen resolution
@@ -248,6 +317,42 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
     projectIdRef.current = projectId;
   }, [projectId]);
 
+  const projectStatusRef = useRef<'draft' | 'done' | 'processing'>(
+    normalizeProjectStatus(initialProject?.status)
+  );
+
+  const buildFullStyles = useCallback(
+    () =>
+      normalizeSubtitleStyle({
+        ...globalStyles,
+        aspect_ratio: aspectRatio,
+        caption_length_mode: captionLengthMode,
+        custom_word_count: customWordCount,
+      }),
+    [globalStyles, aspectRatio, captionLengthMode, customWordCount]
+  );
+
+  const syncSessionSnapshot = useCallback(
+    (normalizedStyles: SubtitleStyle, activeProjectId?: string | null) => {
+      try {
+        const cleanFilename = sanitizeVideoFilename(videoFilename);
+        sessionStorage.setItem(
+          'subtitle_project',
+          JSON.stringify({
+            id: activeProjectId ?? projectIdRef.current ?? undefined,
+            video_url: videoUrl,
+            thumbnail_url: thumbnailUrl || undefined,
+            video_filename: cleanFilename,
+            subtitles,
+            globalStyles: normalizedStyles,
+            projectName,
+          })
+        );
+      } catch {}
+    },
+    [videoUrl, thumbnailUrl, videoFilename, subtitles, projectName]
+  );
+
   // Core background save routine that persists to Supabase and sessionStorage
   const performSave = useCallback(
     async (isBackground = true) => {
@@ -257,36 +362,32 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
         }
         setSaveStatus('saving');
 
+        const normalizedStyles = buildFullStyles();
+        const cleanFilename = sanitizeVideoFilename(videoFilename);
+
         // 1. Sync to sessionStorage immediately
-        try {
-          sessionStorage.setItem(
-            'subtitle_project',
-            JSON.stringify({
-              video_url: videoUrl,
-              video_filename: videoFilename,
-              subtitles,
-              globalStyles,
-              projectName,
-            })
-          );
-        } catch {}
+        syncSessionSnapshot(normalizedStyles);
 
         // 2. Persist to Supabase Database
         const result = await saveProjectAction({
           id: projectIdRef.current || undefined,
           title: projectName || 'โปรเจกต์ไม่มีชื่อ',
-          status: 'draft',
-          duration: duration ? String(duration) : undefined,
+          status: projectIdRef.current ? projectStatusRef.current : 'draft',
+          duration: duration > 0 ? duration : undefined,
           video_url: videoUrl,
           thumbnail_url: thumbnailUrl || undefined,
-          video_filename: videoFilename,
-          subtitles: subtitles,
-          styles: globalStyles,
+          video_filename: cleanFilename,
+          subtitles,
+          styles: normalizedStyles,
         });
 
         if (result.success && result.projectId) {
           setProjectId(result.projectId);
           projectIdRef.current = result.projectId;
+          if (result.status) {
+            projectStatusRef.current = result.status;
+          }
+          syncSessionSnapshot(normalizedStyles, result.projectId);
           setHasChanges(false);
           setSaveStatus('saved');
           if (!isBackground) {
@@ -296,10 +397,9 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
             window.history.replaceState(null, '', `/editor?id=${result.projectId}`);
           }
         } else {
-          setHasChanges(false);
-          setSaveStatus('saved');
+          setSaveStatus('unsaved');
           if (!isBackground) {
-            showToast(result.error || 'บันทึกฉบับร่างไว้ในเบราว์เซอร์แล้ว');
+            showToast(result.error || 'บันทึกคลาวด์ไม่สำเร็จ (เก็บฉบับร่างไว้ในเบราว์เซอร์แล้ว)');
           }
         }
       } catch (err) {
@@ -307,7 +407,7 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
         setSaveStatus('unsaved');
       }
     },
-    [videoUrl, videoFilename, subtitles, globalStyles, projectName, duration, showToast]
+    [buildFullStyles, syncSessionSnapshot, videoFilename, projectName, duration, videoUrl, thumbnailUrl, subtitles, showToast]
   );
 
   // Debounced auto-save whenever changes occur (1.5s after user stops typing or adjusting styles)
@@ -333,25 +433,14 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
   // Flush save on page unload / close
   useEffect(() => {
     const handleBeforeUnload = () => {
-      try {
-        sessionStorage.setItem(
-          'subtitle_project',
-          JSON.stringify({
-            video_url: videoUrl,
-            video_filename: videoFilename,
-            subtitles,
-            globalStyles,
-            projectName,
-          })
-        );
-      } catch {}
+      syncSessionSnapshot(buildFullStyles());
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [videoUrl, videoFilename, subtitles, globalStyles, projectName]);
+  }, [buildFullStyles, syncSessionSnapshot]);
 
   const handleLeftResizeStart = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
@@ -387,9 +476,8 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
     document.body.style.userSelect = 'none';
 
     const onPointerMove = (moveEvent: PointerEvent) => {
-      // 48px is the width of EditorTabs toolbar strip
       const maxAllowed = Math.min(540, window.innerWidth * 0.4);
-      const newWidth = Math.max(240, Math.min(maxAllowed, window.innerWidth - moveEvent.clientX - 48));
+      const newWidth = Math.max(240, Math.min(maxAllowed, window.innerWidth - moveEvent.clientX - 16));
       setRightPanelWidth(newWidth);
     };
 
@@ -452,20 +540,33 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
   }, [selectedSubtitleId, showToast]);
 
   // Apply a subtitle style template to selected subtitle or globally
-  const handleApplyTemplate = useCallback((template: SubtitleTemplate) => {
-    if (selectedSubtitleId !== null) {
-      setSubtitles((current) =>
-        current.map((s) =>
-          s.id === selectedSubtitleId ? { ...s, style: { ...template.style }, isEdited: true } : s
-        )
-      );
-      showToast(`นำเทมเพลต "${template.name}" ไปใช้กับแคปชันที่เลือกแล้ว`);
-    } else {
-      setGlobalStyles({ ...template.style });
-      showToast(`นำเทมเพลต "${template.name}" ไปใช้กับซับไตเติลทั้งหมดแล้ว`);
-    }
-    setHasChanges(true);
-  }, [selectedSubtitleId, showToast]);
+  const handleApplyTemplate = useCallback(
+    (template: SubtitleTemplate) => {
+      const normalizedTemplate = normalizeSubtitleStyle({
+        ...template.style,
+        aspect_ratio: aspectRatio,
+        caption_length_mode: captionLengthMode,
+        custom_word_count: customWordCount,
+      });
+
+      if (selectedSubtitleId !== null) {
+        setSubtitles((current) =>
+          current.map((s) =>
+            s.id === selectedSubtitleId ? { ...s, style: { ...normalizedTemplate }, isEdited: true } : s
+          )
+        );
+        showToast(`นำเทมเพลต "${template.name}" ไปใช้กับแคปชันที่เลือกแล้ว`);
+      } else {
+        setGlobalStyles({ ...normalizedTemplate });
+        // Clear per-segment custom overrides only when applying a global template if desired?
+        // Actually keep segment-specific overrides only if user intentionally edited style, or clear style overrides so global template shows uniformly:
+        setSubtitles((current) => current.map((s) => (s.style ? { ...s, style: undefined } : s)));
+        showToast(`นำเทมเพลต "${template.name}" ไปใช้กับซับไตเติลทั้งหมดแล้ว`);
+      }
+      setHasChanges(true);
+    },
+    [selectedSubtitleId, aspectRatio, captionLengthMode, customWordCount, showToast]
+  );
 
   // Read initial data from sessionStorage on mount (if not opened via project id)
   useEffect(() => {
@@ -475,18 +576,25 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
       try {
         const parsed = JSON.parse(stored);
         if (parsed.video_url) {
-          const isFullUrl =
-            parsed.video_url.startsWith('http://') ||
-            parsed.video_url.startsWith('https://') ||
-            parsed.video_url.startsWith('blob:') ||
-            parsed.video_url.startsWith('data:');
-          const finalUrl = isFullUrl
-            ? parsed.video_url
-            : `${API_BASE_URL}${parsed.video_url.startsWith('/') ? '' : '/'}${parsed.video_url}`;
-          setVideoUrl(finalUrl);
+          setVideoUrl(resolveMediaUrl(parsed.video_url));
         }
-        if (parsed.video_filename) setVideoFilename(parsed.video_filename);
-        if (parsed.globalStyles || parsed.styles) setGlobalStyles(parsed.globalStyles || parsed.styles);
+        const parsedFilename = sanitizeVideoFilename(parsed.video_filename);
+        if (parsedFilename) setVideoFilename(parsedFilename);
+        if (parsed.thumbnail_url) setThumbnailUrl(parsed.thumbnail_url);
+        if (parsed.globalStyles || parsed.styles) {
+          const loadedStyles = normalizeSubtitleStyle(parsed.globalStyles || parsed.styles);
+          setGlobalStyles(loadedStyles);
+          if (parsed.globalStyles?.aspect_ratio || parsed.styles?.aspect_ratio) {
+            setAspectRatio(loadedStyles.aspect_ratio || '9:16');
+            hasSavedAspectRatioRef.current = true;
+          }
+          if (loadedStyles.caption_length_mode) {
+            setCaptionLengthMode(loadedStyles.caption_length_mode);
+          }
+          if (loadedStyles.custom_word_count) {
+            setCustomWordCount(loadedStyles.custom_word_count);
+          }
+        }
         const storedSubtitles = normaliseSubtitles(parsed.subtitles ?? parsed.segments ?? parsed.captions);
         if (storedSubtitles.length > 0) {
           originalSubtitlesRef.current = JSON.parse(JSON.stringify(storedSubtitles));
@@ -537,14 +645,22 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
     };
   }, [isPlaying]);
 
+  const handlePlaybackStateChange = useCallback((playing: boolean) => {
+    setIsPlaying(playing);
+    if (videoRef.current) {
+      setCurrentTime(videoRef.current.currentTime);
+    }
+  }, []);
+
   const handleLoadedMetadata = useCallback(() => {
     if (videoRef.current) {
+      videoRef.current.playbackRate = speedRef.current;
       const vidDuration = videoRef.current.duration;
       if (!isNaN(vidDuration) && vidDuration > 0) setDuration(vidDuration);
 
       const vidWidth = videoRef.current.videoWidth;
       const vidHeight = videoRef.current.videoHeight;
-      if (vidWidth > 0 && vidHeight > 0) {
+      if (vidWidth > 0 && vidHeight > 0 && !hasSavedAspectRatioRef.current) {
         const ratio = vidWidth / vidHeight;
         // Determine closest ratio:
         // Square: ~0.95 to ~1.05
@@ -704,14 +820,7 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
 
         const targetSub = subtitles[targetIndex];
         if (targetSub) {
-          setSelectedSubtitleId(targetSub.id);
           seekVideo(targetSub.start);
-          requestAnimationFrame(() => {
-            const cardEl = document.querySelector(`[data-subtitle-id="${targetSub.id}"]`) as HTMLElement | null;
-            if (cardEl && (!document.activeElement || document.activeElement === document.body || document.activeElement.hasAttribute('data-subtitle-id'))) {
-              cardEl.focus({ preventScroll: true });
-            }
-          });
         }
       } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
         e.preventDefault();
@@ -750,14 +859,7 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
         const targetIndex = Math.min(subtitles.length - 1, currentIndex + 1);
         const targetSub = subtitles[targetIndex];
         if (targetSub) {
-          setSelectedSubtitleId(targetSub.id);
           seekVideo(targetSub.start);
-          requestAnimationFrame(() => {
-            const cardEl = document.querySelector(`[data-subtitle-id="${targetSub.id}"]`) as HTMLElement | null;
-            if (cardEl && (!document.activeElement || document.activeElement === document.body || document.activeElement.hasAttribute('data-subtitle-id'))) {
-              cardEl.focus({ preventScroll: true });
-            }
-          });
         }
       } else if ((e.code === 'KeyC' || e.key.toLowerCase() === 'c') && !e.ctrlKey && !e.metaKey && !e.altKey) {
         // C key -> Split active card at video playhead
@@ -793,24 +895,19 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [togglePlay, toggleMute, seekVideo, currentTime, subtitles, selectedSubtitleId, showToast]);
+  }, [togglePlay, toggleMute, seekVideo, currentTime, subtitles, selectedSubtitleId, showToast, handleUndo, handleRedo]);
 
-  // Active subtitle for current playback time
+  // Active subtitle for current playback time; if adjacent cards overlap slightly, switch to the incoming card immediately
   const activeSubtitle = useMemo(() => {
-    return subtitles.find(
-      (sub, index) =>
-        currentTime >= sub.start &&
-        (index === subtitles.length - 1 ? currentTime <= sub.end : currentTime < sub.end)
-    );
-  }, [subtitles, currentTime]);
-
-  // When clip is running (playing) with Auto-Scroll / Lock Sync ON,
-  // sync the selected caption to the active running caption
-  useEffect(() => {
-    if (isPlaying && isSyncOn && activeSubtitle?.id !== undefined) {
-      setSelectedSubtitleId(activeSubtitle.id);
+    for (let i = subtitles.length - 1; i >= 0; i--) {
+      const sub = subtitles[i];
+      const isLast = i === subtitles.length - 1;
+      if (currentTime >= sub.start && (isLast ? currentTime <= sub.end : currentTime < sub.end)) {
+        return sub;
+      }
     }
-  }, [isPlaying, isSyncOn, activeSubtitle?.id]);
+    return undefined;
+  }, [subtitles, currentTime]);
 
   // Subtitle actions (Debounces text typing into smart batches, while cuts/splits/deletes push instantly)
   const handleTextChange = useCallback((id: number, newText: string) => {
@@ -850,88 +947,29 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
       return;
     }
 
-    const fullText = (segment.text || '').trim();
-    const totalDuration = segment.end - segment.start;
-    const elapsed = currentT - segment.start;
-    const ratio = Math.max(0.05, Math.min(0.95, elapsed / totalDuration));
-
-    // Split text based on time elapsed
-    let splitCharIndex = Math.round(fullText.length * ratio);
-    // Prefer word boundaries (spaces) if available nearby
-    const spaceNear = fullText.indexOf(' ', Math.max(0, splitCharIndex - 5));
-    if (spaceNear !== -1 && Math.abs(spaceNear - splitCharIndex) <= 6) {
-      splitCharIndex = spaceNear;
-    }
-
-    const firstText = fullText.slice(0, splitCharIndex).trim();
-    const secondText = fullText.slice(splitCharIndex).trim();
-
-    const firstHalf: SubtitleSegment = {
-      ...segment,
-      end: parseFloat(currentT.toFixed(2)),
-      text: firstText || fullText,
-      isEdited: true,
-    };
-    const secondHalf: SubtitleSegment = {
-      ...segment,
-      id: Date.now(),
-      start: parseFloat(currentT.toFixed(2)),
-      end: segment.end,
-      text: secondText || fullText,
-      isEdited: true,
-    };
+    const [firstHalf, secondHalf] = splitSegmentByTime(segment, currentT, Date.now());
 
     setSubtitles((prev) => {
       const next = prev.map((s) => (s.id === id ? firstHalf : s)).concat(secondHalf).sort((a, b) => a.start - b.start);
       pushHistory(next);
       return next;
     });
-    setSelectedSubtitleId(secondHalf.id);
+    if (selectedSubtitleId === id) {
+      setSelectedSubtitleId(secondHalf.id);
+    }
     setHasChanges(true);
-  }, [subtitles, currentTime, pushHistory]);
+  }, [subtitles, currentTime, selectedSubtitleId, pushHistory]);
 
   // Version 1: Split at Cursor position (Enter key in subtitle card)
   const handleSplitAtCursor = useCallback((id: number, cursorIndex: number) => {
     const segment = subtitles.find((s) => s.id === id);
     if (!segment) return;
 
-    const fullText = segment.text || '';
-    if (cursorIndex <= 0 || cursorIndex >= fullText.length) return;
-
-    const firstText = fullText.slice(0, cursorIndex).trimEnd();
-    const secondText = fullText.slice(cursorIndex).trimStart();
-    if (!firstText || !secondText) return;
-
-    const totalDuration = segment.end - segment.start;
     const currentT = videoRef.current ? videoRef.current.currentTime : currentTime;
-
-    // If playhead is currently inside this card (with 0.2s margin), use playhead for audio alignment;
-    // otherwise split proportionally based on character length
-    let splitTime: number;
-    if (currentT >= segment.start + 0.2 && currentT <= segment.end - 0.2) {
-      splitTime = parseFloat(currentT.toFixed(2));
-    } else {
-      const ratio = firstText.length / (firstText.length + secondText.length);
-      splitTime = parseFloat((segment.start + totalDuration * ratio).toFixed(2));
-    }
-
-    // Ensure strictly valid intervals
-    splitTime = Math.max(segment.start + 0.1, Math.min(segment.end - 0.1, splitTime));
-
     const newSecondId = Date.now();
-    const firstHalf: SubtitleSegment = {
-      ...segment,
-      end: splitTime,
-      text: firstText,
-      isEdited: true,
-    };
-    const secondHalf: SubtitleSegment = {
-      ...segment,
-      id: newSecondId,
-      start: splitTime,
-      text: secondText,
-      isEdited: true,
-    };
+    const parts = splitSegmentAtCursor(segment, cursorIndex, currentT, newSecondId);
+    if (!parts) return;
+    const [firstHalf, secondHalf] = parts;
 
     setSubtitles((prev) => {
       const next = prev
@@ -943,7 +981,7 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
     });
 
     setSelectedSubtitleId(newSecondId);
-    seekVideo(splitTime);
+    seekVideo(secondHalf.start);
     setHasChanges(true);
 
     // Auto-focus the new card's textarea at index 0
@@ -965,15 +1003,7 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
     const currentCard = subtitles[currentIndex];
     if (!prevCard || !currentCard) return;
 
-    const originalPrevLength = (prevCard.text || '').length;
-    const mergedText = `${(prevCard.text || '').trim()} ${(currentCard.text || '').trim()}`.trim();
-
-    const mergedCard: SubtitleSegment = {
-      ...prevCard,
-      end: currentCard.end,
-      text: mergedText,
-      isEdited: true,
-    };
+    const { mergedCard, cursorPosition } = mergeSegmentPair(prevCard, currentCard);
 
     setSubtitles((prev) => {
       const next = prev
@@ -991,7 +1021,6 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
       const prevCardEl = document.querySelector(`[data-subtitle-id="${prevCard.id}"] textarea`) as HTMLTextAreaElement | null;
       if (prevCardEl) {
         prevCardEl.focus({ preventScroll: true });
-        const cursorPosition = originalPrevLength > 0 ? originalPrevLength + 1 : 0;
         prevCardEl.setSelectionRange(cursorPosition, cursorPosition);
       }
     }, 50);
@@ -1019,11 +1048,13 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
 
       const roundedStart = parseFloat(clampedStart.toFixed(2));
       const roundedEnd = parseFloat(clampedEnd.toFixed(2));
+      const shiftedWords = shiftSegmentWords(currentCard, roundedStart, roundedEnd);
 
       const updatedCard: SubtitleSegment = {
         ...currentCard,
         start: roundedStart,
         end: roundedEnd,
+        words: shiftedWords ?? currentCard.words,
         isEdited: true,
       };
 
@@ -1034,7 +1065,7 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
       return next;
     });
 
-    seekVideo(newStart);
+    seekVideo(Math.max(0, newStart));
     setHasChanges(true);
   }, [duration, pushHistory, seekVideo]);
 
@@ -1078,17 +1109,18 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
       if (!res.ok) throw new Error('API request failed');
       const data = await res.json();
       if (data.video_url) {
-        const isFullUrl =
-          data.video_url.startsWith('http://') ||
-          data.video_url.startsWith('https://') ||
-          data.video_url.startsWith('blob:') ||
-          data.video_url.startsWith('data:');
-        const finalUrl = isFullUrl
-          ? data.video_url
-          : `${API_BASE_URL}${data.video_url.startsWith('/') ? '' : '/'}${data.video_url}`;
+        const finalUrl = resolveMediaUrl(data.video_url);
+        if (videoRef.current) {
+          videoRef.current.pause();
+          videoRef.current.currentTime = 0;
+        }
+        setIsPlaying(false);
+        setCurrentTime(0);
         setVideoUrl(finalUrl);
       }
-      if (data.video_filename) setVideoFilename(data.video_filename);
+      if (data.thumbnail_url) setThumbnailUrl(data.thumbnail_url);
+      const uploadedFilename = sanitizeVideoFilename(data.video_filename);
+      if (uploadedFilename) setVideoFilename(uploadedFilename);
       const extracted = normaliseSubtitles(data.subtitles ?? data.segments ?? data.captions);
       if (extracted.length > 0) {
         originalSubtitlesRef.current = JSON.parse(JSON.stringify(extracted));
@@ -1096,6 +1128,7 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
         setHistory([extracted]);
         setHistoryIndex(0);
       }
+      setHasChanges(true);
       showToast('แยกเสียงและสร้างซับสำเร็จ!');
     } catch (err) {
       console.warn('Backend unavailable:', err);
@@ -1103,35 +1136,50 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
     }
   }, [showToast]);
 
-  // Export SRT
-  const handleExportSRT = useCallback(() => {
+  // Export Subtitles (.srt / .vtt / .txt)
+  const handleExportSubtitle = useCallback((format: 'srt' | 'vtt' | 'txt') => {
     if (subtitles.length === 0) {
       showToast('ไม่มีซับไตเติ้ลสำหรับส่งออก');
       return;
     }
 
-    const formatSrtTime = (seconds: number) => {
-      const hrs = Math.floor(seconds / 3600);
-      const mins = Math.floor((seconds % 3600) / 60);
-      const secs = Math.floor(seconds % 60);
-      const ms = Math.floor((seconds % 1) * 1000);
-      return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')},${String(ms).padStart(3, '0')}`;
-    };
+    let content = '';
+    if (format === 'txt') {
+      content = subtitles.map((sub) => sub.text).join('\n');
+    } else {
+      const sep = format === 'vtt' ? '.' : ',';
+      const body = subtitles
+        .map(
+          (sub, i) =>
+            `${i + 1}\n${formatSubtitleTimestamp(sub.start, sep)} --> ${formatSubtitleTimestamp(sub.end, sep)}\n${sub.text}`
+        )
+        .join('\n\n');
+      content = format === 'vtt' ? `WEBVTT\n\n${body}\n` : `${body}\n`;
+    }
 
-    let srtContent = '';
-    subtitles.forEach((sub, i) => {
-      srtContent += `${i + 1}\n${formatSrtTime(sub.start)} --> ${formatSrtTime(sub.end)}\n${sub.text}\n\n`;
-    });
-
-    const blob = new Blob([srtContent], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${projectName.replace(/\s+/g, '_')}.srt`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast('ส่งออกไฟล์ .SRT สำเร็จ');
+    const safeName =
+      projectName.replace(/[\\/:*?"<>|]+/g, '-').trim().replace(/\s+/g, '_') || 'subtitles';
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    triggerBlobDownload(blob, `${safeName}.${format}`);
+    showToast(`ส่งออกไฟล์ .${format.toUpperCase()} สำเร็จ`);
   }, [subtitles, projectName, showToast]);
+
+  const handleExportSRT = useCallback(() => {
+    handleExportSubtitle('srt');
+  }, [handleExportSubtitle]);
+
+  const handleCopyTranscript = useCallback(async () => {
+    if (subtitles.length === 0) {
+      showToast('ไม่มีซับไตเติ้ลสำหรับคัดลอก');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(subtitles.map((sub) => sub.text).join('\n'));
+      showToast('คัดลอกข้อความซับทั้งหมดแล้ว');
+    } catch {
+      showToast('ไม่สามารถคัดลอกข้อความได้');
+    }
+  }, [subtitles, showToast]);
 
   // Manual save project to Supabase & sessionStorage
   const handleSave = useCallback(async () => {
@@ -1141,7 +1189,6 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
   // Render Video
   const handleRenderVideo = useCallback(async () => {
     setIsRendering(true);
-    setRenderProgress('กำลังสร้างไฟล์ .ass และฝังซับไตเติ้ลด้วย FFmpeg...');
 
     try {
       // Determine effective filename (fallback to videoUrl basename if videoFilename is generic)
@@ -1156,6 +1203,11 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
         }
       }
 
+      if (!videoUrl && (!effectiveFilename || effectiveFilename === 'sample_video.mp4')) {
+        showToast('ไม่พบไฟล์วิดีโอสำหรับเรนเดอร์ กรุณาอัปโหลดวิดีโอใหม่อีกครั้ง', 5000);
+        return;
+      }
+
       const vidEl = videoRef.current;
       const vidW = vidEl ? vidEl.videoWidth : undefined;
       const vidH = vidEl ? vidEl.videoHeight : undefined;
@@ -1163,22 +1215,28 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
       // Accurately measure the actual displayed video stage dimensions on the user's screen
       let prevW: number | undefined = undefined;
       let prevH: number | undefined = undefined;
-      if (vidEl) {
-        const stageEl = (document.querySelector('[data-canvas-stage]') || document.querySelector('[data-subtitle-overlay]')?.parentElement) as HTMLElement | null;
-        if (stageEl && stageEl.clientWidth > 0 && stageEl.clientHeight > 0) {
-          prevW = stageEl.clientWidth;
-          prevH = stageEl.clientHeight;
-        } else {
-          const rect = vidEl.getBoundingClientRect();
-          if (rect.width > 0 && rect.height > 0) {
-            prevW = Math.round(rect.width);
-            prevH = Math.round(rect.height);
-          }
+      const stageEl = (document.querySelector('[data-canvas-stage]') || document.querySelector('[data-subtitle-overlay]')?.parentElement) as HTMLElement | null;
+      if (stageEl && stageEl.clientWidth > 0 && stageEl.clientHeight > 0) {
+        prevW = stageEl.clientWidth;
+        prevH = stageEl.clientHeight;
+      } else if (vidEl) {
+        const rect = vidEl.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          prevW = Math.round(rect.width);
+          prevH = Math.round(rect.height);
         }
       }
 
+      // Cancel any pending debounced draft save so it cannot race behind status='done'
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
+
+      const fullGlobalStyles = buildFullStyles();
+
       const payload = {
-        video_filename: effectiveFilename,
+        video_filename: effectiveFilename || undefined,
         video_url: videoUrl,
         video_width: vidW,
         video_height: vidH,
@@ -1190,21 +1248,12 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
           start: s.start,
           end: s.end,
           text: s.text,
-          style: s.style ? {
-            ...s.style,
-            custom_x: s.style.custom_x ?? globalStyles.custom_x,
-            custom_y: s.style.custom_y ?? globalStyles.custom_y,
-            box_width: s.style.box_width ?? globalStyles.box_width,
-          } : undefined,
+          words: getSubtitleTokensWithTiming(s),
+          style: s.style
+            ? normalizeSubtitleStyle({ ...fullGlobalStyles, ...s.style }, fullGlobalStyles)
+            : undefined,
         })),
-        styles: {
-          ...globalStyles,
-          custom_x: globalStyles.custom_x ?? 50,
-          custom_y: globalStyles.custom_y ?? (globalStyles.position === 'center' ? 50 : globalStyles.position === 'custom' ? 12 : 82),
-          box_width: globalStyles.box_width ?? 86,
-          position: globalStyles.position,
-          animation: globalStyles.animation,
-        },
+        styles: fullGlobalStyles,
       };
 
       const res = await fetch(apiUrl('/api/v1/render-video'), {
@@ -1218,46 +1267,58 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
         throw new Error(errJson.detail || `Render failed with status ${res.status}`);
       }
 
-      setRenderProgress('ดาวน์โหลดวิดีโอที่เรนเดอร์เสร็จแล้ว...');
       const blob = await res.blob();
-      const downloadUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = downloadUrl;
       // Name the file after the project (fall back to the video name); strip characters filesystems reject
-      const exportName = projectName.replace(/[\\/:*?"<>|]+/g, '-').trim().replace(/\s+/g, '_')
-        || videoFilename.replace(/\.[^.]+$/, '');
-      a.download = `${exportName}.mp4`;
-      a.click();
-      URL.revokeObjectURL(downloadUrl);
+      const exportName =
+        projectName.replace(/[\\/:*?"<>|]+/g, '-').trim().replace(/\s+/g, '_') ||
+        videoFilename.replace(/\.[^.]+$/, '') ||
+        'rendered_video';
+      triggerBlobDownload(blob, `${exportName}.mp4`);
 
       showToast('เรนเดอร์วิดีโอสำเร็จและเริ่มดาวน์โหลดแล้ว!');
-      setHasChanges(false);
 
-      // Mark status as 'done' in Supabase
-      saveProjectAction({
-        id: projectId || undefined,
+      // Mark status as 'done' in Supabase without racing auto-save
+      const saveRes = await saveProjectAction({
+        id: projectIdRef.current || undefined,
         title: projectName,
         status: 'done',
-        duration: duration ? formatTime(duration) : undefined,
+        duration: duration > 0 ? duration : undefined,
         video_url: videoUrl,
         thumbnail_url: thumbnailUrl || undefined,
-        video_filename: videoFilename,
-        subtitles: subtitles,
-        styles: globalStyles,
-      }).then((res) => {
-        if (res?.success && res.projectId) {
-          setProjectId(res.projectId);
-        }
+        video_filename: sanitizeVideoFilename(effectiveFilename || videoFilename),
+        subtitles,
+        styles: fullGlobalStyles,
       });
+
+      if (saveRes?.success && saveRes.projectId) {
+        setProjectId(saveRes.projectId);
+        projectIdRef.current = saveRes.projectId;
+        projectStatusRef.current = 'done';
+        syncSessionSnapshot(fullGlobalStyles, saveRes.projectId);
+        setHasChanges(false);
+        setSaveStatus('saved');
+        if (typeof window !== 'undefined' && !window.location.search.includes(saveRes.projectId)) {
+          window.history.replaceState(null, '', `/editor?id=${saveRes.projectId}`);
+        }
+      } else {
+        setSaveStatus('unsaved');
+        if (saveRes?.error) {
+          console.warn('Failed to mark rendered project as done:', saveRes.error);
+        }
+      }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
+      const rawMsg = err instanceof Error ? err.message : String(err);
+      const isNetworkErr =
+        err instanceof TypeError || /failed to fetch|networkerror|load failed/i.test(rawMsg);
+      const message = isNetworkErr
+        ? `ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์เรนเดอร์ (${API_BASE_URL}) ได้ กรุณาตรวจสอบว่า Backend API กำลังทำงานอยู่`
+        : rawMsg;
       console.error('Render error:', err);
-      showToast(`เกิดข้อผิดพลาดในการเรนเดอร์: ${message}`);
+      showToast(`เกิดข้อผิดพลาดในการเรนเดอร์: ${message}`, 6000);
     } finally {
       setIsRendering(false);
-      setRenderProgress('');
     }
-  }, [projectId, projectName, duration, videoUrl, videoFilename, subtitles, globalStyles, showToast]);
+  }, [projectName, duration, videoUrl, thumbnailUrl, videoFilename, buildFullStyles, syncSessionSnapshot, subtitles, showToast]);
 
   // Open confirmation modal when Reset is clicked
   const handleResetClick = useCallback(() => {
@@ -1283,7 +1344,8 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
     pushHistory(resetSubs);
     setSelectedSubtitleId(null);
     setHasChanges(true);
-  }, [subtitles, pushHistory]);
+    showToast('รีเซ็ตข้อความและสไตล์กลับเป็นค่าเริ่มต้นแล้ว');
+  }, [subtitles, pushHistory, showToast]);
 
   const handleSetSpeed = useCallback((s: number) => {
     setSpeed(s);
@@ -1297,14 +1359,32 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
   }, [subtitles, searchQuery]);
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#0a090f] text-gray-200 select-none font-sans">
+    <div className="relative flex h-screen w-screen flex-col overflow-hidden bg-[#070709] text-zinc-200 select-none font-sans">
+      {/* Studio Floating Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-16 md:bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <div className="flex items-center gap-2.5 rounded-lg border border-[#2a2838] bg-[#100f16] px-4 py-2 text-xs font-semibold text-white shadow-[0_16px_40px_rgba(0,0,0,0.85)]">
+            <span className="h-1.5 w-1.5 rounded-[1px] bg-[#a78bfa]" />
+            <span>{toastMessage}</span>
+          </div>
+        </div>
+      )}
+
       {/* Render Progress Modal */}
       {isRendering && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/85 backdrop-blur-md">
-          <div className="flex flex-col items-center gap-4 rounded-3xl border border-purple-500/25 bg-[#13121b] p-8 text-center shadow-[0_0_50px_rgba(139,92,246,0.25)]">
-            <div className="h-12 w-12 animate-spin rounded-full border-4 border-purple-500 border-t-transparent"></div>
-            <p className="text-lg font-bold text-white">กำลังเรนเดอร์วิดีโอ</p>
-            <p className="text-xs text-gray-400 max-w-xs">{renderProgress}</p>
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="relative overflow-hidden flex flex-col items-center gap-4 rounded-2xl border border-[#262433] bg-[#0b0a10] p-8 max-w-sm w-full text-center shadow-[0_30px_90px_rgba(0,0,0,0.95)]">
+            <div className="relative flex h-12 w-12 items-center justify-center">
+              <div className="absolute inset-0 animate-spin rounded-full border-2 border-[#a78bfa] border-t-transparent" />
+              <div className="h-8 w-8 rounded-lg bg-[#161420] border border-[#2b283a] flex items-center justify-center text-[#c4b5fd]">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="5 3 19 12 5 21 5 3" />
+                </svg>
+              </div>
+            </div>
+            <div>
+              <p className="font-display text-lg font-extrabold text-white">กำลังเรนเดอร์วิดีโอ...</p>
+            </div>
           </div>
         </div>
       )}
@@ -1312,16 +1392,16 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
       {/* Reset Confirmation Overlay Modal */}
       {isResetConfirmOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="flex flex-col items-center gap-4 rounded-3xl border border-rose-500/30 bg-[#14121f] p-6 max-w-sm w-full text-center shadow-[0_0_50px_rgba(244,63,94,0.2)] animate-in zoom-in-95 duration-150">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-500/15 text-rose-400 border border-rose-500/30">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <div className="relative overflow-hidden flex flex-col items-center gap-4 rounded-2xl border border-[#262433] bg-[#0b0a10] p-6 max-w-sm w-full text-center shadow-[0_30px_90px_rgba(0,0,0,0.95)] animate-in zoom-in-95 duration-150">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/25">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
                 <path d="M3 3v5h5" />
               </svg>
             </div>
             <div>
-              <h3 className="text-base font-bold text-white">ยืนยันการรีเซ็ตทั้งหมด?</h3>
-              <p className="text-xs text-gray-400 mt-1.5 leading-relaxed">
+              <h3 className="font-display text-base font-bold text-white">ยืนยันการรีเซ็ตทั้งหมด?</h3>
+              <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed">
                 การดำเนินการนี้จะรีเซ็ต<span className="text-rose-300 font-semibold">ข้อความแคปชันและสไตล์ทั้งหมด</span>กลับเป็นค่าเริ่มต้นเดิมของวิดีโอ
               </p>
             </div>
@@ -1329,14 +1409,14 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
               <button
                 type="button"
                 onClick={() => setIsResetConfirmOpen(false)}
-                className="flex-1 h-9 rounded-xl bg-[#1f1c2e] hover:bg-[#2a263d] text-xs font-semibold text-gray-300 hover:text-white transition-all active:scale-95"
+                className="flex-1 h-9 rounded-lg bg-[#14131c] hover:bg-[#1c1b27] border border-[#252333] text-xs font-semibold text-zinc-300 hover:text-white transition-colors"
               >
                 ยกเลิก
               </button>
               <button
                 type="button"
                 onClick={handleConfirmReset}
-                className="flex-1 h-9 rounded-xl bg-rose-600 hover:bg-rose-500 text-xs font-bold text-white shadow-lg shadow-rose-600/30 transition-all active:scale-95"
+                className="flex-1 h-9 rounded-lg bg-rose-600 hover:bg-rose-500 text-xs font-bold text-white transition-colors"
               >
                 รีเซ็ตทั้งหมด
               </button>
@@ -1345,7 +1425,7 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
         </div>
       )}
 
-      {/* 1. TOP NAVBAR */}
+      {/* 1. TOP CONSOLE BAR */}
       <EditorHeader
         projectName={projectName}
         setProjectName={setProjectName}
@@ -1353,12 +1433,14 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
         setHasChanges={setHasChanges}
         saveStatus={saveStatus}
         aspectRatio={aspectRatio}
-        setAspectRatio={setAspectRatio}
+        setAspectRatio={handleSetAspectRatio}
         speed={speed}
         setSpeed={handleSetSpeed}
         selectedSubtitleId={selectedSubtitleId}
         onResetStyles={handleResetClick}
         onExportSRT={handleExportSRT}
+        onExportSubtitle={handleExportSubtitle}
+        onCopyTranscript={handleCopyTranscript}
         onSave={handleSave}
         onRenderVideo={handleRenderVideo}
         isRendering={isRendering}
@@ -1372,11 +1454,11 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
         onRegroupSubtitles={handleRegroupSubtitles}
       />
 
-      {/* 2. MAIN WORKSPACE WITH DESKTOP 3-COLUMN OR PHONE ADAPTIVE VIEW */}
-      <div className="flex flex-1 overflow-hidden relative w-full">
-        {/* LEFT: Transcript / Caption List */}
+      {/* 2. FLUSH ARCHITECTURAL CUTTING CONSOLE */}
+      <div className="flex flex-1 overflow-hidden relative w-full z-10">
+        {/* LEFT PANE: Script Cue Queue */}
         <div
-          className={`h-full ${
+          className={`h-full overflow-hidden border-r border-[#1b1a24] bg-[#0a090e] ${
             mobileView === 'subtitles' ? 'flex flex-1 w-full z-20' : 'hidden md:flex flex-shrink-0'
           }`}
         >
@@ -1405,18 +1487,18 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
           />
         </div>
 
-        {/* LEFT RESIZE DIVIDER (Desktop only) */}
+        {/* LEFT PRECISION SEAM RESIZER (Desktop only) */}
         <div
           onPointerDown={handleLeftResizeStart}
-          className="hidden md:block relative w-[1px] flex-shrink-0 cursor-col-resize select-none bg-[#1c1a28] hover:bg-purple-500/60 active:bg-purple-500 transition-colors z-20"
+          className="hidden md:block relative w-[5px] -mx-[2px] flex-shrink-0 cursor-col-resize select-none group z-30"
           title="ลากเพื่อปรับขนาดแถบรายการซับ"
         >
-          <div className="absolute inset-y-0 -left-1 -right-1" />
+          <div className="mx-auto h-full w-[1px] bg-transparent group-hover:bg-[#8b5cf6] group-active:bg-[#a78bfa] transition-colors" />
         </div>
 
-        {/* CENTER: Video Player + Transport Toolbar */}
+        {/* CENTER PANE: Reference Video Monitor + NLE Timeline Deck */}
         <div
-          className={`min-w-0 flex-col overflow-hidden bg-[#0a090f] ${
+          className={`min-w-0 flex-col overflow-hidden bg-[#050508] ${
             mobileView === 'player' ? 'flex flex-1 w-full z-20' : 'hidden md:flex md:flex-1'
           }`}
         >
@@ -1435,6 +1517,8 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
             setStyles={setStyles}
             subtitles={subtitles}
             isPlaying={isPlaying}
+            currentTime={currentTime}
+            onPlaybackStateChange={handlePlaybackStateChange}
           />
           <TransportControls
             currentTime={currentTime}
@@ -1448,64 +1532,97 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
             setIsMuted={setIsMuted}
             videoRef={videoRef}
             formatTime={formatTime}
+            subtitles={subtitles}
           />
         </div>
 
-        {/* RIGHT RESIZE DIVIDER (Desktop only) */}
+        {/* RIGHT PRECISION SEAM RESIZER (Desktop only) */}
         <div
           onPointerDown={handleRightResizeStart}
-          className="hidden md:block relative w-[1px] flex-shrink-0 cursor-col-resize select-none bg-[#1c1a28] hover:bg-purple-500/60 active:bg-purple-500 transition-colors z-20"
+          className="hidden md:block relative w-[5px] -mx-[2px] flex-shrink-0 cursor-col-resize select-none group z-30"
           title="ลากเพื่อปรับขนาดแถบสไตล์"
         >
-          <div className="absolute inset-y-0 -left-1 -right-1" />
+          <div className="mx-auto h-full w-[1px] bg-transparent group-hover:bg-[#8b5cf6] group-active:bg-[#a78bfa] transition-colors" />
         </div>
 
-        {/* RIGHT: Style Inspector / Template Panel + Tab Strip */}
+        {/* RIGHT PANE: Style Inspector / Viral Templates */}
         <div
-          className={`min-h-0 overflow-hidden bg-[#13121b] ${
+          className={`min-h-0 flex-col overflow-hidden border-l border-[#1b1a24] bg-[#0a090e] ${
             mobileView === 'styles' || mobileView === 'templates'
               ? 'flex flex-1 w-full z-20'
               : 'hidden md:relative md:flex flex-shrink-0'
           }`}
         >
-          {(mobileView === 'templates' || (mobileView !== 'styles' && activeTab === 'template')) ? (
-            <TemplatePanel
-              width={rightPanelWidth}
-              onApplyTemplate={handleApplyTemplate}
-              selectedSubtitle={selectedSubtitle}
-              selectedSubtitleIndex={selectedSubtitleIndex}
-            />
-          ) : (
-            <StylePanel
-              width={rightPanelWidth}
-              styles={styles}
-              setStyles={setStyles}
-              selectedSubtitle={selectedSubtitle}
-              selectedSubtitleId={selectedSubtitleId}
-              selectedSubtitleIndex={selectedSubtitleIndex}
-              setSelectedSubtitleId={setSelectedSubtitleId}
-              handleResetToGlobal={handleResetToGlobal}
-              subtitles={subtitles}
-            />
-          )}
-          <div className="hidden md:flex">
-            <EditorTabs activeTab={activeTab} setActiveTab={setActiveTab} />
+          {/* Desktop Flat Underline Inspector Tabs */}
+          <div className="hidden md:grid grid-cols-2 bg-[#09080d] border-b border-[#1b1a24] flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab('styles')}
+              className={`relative flex items-center justify-center gap-1.5 h-10 text-xs font-bold transition-colors cursor-pointer ${
+                activeTab === 'styles'
+                  ? 'text-white'
+                  : 'text-zinc-500 hover:text-zinc-200'
+              }`}
+            >
+              <span>ปรับแต่งสไตล์</span>
+              {activeTab === 'styles' && (
+                <span className="absolute bottom-0 inset-x-3 h-[2px] bg-[#8b5cf6]" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('template')}
+              className={`relative flex items-center justify-center gap-1.5 h-10 text-xs font-bold transition-colors border-l border-[#181720] cursor-pointer ${
+                activeTab === 'template'
+                  ? 'text-white'
+                  : 'text-zinc-500 hover:text-zinc-200'
+              }`}
+            >
+              <span>เทมเพลตครีเอเตอร์</span>
+              {activeTab === 'template' && (
+                <span className="absolute bottom-0 inset-x-3 h-[2px] bg-[#8b5cf6]" />
+              )}
+            </button>
+          </div>
+
+          <div className="flex flex-1 min-h-0 overflow-hidden">
+            {(mobileView === 'templates' || (mobileView !== 'styles' && activeTab === 'template')) ? (
+              <TemplatePanel
+                width={rightPanelWidth}
+                onApplyTemplate={handleApplyTemplate}
+                selectedSubtitle={selectedSubtitle}
+                selectedSubtitleIndex={selectedSubtitleIndex}
+                currentStyle={styles}
+              />
+            ) : (
+              <StylePanel
+                width={rightPanelWidth}
+                styles={styles}
+                setStyles={setStyles}
+                selectedSubtitle={selectedSubtitle}
+                selectedSubtitleId={selectedSubtitleId}
+                selectedSubtitleIndex={selectedSubtitleIndex}
+                setSelectedSubtitleId={setSelectedSubtitleId}
+                handleResetToGlobal={handleResetToGlobal}
+                subtitles={subtitles}
+              />
+            )}
           </div>
         </div>
       </div>
 
       {/* 3. MOBILE BOTTOM NAVIGATION BAR (Visible on mobile/tablets < 768px) */}
-      <div className="flex md:hidden h-14 w-full items-center justify-around border-t border-[#1c1a28] bg-[#0d0c14]/95 backdrop-blur-xl px-2 py-1 z-30 select-none flex-shrink-0">
+      <div className="flex md:hidden h-14 w-full items-stretch justify-around border-t border-[#1c1a28] bg-[#07060d]/95 backdrop-blur-xl px-1 z-30 select-none flex-shrink-0">
         <button
           type="button"
           onClick={() => setMobileView('player')}
-          className={`flex flex-col items-center justify-center gap-1 flex-1 py-1 rounded-xl transition-all ${
+          className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all border-t-2 ${
             mobileView === 'player'
-              ? 'text-purple-400 font-bold bg-purple-500/15'
-              : 'text-gray-400 hover:text-white'
+              ? 'border-purple-400 text-[#e9d5ff] font-bold bg-purple-500/10'
+              : 'border-transparent text-slate-400 hover:text-white'
           }`}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polygon points="5 3 19 12 5 21 5 3" />
           </svg>
           <span className="text-[10px]">วิดีโอ</span>
@@ -1514,13 +1631,13 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
         <button
           type="button"
           onClick={() => setMobileView('subtitles')}
-          className={`flex flex-col items-center justify-center gap-1 flex-1 py-1 rounded-xl transition-all ${
+          className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all border-t-2 ${
             mobileView === 'subtitles'
-              ? 'text-purple-400 font-bold bg-purple-500/15'
-              : 'text-gray-400 hover:text-white'
+              ? 'border-purple-400 text-[#e9d5ff] font-bold bg-purple-500/10'
+              : 'border-transparent text-slate-400 hover:text-white'
           }`}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
           </svg>
           <span className="text-[10px]">แคปชัน</span>
@@ -1532,13 +1649,13 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
             setMobileView('styles');
             setActiveTab('styles');
           }}
-          className={`flex flex-col items-center justify-center gap-1 flex-1 py-1 rounded-xl transition-all ${
+          className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all border-t-2 ${
             mobileView === 'styles'
-              ? 'text-purple-400 font-bold bg-purple-500/15'
-              : 'text-gray-400 hover:text-white'
+              ? 'border-purple-400 text-[#e9d5ff] font-bold bg-purple-500/10'
+              : 'border-transparent text-slate-400 hover:text-white'
           }`}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <line x1="4" x2="20" y1="21" y2="21" />
             <line x1="4" x2="20" y1="3" y2="3" />
             <line x1="4" x2="20" y1="12" y2="12" />
@@ -1555,13 +1672,13 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
             setMobileView('templates');
             setActiveTab('template');
           }}
-          className={`flex flex-col items-center justify-center gap-1 flex-1 py-1 rounded-xl transition-all ${
+          className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all border-t-2 ${
             mobileView === 'templates'
-              ? 'text-purple-400 font-bold bg-purple-500/15'
-              : 'text-gray-400 hover:text-white'
+              ? 'border-purple-400 text-[#e9d5ff] font-bold bg-purple-500/10'
+              : 'border-transparent text-slate-400 hover:text-white'
           }`}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <rect x="3" y="3" width="7" height="7" rx="1" />
             <rect x="14" y="3" width="7" height="7" rx="1" />
             <rect x="14" y="14" width="7" height="7" rx="1" />

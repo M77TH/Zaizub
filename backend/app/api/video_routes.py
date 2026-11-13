@@ -1,11 +1,14 @@
 import os
+import re
 import shutil
 import subprocess
 import time
 import json
 import logging
 import asyncio
+from pathlib import Path
 from typing import List, Optional
+from urllib.parse import unquote
 from pydantic import BaseModel
 from fastapi import APIRouter, UploadFile, File, Form, Request, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse
@@ -30,6 +33,37 @@ def _new_job_id() -> int:
 
 # One GPU model: transcribe one clip at a time, others queue here instead of OOM-ing / racing
 _gpu_lock = asyncio.Semaphore(1)
+
+def probe_av_timeline_base(video_path: str) -> int:
+    """Return 16kHz sample offset matching the earliest A/V stream start_time.
+
+    Preserves positive audio delays (when `audio start_time > video start_time`)
+    during WAV extraction while avoiding bogus silence if both streams share an
+    offset container origin.
+    """
+    try:
+        res = subprocess.run(
+            [
+                "ffprobe", "-v", "error",
+                "-show_entries", "stream=codec_type,start_time",
+                "-of", "json",
+                video_path,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=True,
+        )
+        data = json.loads(res.stdout or "{}")
+        starts: List[float] = []
+        for st in data.get("streams", []):
+            if st.get("codec_type") in ("video", "audio") and st.get("start_time") not in (None, "N/A"):
+                starts.append(float(st["start_time"]))
+        if not starts:
+            return 0
+        return max(0, int(round(min(starts) * 16000)))
+    except Exception:
+        return 0
 
 async def transcribe(audio_path: str, engine: Optional[str], language: Optional[str] = None):
     from app.services.ai_services import transcribe_audio
@@ -140,14 +174,15 @@ def audio_args(path: str) -> list[str]:
 
 def probe_video_dimensions(video_path: str) -> tuple[int, int]:
     """
-    Returns (width, height) of the video file using ffprobe.
+    Returns display (width, height) of the video file using ffprobe, accounting for
+    stream rotation metadata so portrait phone videos report true upright dimensions.
     Defaults to 1080, 1920 if probing fails.
     """
     try:
         cmd = [
             'ffprobe', '-v', 'error',
             '-select_streams', 'v:0',
-            '-show_entries', 'stream=width,height',
+            '-show_entries', 'stream=width,height:stream_tags=rotate:stream_side_data=rotation',
             '-of', 'json',
             video_path
         ]
@@ -156,6 +191,22 @@ def probe_video_dimensions(video_path: str) -> tuple[int, int]:
         stream = data.get('streams', [{}])[0]
         w = int(stream.get('width', 1080))
         h = int(stream.get('height', 1920))
+
+        # Check stream rotation (phone vertical videos encoded sideways with rotate ±90/±270)
+        rot = stream.get('tags', {}).get('rotate')
+        if rot is None:
+            for sd in stream.get('side_data_list') or []:
+                if isinstance(sd, dict) and sd.get('rotation') is not None:
+                    rot = sd.get('rotation')
+                    break
+        if rot is not None:
+            try:
+                angle = abs(int(round(float(rot)))) % 360
+                if angle in (90, 270):
+                    w, h = h, w
+            except (TypeError, ValueError):
+                pass
+
         if w > 0 and h > 0:
             return w, h
     except Exception as e:
@@ -171,8 +222,13 @@ async def _transcribe_and_upload(job_id: int, input_video: str, engine: Optional
     temp_audio = os.path.join(TEMP_DIR, f"aud_{job_id}.wav")
     try:
         logger.info('extracting audio')
-        await asyncio.to_thread(subprocess.run, ['ffmpeg', '-y', '-i', input_video, '-vn', '-ac', '1', '-ar', '16000', temp_audio],
-                                check=True, capture_output=True)
+        base_pts = await asyncio.to_thread(probe_av_timeline_base, input_video)
+        await asyncio.to_thread(
+            subprocess.run,
+            ['ffmpeg', '-y', '-i', input_video, '-vn', '-af', f'aresample=async=1:first_pts={base_pts}', '-ac', '1', '-ar', '16000', temp_audio],
+            check=True,
+            capture_output=True,
+        )
 
         async def media():
             # CPU/network work; overlaps with GPU transcription below
@@ -303,6 +359,18 @@ async def render_video(
             styles_raw = json.loads(styles_str) if isinstance(styles_str, str) else styles_str
         except Exception:
             styles_raw = {}
+
+    if not aspect_ratio and isinstance(styles_raw, dict):
+        aspect_ratio = styles_raw.get("aspect_ratio") or None
+
+    def _opt_float(v) -> Optional[float]:
+        try:
+            return float(v) if v is not None and v != "" else None
+        except (TypeError, ValueError):
+            return None
+
+    req_preview_w = _opt_float(req_preview_w)
+    req_preview_h = _opt_float(req_preview_h)
 
     logger.info(f"render-video: aspect_ratio={aspect_ratio!r}")
 
@@ -482,45 +550,65 @@ async def delete_media(payload: DeleteMediaRequest):
     Purges preview video and thumbnail files from Supabase Storage bucket ('videos')
     and any local copies in temp_storage.
     """
-    to_delete_storage: List[str] = list(payload.paths or [])
+    to_delete_storage: List[str] = []
+    for raw_path in payload.paths or []:
+        cleaned_path = unquote(str(raw_path or "")).strip().lstrip("/")
+        if cleaned_path and ".." not in Path(cleaned_path).parts:
+            to_delete_storage.append(cleaned_path)
 
     def extract_filename(url: str) -> Optional[str]:
         if not url:
             return None
         clean = url.split("?")[0].split("#")[0].strip()
-        import re
-        match = re.search(r"/videos/([^/?#]+)$", clean)
-        if match:
-            return match.group(1)
-        base = os.path.basename(clean)
+        if clean.startswith(("blob:", "data:")):
+            return None
+        bucket_match = re.search(
+            r"/storage/v1/object/(?:public|sign|authenticated)/videos/(.+)$",
+            clean,
+            flags=re.IGNORECASE,
+        )
+        if bucket_match:
+            candidate = unquote(bucket_match.group(1)).strip().lstrip("/")
+            if candidate and ".." not in Path(candidate).parts:
+                return candidate
+        short_match = re.search(r"/videos/([^/?#]+)$", clean)
+        if short_match:
+            candidate = unquote(short_match.group(1)).strip()
+            if candidate and candidate not in (".", ".."):
+                return candidate
+        base = unquote(os.path.basename(clean)).strip()
         if base.startswith(("prev_", "thumb_")):
             return base
         return None
 
-    for url in (payload.urls or []):
+    temp_root = Path(TEMP_DIR).resolve()
+
+    for url in payload.urls or []:
         fn = extract_filename(url)
         if fn:
             to_delete_storage.append(fn)
 
-        # Also purge any local files residing in temp_storage
+        # Also purge any local files residing strictly inside temp_storage
         clean_url = url.split("?")[0].split("#")[0].strip()
         if "/temp_storage/" in clean_url or clean_url.startswith("temp_storage/"):
-            local_name = os.path.basename(clean_url)
-            local_path = os.path.join(TEMP_DIR, local_name)
-            if os.path.exists(local_path):
-                try:
-                    os.remove(local_path)
-                    logger.info(f"Removed local temp_storage file: {local_path}")
-                except Exception as ex:
-                    logger.warning(f"Could not remove local file {local_path}: {ex}")
+            local_name = unquote(os.path.basename(clean_url)).strip()
+            if local_name and local_name not in (".", ".."):
+                candidate_path = (temp_root / local_name).resolve()
+                if candidate_path.is_relative_to(temp_root) and candidate_path.is_file():
+                    try:
+                        os.remove(candidate_path)
+                        logger.info(f"Removed local temp_storage file: {candidate_path}")
+                    except Exception as ex:
+                        logger.warning(f"Could not remove local file {candidate_path}: {ex}")
 
-    # Remove duplicates
     unique_storage_files = list(dict.fromkeys(to_delete_storage))
 
     removed_results = []
     if unique_storage_files:
         try:
-            removed_results = delete_from_supabase_storage(unique_storage_files, bucket_name="videos")
+            removed_results = await asyncio.to_thread(
+                delete_from_supabase_storage, unique_storage_files, bucket_name="videos"
+            )
             logger.info(f"Purged from Supabase Storage: {unique_storage_files} -> {removed_results}")
         except Exception as e:
             logger.error(f"Error purging from Supabase Storage: {e}")
@@ -529,6 +617,6 @@ async def delete_media(payload: DeleteMediaRequest):
     return {
         "success": True,
         "deleted_storage_files": unique_storage_files,
-        "details": removed_results
+        "details": removed_results,
     }
 

@@ -2,7 +2,6 @@
 
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import CustomScrollbar from '@/components/ui/CustomScrollbar';
-import { useSmoothScrollElement } from '@/components/providers/SmoothScroll';
 
 export interface FontOption {
   name: string;
@@ -191,21 +190,24 @@ export default function FontSelector({ value, onChange }: FontSelectorProps) {
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="w-full flex h-10 items-center justify-between rounded-xl bg-[#1a1826] hover:bg-[#252236] px-3.5 text-left transition-all shadow-md"
+        className={`w-full flex h-10 items-center justify-between rounded-xl px-3.5 text-left transition-all border shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] ${
+          isOpen
+            ? 'bg-[#1a172b] border-purple-400/50 ring-2 ring-purple-500/15'
+            : 'bg-[#141222] hover:bg-[#1a172b] border-white/[0.08] hover:border-purple-400/35'
+        }`}
       >
         <div className="flex items-center gap-2 min-w-0 pr-1">
           <span
             style={{ fontFamily: `"${currentFont.name}", "Noto Sans Thai", sans-serif` }}
-            className="truncate text-white font-semibold text-sm"
+            className="truncate text-white font-semibold text-xs sm:text-sm"
           >
             {currentFont.label}
           </span>
-          <span
-            style={{ fontFamily: `"${currentFont.name}", "Noto Sans Thai", sans-serif` }}
-            className="hidden sm:inline text-xs text-white/80 truncate"
-          >
-            (ตัวอย่าง)
-          </span>
+          {currentFont.badge && (
+            <span className="hidden sm:inline-flex items-center rounded-md bg-[#2d2250] border border-purple-500/30 px-1.5 py-0.5 text-[9px] font-semibold text-[#c4b5fd] flex-shrink-0">
+              {currentFont.badge}
+            </span>
+          )}
         </div>
 
         <svg
@@ -214,8 +216,8 @@ export default function FontSelector({ value, onChange }: FontSelectorProps) {
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          strokeWidth="2"
-          className={`flex-shrink-0 text-white/70 ml-2 transition-transform duration-150 ${isOpen ? 'rotate-180 text-white' : ''}`}
+          strokeWidth="2.2"
+          className={`flex-shrink-0 text-slate-400 ml-2 transition-transform duration-150 ${isOpen ? 'rotate-180 text-purple-300' : ''}`}
         >
           <path d="M6 9l6 6 6-6" />
         </svg>
@@ -223,14 +225,14 @@ export default function FontSelector({ value, onChange }: FontSelectorProps) {
 
       {/* Dropdown Menu Popover */}
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1.5 w-full z-50 rounded-xl bg-[#13121b] border border-[#1c1a28] shadow-lg overflow-hidden">
+        <div className="absolute top-full left-0 mt-1.5 w-full z-50 rounded-2xl bg-[#0e0c19]/98 border border-[#221e33] ring-1 ring-white/10 shadow-[0_24px_60px_rgba(0,0,0,0.9)] backdrop-blur-2xl overflow-hidden origin-top anim-dropdown">
           {/* Top Search & Upload Bar */}
-          <div className="p-2 bg-[#13121b] border-b border-[#1c1a28]">
-            <div className="relative flex items-center bg-[#1a1826] rounded-lg px-2.5 py-1.5">
+          <div className="p-2 bg-[#0e0c19] border-b border-[#1c1a28]">
+            <div className="relative flex items-center bg-[#141222] border border-white/[0.08] focus-within:border-purple-400/50 rounded-xl px-2.5 py-1.5 transition-colors">
               {/* Search Icon */}
               <svg
-                width="14"
-                height="14"
+                width="13"
+                height="13"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -258,7 +260,7 @@ export default function FontSelector({ value, onChange }: FontSelectorProps) {
                   }
                 }}
                 placeholder="ค้นหาชื่อฟอนต์..."
-                className="w-full bg-transparent text-xs text-white placeholder-gray-400 focus:outline-none"
+                className="w-full bg-transparent text-xs text-white placeholder-slate-500 focus:outline-none"
               />
 
               {/* Clear Search Button */}
@@ -266,7 +268,7 @@ export default function FontSelector({ value, onChange }: FontSelectorProps) {
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="flex h-5 w-5 items-center justify-center rounded text-gray-400 hover:text-white text-xs mr-1"
+                  className="flex h-5 w-5 items-center justify-center rounded-md text-slate-400 hover:text-white text-xs mr-1"
                   title="ล้างคำค้นหา"
                 >
                   ×
@@ -277,31 +279,32 @@ export default function FontSelector({ value, onChange }: FontSelectorProps) {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="flex h-6 w-6 items-center justify-center rounded text-purple-400 hover:text-white hover:bg-purple-500/20 transition-colors flex-shrink-0 ml-1"
+                className="flex h-6 items-center gap-1 rounded-lg bg-[#2d2250] hover:bg-[#3b2d68] border border-purple-500/30 px-2 text-[10px] font-semibold text-[#e9d5ff] transition-colors flex-shrink-0 ml-1"
                 title="อัปโหลดฟอนต์ (.ttf, .otf, .woff)"
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                   <polyline points="17 8 12 3 7 8" />
                   <line x1="12" y1="3" x2="12" y2="15" />
                 </svg>
+                <span>อัปโหลด</span>
               </button>
             </div>
 
             {uploadError && (
-              <p className="text-[10px] text-red-400 px-1 pt-1.5 leading-tight">{uploadError}</p>
+              <p className="text-[10px] text-rose-400 px-1 pt-1.5 leading-tight">{uploadError}</p>
             )}
           </div>
 
           {/* SmoothScroll + CustomScrollbar Font List Container */}
-          <div className="relative min-h-0 h-[390px] overflow-hidden select-none">
+          <div className="relative min-h-0 h-[360px] overflow-hidden select-none">
             <div
               ref={fontScrollRef}
-              className="panel-scroll-area h-full overflow-y-auto p-1.5 space-y-0.5 custom-scrollbar"
+              className="panel-scroll-area h-full overflow-y-auto p-1.5 space-y-1 custom-scrollbar"
             >
               {filteredFonts.length === 0 ? (
                 <div className="py-8 px-3 text-center space-y-1.5">
-                  <p className="text-xs text-gray-400">ไม่พบฟอนต์ &ldquo;{searchQuery}&rdquo;</p>
+                  <p className="text-xs text-slate-400">ไม่พบฟอนต์ &ldquo;{searchQuery}&rdquo;</p>
                   <button
                     type="button"
                     onClick={() => setSearchQuery('')}
@@ -322,10 +325,10 @@ export default function FontSelector({ value, onChange }: FontSelectorProps) {
                         onChange(font.name);
                         setIsOpen(false);
                       }}
-                      className={`w-full flex flex-col justify-center rounded-lg p-1.5 px-2 text-left transition-all ${
+                      className={`w-full flex flex-col justify-center rounded-xl p-2 px-2.5 text-left transition-all border ${
                         isSelected
-                          ? 'bg-[#2d2250] text-[#c4b5fd] font-semibold shadow-sm'
-                          : 'text-white hover:bg-[#1a1827]'
+                          ? 'bg-[#2d2250] text-[#e9d5ff] border-purple-500/40 font-semibold shadow-sm'
+                          : 'text-white border-transparent hover:bg-[#1a172b] hover:border-white/[0.06]'
                       }`}
                     >
                       {/* Top Row: Font Name + Style Badge + Custom Badge + Checkmark */}
@@ -338,36 +341,45 @@ export default function FontSelector({ value, onChange }: FontSelectorProps) {
                             {font.label}
                           </span>
                           {font.badge && (
-                            <span className={`rounded px-1 py-0.5 text-[8.5px] font-sans ${isSelected ? 'bg-purple-600/30 text-[#c4b5fd]' : 'bg-[#2d2250] text-[#c4b5fd]'}`}>
+                            <span
+                              className={`rounded-md px-1.5 py-0.5 text-[9px] font-sans font-medium ${
+                                isSelected
+                                  ? 'bg-purple-500/30 text-[#e9d5ff] border border-purple-400/30'
+                                  : 'bg-[#141222] text-[#c4b5fd] border border-white/[0.06]'
+                              }`}
+                            >
                               {font.badge}
                             </span>
                           )}
                           {font.isCustom && (
-                            <span className={`rounded px-1 py-0.5 text-[8.5px] tabular-nums font-sans antialiased ${isSelected ? 'bg-purple-600/30 text-[#c4b5fd]' : 'bg-[#2d2250] text-[#c4b5fd]'}`}>
+                            <span className="rounded-md bg-emerald-500/20 border border-emerald-500/30 px-1.5 py-0.5 text-[9px] font-mono text-emerald-300">
                               Custom
                             </span>
                           )}
                         </div>
 
                         {isSelected && (
-                          <svg
-                            width="13"
-                            height="13"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2.5"
-                            className="text-white flex-shrink-0 ml-1"
-                          >
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
+                          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#7c3aed] text-white flex-shrink-0 ml-1 shadow-[0_0_8px_rgba(124,58,237,0.6)]">
+                            <svg
+                              width="10"
+                              height="10"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="3"
+                            >
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          </span>
                         )}
                       </div>
 
                       {/* Bottom Row: Compact & Distinct Example Text */}
                       <span
                         style={{ fontFamily: `"${font.name}", "Noto Sans Thai", sans-serif` }}
-                        className={`text-[11.5px] truncate mt-0.5 leading-snug tracking-wide ${isSelected ? 'text-purple-100' : 'text-gray-400'}`}
+                        className={`text-[11.5px] truncate mt-0.5 leading-snug tracking-wide ${
+                          isSelected ? 'text-purple-100/90' : 'text-slate-400'
+                        }`}
                       >
                         {font.preview || 'สวัสดีชาวโลก วิดีโอซับไตเติล 123 ABC'}
                       </span>

@@ -7,7 +7,8 @@ import { heroCopy } from "./copy";
 import type { Lang } from "./copy";
 import PhoneMockup from "./PhoneMockup";
 import InteractiveDots from "./InteractiveDots";
-import { apiUrl } from "@/lib/api";
+import { createClient } from "@/lib/supabase/client";
+import { deriveTitleFromLink, enqueuePendingUpload } from "@/lib/pendingUploadQueue";
 
 export default function Hero({ lang }: { lang: Lang }) {
   const router = useRouter();
@@ -332,60 +333,40 @@ export default function Hero({ lang }: { lang: Lang }) {
 
     try {
       if (file) {
-        const formData = new FormData();
-        formData.append("file", file);
-        const res = await fetch(apiUrl("/api/v1/extract-audio"), {
-          method: "POST",
-          body: formData,
+        const cleanTitle = file.name.replace(/\.[^/.]+$/, "").trim() || "วิดีโอใหม่";
+        await enqueuePendingUpload({
+          mode: "file",
+          title: cleanTitle,
+          file,
+          fileName: file.name,
+          fileType: file.type || "video/mp4",
+          durationSeconds: duration ?? undefined,
         });
-
-        if (!res.ok) {
-          throw new Error(`API extraction failed with status ${res.status}`);
-        }
-
-        const data = await res.json();
-        sessionStorage.setItem("subtitle_project", JSON.stringify(data));
-        router.push("/editor");
       } else if (linkIsValid) {
-        const res = await fetch(apiUrl("/api/v1/process-link"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: link.trim() }),
+        const cleanLink = link.trim();
+        await enqueuePendingUpload({
+          mode: "link",
+          title: deriveTitleFromLink(cleanLink),
+          url: cleanLink,
         });
-
-        if (!res.ok) {
-          throw new Error(`API process-link failed with status ${res.status}`);
-        }
-
-        const data = await res.json();
-        sessionStorage.setItem("subtitle_project", JSON.stringify(data));
-        router.push("/editor");
       }
+
+      let isAuthenticated = false;
+      try {
+        const supabase = createClient();
+        const { data } = await supabase.auth.getUser();
+        isAuthenticated = Boolean(data?.user);
+      } catch {
+        isAuthenticated = false;
+      }
+
+      router.push(isAuthenticated ? "/my-video" : "/login?next=/my-video");
     } catch (err) {
-      console.warn("Backend error or unreachable, fallback to editor session:", err);
-      if (file) {
-        const localUrl = URL.createObjectURL(file);
-        sessionStorage.setItem(
-          "subtitle_project",
-          JSON.stringify({
-            video_url: localUrl,
-            video_filename: file.name,
-            subtitles: [
-              {
-                id: 1,
-                start: 0.0,
-                end: Math.min(5.0, duration || 5.0),
-                text: "ยินดีต้อนรับสู่ระบบสร้างซับไตเติ้ล Zaizub",
-              },
-            ],
-          })
-        );
-        router.push("/editor");
-      } else {
+      console.error("Failed to queue upload before navigation:", err);
+      setStatus("idle");
+      if (!file) {
         setLinkError(true);
       }
-    } finally {
-      setStatus("idle");
     }
   }
 

@@ -37,6 +37,124 @@
   100% { opacity: 1; transform: scale(1); }
 }
 
+@keyframes dropdownIn {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -6px, 0) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes dropupIn {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 6px, 0) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes modalIn {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0) scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes backdropIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes uploadCardSweep {
+  0% {
+    transform: translate3d(-120%, 0, 0);
+  }
+  100% {
+    transform: translate3d(120%, 0, 0);
+  }
+}
+
+@keyframes uploadAuraPulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 0.92;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes uploadIndeterminateBar {
+  0% {
+    transform: translate3d(-100%, 0, 0);
+  }
+  100% {
+    transform: translate3d(320%, 0, 0);
+  }
+}
+
+.anim-dropdown {
+  animation: dropdownIn 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+.anim-dropup {
+  animation: dropupIn 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+.anim-modal {
+  animation: modalIn 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+.anim-backdrop {
+  animation: backdropIn 180ms ease-out both;
+}
+
+.anim-upload-sweep {
+  animation: uploadCardSweep 2.1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  will-change: transform;
+}
+
+.anim-upload-aura {
+  animation: uploadAuraPulse 2.6s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.anim-upload-bar {
+  animation: uploadIndeterminateBar 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-dropdown,
+  .anim-dropup,
+  .anim-modal,
+  .anim-backdrop,
+  .anim-upload-sweep,
+  .anim-upload-aura,
+  .anim-upload-bar {
+    animation-duration: 1ms;
+  }
+}
+
 .anim-pop-contained {
   animation: subPopContained 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
@@ -580,5 +698,261 @@ header::-webkit-scrollbar, header *::-webkit-scrollbar {
 .animate-audio-bar {
   animation: audioWaveBar 0.9s ease-in-out infinite;
   transform-origin: bottom;
+}
+
+/* ============================================================
+   Studio Card Hover System (No Lift, No Zoom)
+   Flowing Light-Purple Border Beam + Corner Viewfinder Brackets
+   ============================================================ */
+@keyframes studioBeamRotate {
+  0% {
+    transform: translate3d(-50%, -50%, 0) rotate(0deg);
+  }
+  100% {
+    transform: translate3d(-50%, -50%, 0) rotate(360deg);
+  }
+}
+
+@keyframes studioBeamGlide {
+  0% {
+    transform: translate3d(-33.3333%, 0, 0);
+  }
+  100% {
+    transform: translate3d(0%, 0, 0);
+  }
+}
+
+/* Flowing light-purple border masked cleanly over the 1px card perimeter */
+.studio-beam-mask {
+  padding: 1.5px;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.studio-beam-spinner {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 240%;
+  min-height: 240%;
+  aspect-ratio: 1 / 1;
+  background: conic-gradient(
+    from 0deg,
+    rgba(139, 92, 246, 0.08) 0deg 35deg,
+    rgba(139, 92, 246, 0.24) 78deg,
+    rgba(139, 92, 246, 0.56) 112deg,
+    rgba(167, 139, 250, 0.68) 136deg,
+    rgba(167, 139, 250, 0.45) 156deg,
+    rgba(139, 92, 246, 0.08) 185deg 215deg,
+    rgba(139, 92, 246, 0.24) 258deg,
+    rgba(139, 92, 246, 0.56) 292deg,
+    rgba(167, 139, 250, 0.68) 316deg,
+    rgba(167, 139, 250, 0.45) 336deg,
+    rgba(139, 92, 246, 0.08) 360deg
+  );
+  transform: translate3d(-50%, -50%, 0) rotate(0deg);
+  animation: studioBeamRotate 6.5s linear infinite;
+  animation-play-state: paused;
+  will-change: transform;
+}
+
+/* Uniform linear wave for wide horizontal cards (prevents conic angular jumps) */
+.studio-beam-glider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 300%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(139, 92, 246, 0.09) 0%,
+    rgba(139, 92, 246, 0.48) 8%,
+    rgba(167, 139, 250, 0.66) 15%,
+    rgba(167, 139, 250, 0.44) 21%,
+    rgba(139, 92, 246, 0.09) 28%,
+    rgba(139, 92, 246, 0.09) 33.3333%,
+    rgba(139, 92, 246, 0.48) 41.3333%,
+    rgba(167, 139, 250, 0.66) 48.3333%,
+    rgba(167, 139, 250, 0.44) 54.3333%,
+    rgba(139, 92, 246, 0.09) 61.3333%,
+    rgba(139, 92, 246, 0.09) 66.6667%,
+    rgba(139, 92, 246, 0.48) 74.6667%,
+    rgba(167, 139, 250, 0.66) 81.6667%,
+    rgba(167, 139, 250, 0.44) 87.6667%,
+    rgba(139, 92, 246, 0.09) 94.6667%,
+    rgba(139, 92, 246, 0.09) 100%
+  );
+  transform: translate3d(-33.3333%, 0, 0);
+  animation: studioBeamGlide 6s linear infinite;
+  animation-play-state: paused;
+  will-change: transform;
+}
+
+.studio-card-ambient {
+  background: radial-gradient(
+    80% 55% at 50% 0%,
+    rgba(139, 92, 246, 0.045),
+    rgba(124, 58, 237, 0.015) 52%,
+    transparent 80%
+  );
+  opacity: 0;
+  transition: opacity 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Monitor media stays 1:1 (zero zoom), clean subtle clarity lift on hover */
+.studio-card-media {
+  opacity: 0.9;
+  filter: brightness(0.96) contrast(0.99);
+  transition:
+    opacity 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Subtle focal scrim behind play icon & corner brackets */
+.studio-card-vignette {
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(10, 8, 20, 0.34) 0%,
+    rgba(10, 8, 20, 0.12) 60%,
+    rgba(139, 92, 246, 0.035) 100%
+  );
+  opacity: 0;
+  transition: opacity 380ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Corner viewfinder brackets kept strictly inside the viewport radius clip curve */
+.studio-reticle-corner {
+  opacity: 0;
+  filter: drop-shadow(0 0 2.5px rgba(139, 92, 246, 0.3));
+  transition:
+    transform 480ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 340ms ease;
+}
+
+.studio-reticle-tl {
+  transform: translate3d(-1.5px, -1.5px, 0);
+}
+
+.studio-reticle-tr {
+  transform: translate3d(1.5px, -1.5px, 0);
+}
+
+.studio-reticle-bl {
+  transform: translate3d(-1.5px, 1.5px, 0);
+}
+
+.studio-reticle-br {
+  transform: translate3d(1.5px, 1.5px, 0);
+}
+
+.studio-reticle-compact .studio-reticle-tl {
+  transform: translate3d(-1px, -1px, 0);
+}
+
+.studio-reticle-compact .studio-reticle-tr {
+  transform: translate3d(1px, -1px, 0);
+}
+
+.studio-reticle-compact .studio-reticle-bl {
+  transform: translate3d(-1px, 1px, 0);
+}
+
+.studio-reticle-compact .studio-reticle-br {
+  transform: translate3d(1px, 1px, 0);
+}
+
+/* Frosted center play reveal (fade + subtle horizontal arrow cue, no scale zoom) */
+.studio-card-play {
+  opacity: 0;
+  transition:
+    opacity 380ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 380ms ease,
+    box-shadow 380ms ease;
+}
+
+.studio-card-play svg {
+  transform: translateX(-2px);
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Bottom scrub accent line */
+.studio-card-scrub {
+  width: 0%;
+  opacity: 0.45;
+  transition:
+    width 700ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 360ms ease;
+}
+
+/* Hover & keyboard focus-visible activation */
+.studio-card:hover .studio-beam-mask,
+.studio-card:has(a:focus-visible, button:focus-visible) .studio-beam-mask {
+  opacity: 0.78;
+}
+
+.studio-card:hover .studio-card-ambient,
+.studio-card:has(a:focus-visible, button:focus-visible) .studio-card-ambient,
+.studio-card:hover .studio-card-vignette,
+.studio-card:has(a:focus-visible) .studio-card-vignette {
+  opacity: 1;
+}
+
+.studio-card:hover .studio-beam-spinner,
+.studio-card:has(a:focus-visible, button:focus-visible) .studio-beam-spinner,
+.studio-card:hover .studio-beam-glider,
+.studio-card:has(a:focus-visible, button:focus-visible) .studio-beam-glider {
+  animation-play-state: running;
+}
+
+.studio-card:hover .studio-card-media,
+.studio-card:has(a:focus-visible) .studio-card-media {
+  opacity: 1;
+  filter: brightness(1.02) contrast(1.02);
+}
+
+.studio-card:hover .studio-reticle-corner,
+.studio-card:has(a:focus-visible) .studio-reticle-corner {
+  opacity: 0.9;
+  transform: translate3d(0, 0, 0);
+}
+
+.studio-card:hover .studio-card-play,
+.studio-card:has(a:focus-visible) .studio-card-play {
+  opacity: 1;
+  border-color: rgba(167, 139, 250, 0.42);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5), 0 0 10px rgba(139, 92, 246, 0.2);
+}
+
+.studio-card:hover .studio-card-play svg,
+.studio-card:has(a:focus-visible) .studio-card-play svg {
+  transform: translateX(1px);
+}
+
+.studio-card:hover .studio-card-scrub,
+.studio-card:has(a:focus-visible) .studio-card-scrub {
+  width: 100%;
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .studio-beam-mask,
+  .studio-card-ambient,
+  .studio-card-media,
+  .studio-card-vignette,
+  .studio-reticle-corner,
+  .studio-card-play,
+  .studio-card-play svg,
+  .studio-card-scrub {
+    transition-duration: 1ms;
+  }
+
+  .studio-beam-spinner,
+  .studio-beam-glider {
+    animation: none;
+  }
 }
 

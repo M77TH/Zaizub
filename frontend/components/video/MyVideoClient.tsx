@@ -12,6 +12,10 @@ import {
   removePendingUpload,
 } from '@/lib/pendingUploadQueue';
 import {
+  formatDurationClock,
+  parseDurationSeconds,
+} from '@/lib/projects/projectMapper';
+import {
   deleteProjectAction,
   renameProjectAction,
   duplicateProjectAction,
@@ -26,18 +30,6 @@ interface QueuedCardState {
 }
 
 const inFlightQueueIds = new Set<string>();
-
-function formatDurationDisplay(duration?: number | string): string | undefined {
-  if (duration === undefined || duration === null || duration === '') return undefined;
-  if (typeof duration === 'string' && duration.includes(':')) {
-    return duration;
-  }
-  const numeric = typeof duration === 'number' ? duration : Number.parseFloat(duration);
-  if (!Number.isFinite(numeric) || numeric < 0) return undefined;
-  const mins = Math.floor(numeric / 60);
-  const secs = Math.floor(numeric % 60);
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-}
 
 interface MyVideoClientProps {
   initialVideos?: VideoProject[];
@@ -106,15 +98,14 @@ export default function MyVideoClient({
       const rawSubs = data.subtitles ?? data.segments ?? data.captions ?? [];
       const subs = Array.isArray(rawSubs) ? rawSubs : [];
 
-      let rawDuration: string | undefined;
-      if (subs.length > 0) {
-        const lastSub = subs[subs.length - 1] as { end?: number | string } | undefined;
-        if (lastSub?.end !== undefined && lastSub?.end !== null) {
-          rawDuration = String(lastSub.end);
-        }
-      } else if (job.durationSeconds !== undefined) {
-        rawDuration = String(job.durationSeconds);
-      }
+      const lastSub =
+        subs.length > 0
+          ? (subs[subs.length - 1] as { end?: number | string } | undefined)
+          : undefined;
+      const resolvedDuration =
+        parseDurationSeconds(data.duration as number | string | undefined) ??
+        parseDurationSeconds(lastSub?.end) ??
+        parseDurationSeconds(job.durationSeconds);
 
       const resolvedTitle =
         (typeof data.title === 'string' && data.title.trim()) || fallbackTitle;
@@ -129,7 +120,7 @@ export default function MyVideoClient({
         const saveRes = await saveProjectAction({
           title: resolvedTitle,
           status: 'draft',
-          duration: rawDuration,
+          duration: resolvedDuration,
           video_url: typeof data.video_url === 'string' ? data.video_url : undefined,
           thumbnail_url:
             typeof data.thumbnail_url === 'string' ? data.thumbnail_url : undefined,
@@ -157,18 +148,18 @@ export default function MyVideoClient({
 
         const firstLine =
           subs.length > 0 && typeof (subs[0] as { text?: unknown })?.text === 'string'
-            ? String((subs[0] as { text: string }).text).trim() || undefined
+            ? String((subs[0] as { text: string }).text).trim().slice(0, 64) || undefined
             : undefined;
 
         const completedCard: VideoProject = {
           id: realId,
           title: resolvedTitle,
           status: 'draft',
-          duration: formatDurationDisplay(rawDuration),
+          duration: formatDurationClock(resolvedDuration),
           video_url: typeof data.video_url === 'string' ? data.video_url : undefined,
           thumbnail_url:
             typeof data.thumbnail_url === 'string' ? data.thumbnail_url : undefined,
-          captionCount: subs.length,
+          captionCount: subs.length > 0 ? subs.length : undefined,
           sampleLine: firstLine,
           updated_at: 'เมื่อสักครู่',
         };
@@ -437,7 +428,7 @@ export default function MyVideoClient({
         id: item.job.id,
         title: item.job.title,
         status: 'processing',
-        duration: formatDurationDisplay(item.job.durationSeconds),
+        duration: formatDurationClock(item.job.durationSeconds),
         video_url: item.previewUrl,
         updated_at: item.error ? 'ไม่สำเร็จ' : 'กำลังอัปโหลด',
         uploadPercent: item.percent,
@@ -554,7 +545,7 @@ export default function MyVideoClient({
     const res = await duplicateProjectAction(id);
     if (res?.success && res.project) {
       setVideos((prev) =>
-        prev.map((v) => (v.id === tempId ? { ...target, ...res.project! } : v))
+        prev.map((v) => (v.id === tempId ? res.project! : v))
       );
     } else {
       setVideos((prev) => prev.filter((v) => v.id !== tempId));

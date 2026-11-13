@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { logout } from '@/app/actions/auth'
+import { resolveProfileFormDisplayName } from '@/lib/projects/projectMapper'
 import ProfileForm from './profile-form'
 
 export default async function ProfilePage() {
@@ -14,11 +15,17 @@ export default async function ProfilePage() {
     redirect('/login?next=/profile')
   }
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('display_name')
     .eq('id', user.id)
     .maybeSingle()
+
+  if (profileError) {
+    console.warn('Unable to load user profile:', profileError.message)
+  }
+
+  const initialDisplayName = resolveProfileFormDisplayName(profile, user)
 
   return (
     <main className="min-h-screen bg-[#0a0a0a] text-gray-200">
@@ -49,7 +56,7 @@ export default async function ProfilePage() {
           </div>
         </div>
 
-        <ProfileForm displayName={profile?.display_name ?? ''} />
+        <ProfileForm displayName={initialDisplayName} />
       </div>
     </main>
   )

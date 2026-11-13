@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import EditorWorkspace from '@/components/editor/EditorWorkspace';
+import { isValidUuid } from '@/lib/projects/projectMapper';
 import { redirect } from 'next/navigation';
 
 interface EditorPageProps {
@@ -17,12 +18,13 @@ export default async function EditorPage({ searchParams }: EditorPageProps) {
     redirect('/login'); 
   }
 
-  if (id) {
+  if (id && isValidUuid(id)) {
+    const projectId = id.trim();
     try {
       const { data, error } = await supabase
         .from('videos')
         .select('*')
-        .eq('id', id)
+        .eq('id', projectId)
         .eq('user_id', user.id) 
         .maybeSingle();
 

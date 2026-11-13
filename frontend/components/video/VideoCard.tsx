@@ -2,23 +2,11 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { API_BASE_URL } from '@/lib/api';
+import { resolveMediaUrl } from '@/lib/api';
+import type { VideoProject } from '@/lib/projects/projectMapper';
 
-export interface VideoProject {
-  id: string;
-  title: string;
-  status: 'done' | 'draft' | 'processing';
-  duration?: string;
-  video_url?: string;
-  thumbnail_url?: string;
-  aspectRatio?: '9:16' | '16:9' | '1:1';
-  captionCount?: number;
-  presetLabel?: string;
-  sampleLine?: string;
-  updated_at: string;
-  uploadPercent?: number;
-  uploadError?: string;
-}
+export { resolveMediaUrl };
+export type { VideoProject };
 
 interface VideoCardProps {
   video: VideoProject;
@@ -29,19 +17,6 @@ interface VideoCardProps {
   onDuplicate?: (id: string) => void;
   onRetryUpload?: (id: string) => void;
   onDismissUpload?: (id: string) => void;
-}
-
-export function resolveMediaUrl(url?: string): string {
-  if (!url) return '';
-  if (
-    url.startsWith('http://') ||
-    url.startsWith('https://') ||
-    url.startsWith('blob:') ||
-    url.startsWith('data:')
-  ) {
-    return url;
-  }
-  return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
 }
 
 export default function VideoCard({
@@ -182,7 +157,7 @@ export default function VideoCard({
             ? hasUploadError
               ? 'border-rose-500/40 bg-[#120b10]'
               : 'border-[#8b5cf6]/45 bg-[#0e0c18] shadow-[0_0_24px_-12px_rgba(139,92,246,0.45)]'
-            : 'border-[#1f1e29] bg-[#0c0b11] hover:border-[#8b5cf6]/45 hover:bg-[#100e17]'
+            : 'border-[#1f1e29] bg-[#0c0b11] hover:border-[#581c87] hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)] hover:-translate-y-0.5'
         } ${menuOpen ? 'z-30' : ''}`}
       >
         <div className="flex items-center gap-3.5 min-w-0 flex-1">
@@ -212,7 +187,7 @@ export default function VideoCard({
                 <img
                   src={resolvedThumbnailUrl}
                   alt={video.title}
-                  className="w-full h-full object-cover object-[center_25%] group-hover:scale-105 transition-transform duration-300"
+                  className="w-full h-full object-cover object-[center_25%]"
                 />
               ) : resolvedVideoUrl ? (
                 <video
@@ -220,10 +195,10 @@ export default function VideoCard({
                   muted
                   playsInline
                   preload="metadata"
-                  className="w-full h-full object-cover object-[center_25%] group-hover:scale-105 transition-transform duration-300"
+                  className="w-full h-full object-cover object-[center_25%]"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-zinc-600">
+                <div className="w-full h-full flex items-center justify-center text-zinc-600 group-hover:text-purple-400 transition-colors">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <polygon points="6 3 20 12 6 21 6 3" />
                   </svg>
@@ -251,13 +226,13 @@ export default function VideoCard({
             ) : (
               <Link
                 href={`/editor?id=${video.id}`}
-                className="block font-semibold text-sm text-zinc-100 group-hover:text-white truncate transition-colors"
+                className="block font-semibold text-sm text-zinc-100 group-hover:text-purple-300 truncate transition-colors"
                 title={video.title}
               >
                 {video.title}
               </Link>
             )}
-            {isProcessing ? (
+            {isProcessing && (
               <p className={`text-[11.5px] truncate mt-0.5 ${hasUploadError ? 'text-rose-300' : 'text-[#c4b5fd]'}`}>
                 {hasUploadError
                   ? video.uploadError
@@ -265,12 +240,6 @@ export default function VideoCard({
                   ? `กำลังอัปโหลดและประมวลผล (${uploadPct}%)...`
                   : 'กำลังอัปโหลดและประมวลผล...'}
               </p>
-            ) : (
-              video.sampleLine && (
-                <p className="text-[11.5px] text-zinc-500 truncate mt-0.5">
-                  &ldquo;{video.sampleLine}&rdquo;
-                </p>
-              )
             )}
           </div>
         </div>
@@ -320,32 +289,24 @@ export default function VideoCard({
               </span>
             )
           ) : (
-            <div className="flex items-center gap-1.5">
-              <Link
-                href={`/editor?id=${video.id}`}
-                className="inline-flex items-center gap-1 rounded-lg border border-[#272436] bg-[#161420] hover:bg-[#7c3aed] hover:border-[#8b5cf6] px-2.5 py-1 text-xs font-semibold text-zinc-200 hover:text-white transition-all duration-150"
+            <div className="relative flex-shrink-0" ref={menuRef}>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setMenuOpen((prev) => !prev);
+                }}
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
+                aria-label="เมนูตัวเลือก"
               >
-                ตัดต่อ
-              </Link>
-              <div className="relative" ref={menuRef}>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setMenuOpen((prev) => !prev);
-                  }}
-                  className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
-                  aria-label="เมนูตัวเลือก"
-                >
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <circle cx="5" cy="12" r="1.8" />
-                    <circle cx="12" cy="12" r="1.8" />
-                    <circle cx="19" cy="12" r="1.8" />
-                  </svg>
-                </button>
-                {contextMenuPopover}
-              </div>
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <circle cx="5" cy="12" r="1.8" />
+                  <circle cx="12" cy="12" r="1.8" />
+                  <circle cx="19" cy="12" r="1.8" />
+                </svg>
+              </button>
+              {contextMenuPopover}
             </div>
           )}
         </div>
@@ -424,7 +385,7 @@ export default function VideoCard({
         {/* Body */}
         <div className="p-3.5 pt-3 flex flex-col justify-between flex-1 gap-3">
           <div className="min-w-0">
-            <p className="font-display font-semibold text-[14px] leading-snug text-zinc-100 line-clamp-2" title={video.title}>
+            <p className="font-display font-semibold text-[14px] leading-normal text-zinc-100 truncate" title={video.title}>
               {video.title}
             </p>
             <p className={`mt-1.5 text-[11.5px] truncate ${hasUploadError ? 'text-rose-300' : 'text-[#c4b5fd]/85'}`}>
@@ -472,7 +433,7 @@ export default function VideoCard({
 
   return (
     <div
-      className={`group relative flex flex-col rounded-2xl border border-[#1f1e29] bg-[#0c0b11] hover:border-[#8b5cf6]/50 hover:bg-[#100e17] hover:shadow-[0_14px_38px_-14px_rgba(124,58,237,0.32)] transition-all duration-200 overflow-visible ${
+      className={`group relative flex flex-col rounded-2xl border border-[#1f1e29] bg-[#0c0b11] hover:border-[#581c87] hover:shadow-[0_8px_30px_rgba(0,0,0,0.5)] hover:-translate-y-0.5 transition-all duration-200 overflow-visible ${
         menuOpen ? 'z-30' : ''
       }`}
     >
@@ -485,7 +446,7 @@ export default function VideoCard({
           <img
             src={resolvedThumbnailUrl}
             alt={video.title}
-            className="w-full h-full object-cover object-[center_25%] opacity-95 group-hover:opacity-100 group-hover:scale-[1.03] transition-all duration-300 ease-out"
+            className="w-full h-full object-cover object-[center_25%]"
           />
         ) : resolvedVideoUrl ? (
           <video
@@ -493,10 +454,10 @@ export default function VideoCard({
             muted
             playsInline
             preload="metadata"
-            className="w-full h-full object-cover object-[center_25%] opacity-95 group-hover:opacity-100 group-hover:scale-[1.03] transition-all duration-300 ease-out"
+            className="w-full h-full object-cover object-[center_25%]"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#0d0c14] to-[#060609] text-zinc-700 group-hover:text-zinc-400 transition-colors">
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#0d0c14] to-[#060609] text-zinc-700 group-hover:text-purple-400 transition-colors">
             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <rect x="3" y="5" width="18" height="14" rx="2" strokeWidth="1.4" />
               <polygon points="10 9 15 12 10 15 10 9" fill="currentColor" stroke="none" />
@@ -526,18 +487,6 @@ export default function VideoCard({
             {video.duration && <span>{video.duration}</span>}
           </div>
         )}
-
-        {/* Centered Hover Play Affordance */}
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#7c3aed]/90 border border-white/25 text-white shadow-[0_8px_24px_rgba(124,58,237,0.5)] opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100 transition-all duration-200">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="translate-x-[1px]">
-              <polygon points="6 3 20 12 6 21 6 3" />
-            </svg>
-          </div>
-        </div>
-
-        {/* Subtle Violet Bottom Edge Highlight on Hover */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[2px] bg-gradient-to-r from-[#7c3aed] via-[#a78bfa] to-[#7c3aed] opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
       </Link>
 
       {/* 2. Card Content Body */}
@@ -557,17 +506,11 @@ export default function VideoCard({
           ) : (
             <Link
               href={`/editor?id=${video.id}`}
-              className="block font-display font-semibold text-[14px] leading-snug text-zinc-100 group-hover:text-white line-clamp-2 transition-colors"
+              className="block font-display font-semibold text-[14px] leading-normal text-zinc-100 group-hover:text-purple-300 truncate transition-colors"
               title={video.title}
             >
               {video.title}
             </Link>
-          )}
-
-          {video.sampleLine && (
-            <p className="mt-1.5 text-[11.5px] text-zinc-500 truncate">
-              &ldquo;{video.sampleLine}&rdquo;
-            </p>
           )}
         </div>
 
@@ -583,37 +526,25 @@ export default function VideoCard({
             )}
           </div>
 
-          <div className="flex items-center gap-1 flex-shrink-0">
-            <Link
-              href={`/editor?id=${video.id}`}
-              className="inline-flex items-center gap-1 rounded-lg bg-[#161420] hover:bg-[#7c3aed] border border-[#272436] hover:border-[#8b5cf6] px-2.5 py-1 text-[11.5px] font-semibold text-zinc-200 hover:text-white transition-all duration-150"
+          {/* Context Menu (...) */}
+          <div className="relative flex-shrink-0" ref={menuRef}>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setMenuOpen((prev) => !prev);
+              }}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 hover:text-white hover:bg-white/[0.07] transition-colors cursor-pointer"
+              aria-label="เมนูตัวเลือก"
             >
-              <span>ตัดต่อ</span>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
-                <path d="M7 17L17 7M7 7h10v10" />
+              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                <circle cx="5" cy="12" r="2" />
+                <circle cx="12" cy="12" r="2" />
+                <circle cx="19" cy="12" r="2" />
               </svg>
-            </Link>
-
-            {/* Context Menu (...) */}
-            <div className="relative" ref={menuRef}>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setMenuOpen((prev) => !prev);
-                }}
-                className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 hover:text-white hover:bg-white/[0.07] transition-colors cursor-pointer"
-                aria-label="เมนูตัวเลือก"
-              >
-                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-                  <circle cx="5" cy="12" r="2" />
-                  <circle cx="12" cy="12" r="2" />
-                  <circle cx="19" cy="12" r="2" />
-                </svg>
-              </button>
-              {contextMenuPopover}
-            </div>
+            </button>
+            {contextMenuPopover}
           </div>
         </div>
       </div>

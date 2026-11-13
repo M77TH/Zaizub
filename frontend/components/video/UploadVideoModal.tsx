@@ -4,6 +4,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiUrl } from '@/lib/api';
 import { saveProjectAction } from '@/app/actions/project';
+import { parseDurationSeconds } from '@/lib/projects/projectMapper';
 
 interface UploadVideoModalProps {
   isOpen: boolean;
@@ -94,6 +95,99 @@ export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalPr
     startUpload(file);
   };
 
+  const startTranscriptionTicker = (estimatedSeconds: number) => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    let elapsed = 0;
+    timerRef.current = setInterval(() => {
+      elapsed += 1;
+      setUploadPercent((prev) => {
+        const target = Math.min(95, Math.round((elapsed / estimatedSeconds) * 92));
+        if (prev < target) {
+          return prev + Math.max(1, Math.round((target - prev) * 0.3));
+        }
+        if (prev < 95 && elapsed % 2 === 0) {
+          return prev + 1;
+        }
+        return prev;
+      });
+    }, 1000);
+  };
+
+  const finalizeUploadResult = async (
+    rawPayload: Record<string, unknown>,
+    preferredTitle?: string
+  ) => {
+    const subsRaw =
+      rawPayload.subtitles ?? rawPayload.segments ?? rawPayload.captions ?? [];
+    const subs = Array.isArray(subsRaw) ? subsRaw : [];
+    const lastSub =
+      subs.length > 0
+        ? (subs[subs.length - 1] as { end?: number | string } | undefined)
+        : undefined;
+    const durationSeconds =
+      parseDurationSeconds(
+        rawPayload.duration as number | string | undefined
+      ) ?? parseDurationSeconds(lastSub?.end);
+
+    const formattedDate = new Date().toLocaleDateString('th-TH', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+    const backendTitle =
+      typeof rawPayload.title === 'string' ? rawPayload.title.trim() : '';
+    const resolvedTitle =
+      preferredTitle?.trim() || backendTitle || `โปรเจกต์ ${formattedDate}`;
+
+    const payloadToStore: Record<string, unknown> = {
+      ...rawPayload,
+      title: resolvedTitle,
+      projectName: resolvedTitle,
+    };
+
+    setUploadPercent(98);
+
+    const saveRes = await saveProjectAction({
+      title: resolvedTitle,
+      status: 'draft',
+      duration: durationSeconds,
+      video_url:
+        typeof rawPayload.video_url === 'string'
+          ? rawPayload.video_url
+          : undefined,
+      thumbnail_url:
+        typeof rawPayload.thumbnail_url === 'string'
+          ? rawPayload.thumbnail_url
+          : undefined,
+      video_filename:
+        typeof rawPayload.video_filename === 'string'
+          ? rawPayload.video_filename
+          : undefined,
+      subtitles: subs,
+      styles: {},
+    });
+
+    if (!saveRes.success || !saveRes.projectId) {
+      setUploadState('error');
+      setErrorMessage(
+        saveRes.error || 'ไม่สามารถบันทึกโปรเจกต์ลงฐานข้อมูลได้ กรุณาลองใหม่'
+      );
+      return;
+    }
+
+    payloadToStore.id = saveRes.projectId;
+    sessionStorage.setItem('subtitle_project', JSON.stringify(payloadToStore));
+
+    setUploadPercent(100);
+    setUploadState('success');
+
+    setTimeout(() => {
+      resetState();
+      onClose();
+      router.push(`/editor?id=${saveRes.projectId}`);
+    }, 600);
+  };
+
   const startUpload = (file: File) => {
     setUploadState('uploading');
     setUploadPercent(0);
@@ -114,27 +208,11 @@ export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalPr
           setTimeout(() => {
             setUploadState('transcribing');
             setUploadPercent(0);
-
-            // Estimate duration: ~0.8s per MB, clamped between 5s and 35s
-            const estimatedSeconds = Math.max(6, Math.min(35, Math.round((file.size / (1024 * 1024)) * 0.8) + 4));
-
-            if (timerRef.current) clearInterval(timerRef.current);
-            let elapsed = 0;
-            timerRef.current = setInterval(() => {
-              elapsed += 1;
-
-              // Smooth asymptotic progress that slows down naturally as it nears 95% without fake sudden stuck
-              setUploadPercent((prev) => {
-                const target = Math.min(95, Math.round((elapsed / estimatedSeconds) * 92));
-                if (prev < target) {
-                  return prev + Math.max(1, Math.round((target - prev) * 0.3));
-                }
-                if (prev < 95 && elapsed % 2 === 0) {
-                  return prev + 1;
-                }
-                return prev;
-              });
-            }, 1000);
+            const estimatedSeconds = Math.max(
+              6,
+              Math.min(35, Math.round((file.size / (1024 * 1024)) * 0.8) + 4)
+            );
+            startTranscriptionTicker(estimatedSeconds);
           }, 300);
         }
       }
@@ -148,61 +226,11 @@ export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalPr
 
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
-          const response = JSON.parse(xhr.responseText);
-          setUploadPercent(100);
-          setUploadState('success');
-
-          // Calculate duration from subtitles if available
-          let durationVal: string | undefined = undefined;
-          const subs = response.subtitles ?? response.segments ?? response.captions ?? [];
-          if (Array.isArray(subs) && subs.length > 0) {
-            const lastSub = subs[subs.length - 1];
-            if (lastSub?.end) {
-              durationVal = String(lastSub.end);
-            }
-          }
-
-          // Use source file name (without extension), fallback to formatted date
-          const formattedDate = new Date().toLocaleDateString('th-TH', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-          });
-          const resolvedFileTitle = file.name.replace(/\.[^/.]+$/, '').trim() || `โปรเจกต์ ${formattedDate}`;
-          response.title = resolvedFileTitle;
-          response.projectName = resolvedFileTitle;
-
-          // Persist directly to Supabase so it immediately appears in /my-video
-          let targetUrl = '/editor';
-          try {
-            const saveRes = await saveProjectAction({
-              title: resolvedFileTitle,
-              status: 'draft',
-              duration: durationVal,
-              video_url: response.video_url,
-              thumbnail_url: response.thumbnail_url,
-              video_filename: response.video_filename,
-              subtitles: subs,
-              styles: {},
-            });
-
-            if (saveRes.success && saveRes.projectId) {
-              response.id = saveRes.projectId;
-              targetUrl = `/editor?id=${saveRes.projectId}`;
-            }
-          } catch (saveErr) {
-            console.warn('Initial project cloud save notice:', saveErr);
-          }
-
-          sessionStorage.setItem('subtitle_project', JSON.stringify(response));
-
-          setTimeout(() => {
-            resetState();
-            onClose();
-            router.push(targetUrl);
-          }, 600);
+          const response = JSON.parse(xhr.responseText) as Record<string, unknown>;
+          const fileTitle = file.name.replace(/\.[^/.]+$/, '').trim();
+          await finalizeUploadResult(response, fileTitle);
         } catch (err) {
-          console.error('Failed to parse upload response:', err);
+          console.error('Failed to finalize uploaded project:', err);
           setUploadState('error');
           setErrorMessage('ไม่สามารถแปลงข้อมูลที่ได้รับจากเซิร์ฟเวอร์');
         }
@@ -259,24 +287,7 @@ export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalPr
     setErrorMessage('');
     setUploadState('transcribing');
     setUploadPercent(0);
-
-    if (timerRef.current) clearInterval(timerRef.current);
-    let linkElapsed = 0;
-    timerRef.current = setInterval(() => {
-      linkElapsed += 1;
-
-      // Smooth progression up to 95%
-      setUploadPercent((prev) => {
-        const target = Math.min(95, Math.round((linkElapsed / 25) * 92));
-        if (prev < target) {
-          return prev + Math.max(1, Math.round((target - prev) * 0.3));
-        }
-        if (prev < 95 && linkElapsed % 2 === 0) {
-          return prev + 1;
-        }
-        return prev;
-      });
-    }, 1000);
+    startTranscriptionTicker(25);
 
     const controller = new AbortController();
     abortControllerRef.current = controller;
@@ -299,59 +310,8 @@ export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalPr
         throw new Error(errJson.detail || `Server returned status ${res.status}`);
       }
 
-      const data = await res.json();
-      setUploadPercent(100);
-      setUploadState('success');
-
-      // Calculate duration from subtitles if available
-      let durationVal: string | undefined = undefined;
-      const subs = data.subtitles ?? data.segments ?? data.captions ?? [];
-      if (Array.isArray(subs) && subs.length > 0) {
-        const lastSub = subs[subs.length - 1];
-        if (lastSub?.end) {
-          durationVal = String(lastSub.end);
-        }
-      }
-
-      // Use extracted video title from link, fallback to formatted creation date
-      const formattedDate = new Date().toLocaleDateString('th-TH', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      });
-      const resolvedTitle = (data.title && String(data.title).trim()) || `โปรเจกต์ ${formattedDate}`;
-      data.title = resolvedTitle;
-      data.projectName = resolvedTitle;
-
-      // Persist directly to Supabase so it immediately appears in /my-video
-      let targetUrl = '/editor';
-      try {
-        const saveRes = await saveProjectAction({
-          title: resolvedTitle,
-          status: 'draft',
-          duration: durationVal,
-          video_url: data.video_url,
-          thumbnail_url: data.thumbnail_url,
-          video_filename: data.video_filename,
-          subtitles: subs,
-          styles: {},
-        });
-
-        if (saveRes.success && saveRes.projectId) {
-          data.id = saveRes.projectId;
-          targetUrl = `/editor?id=${saveRes.projectId}`;
-        }
-      } catch (saveErr) {
-        console.warn('Initial link project cloud save notice:', saveErr);
-      }
-
-      sessionStorage.setItem('subtitle_project', JSON.stringify(data));
-
-      setTimeout(() => {
-        resetState();
-        onClose();
-        router.push(targetUrl);
-      }, 600);
+      const data = (await res.json()) as Record<string, unknown>;
+      await finalizeUploadResult(data);
     } catch (err: unknown) {
       if (timerRef.current) {
         clearInterval(timerRef.current);

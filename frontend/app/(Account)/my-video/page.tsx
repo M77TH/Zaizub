@@ -5,6 +5,11 @@ import ZaiZubLogo from '@/components/logo/Logo-v3';
 import MyVideoClient from '@/components/video/MyVideoClient';
 import { VideoProject } from '@/components/video/VideoCard';
 import ProfileCard from '@/components/account/ProfileCard';
+import {
+  mapVideoRowToProject,
+  RawVideoRow,
+  resolveUserDisplayName,
+} from '@/lib/projects/projectMapper';
 
 export default async function MyVideoPage() {
   const supabase = await createClient();
@@ -17,13 +22,17 @@ export default async function MyVideoPage() {
   }
 
   // Fetch user profile for navbar
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('display_name')
     .eq('id', user.id)
     .maybeSingle();
 
-  const displayName = profile?.display_name || user.email?.split('@')[0] || 'User';
+  if (profileError) {
+    console.warn('Unable to load user profile:', profileError.message);
+  }
+
+  const displayName = resolveUserDisplayName(profile, user);
 
   // Fetch projects from Supabase
   let userVideos: VideoProject[] = [];
@@ -31,74 +40,17 @@ export default async function MyVideoPage() {
   try {
     const { data: userVideosData, error } = await supabase
       .from('videos')
-      .select('id, title, status, thumbnail_url, video_url, duration, subtitles, updated_at')
+      .select('id, title, status, thumbnail_url, video_url, duration, subtitles, created_at, updated_at')
       .eq('user_id', user.id)
       .order('updated_at', { ascending: false });
 
-    if (!error && userVideosData && userVideosData.length > 0) {
-      interface RawProjectRow {
-        id: string;
-        title?: string | null;
-        status?: string | null;
-        thumbnail_url?: string | null;
-        video_url?: string | null;
-        duration?: number | null;
-        updated_at: string;
-        subtitles?:
-          | Array<{ text?: string }>
-          | {
-              items?: Array<{ text?: string }>;
-              styles?: { aspect_ratio?: string; preset_mode?: string };
-            }
-          | null;
-      }
-
-      userVideos = (userVideosData as RawProjectRow[]).map((p) => {
-        const rawSubs = p.subtitles;
-        const items = Array.isArray(rawSubs)
-          ? rawSubs
-          : Array.isArray(rawSubs?.items)
-          ? rawSubs.items
-          : [];
-        const savedStyles = rawSubs && !Array.isArray(rawSubs) ? rawSubs.styles : undefined;
-        const aspect = savedStyles?.aspect_ratio;
-        const presetMode = savedStyles?.preset_mode;
-        const presetMap: Record<string, string> = {
-          tiktok: 'TIKTOK',
-          badge: 'BADGE',
-          karaoke: 'NEON',
-          danger: 'HOOK',
-          frosted: 'FROST',
-          minimal: 'MINIMAL',
-          warm: 'PODCAST',
-          cinema: 'CINEMA',
-        };
-        const firstText = typeof items[0]?.text === 'string' ? items[0].text.trim() : '';
-
-        return {
-          id: p.id,
-          title: p.title || 'Untitled Video',
-          status: (p.status as 'done' | 'draft' | 'processing') || 'draft',
-          thumbnail_url: p.thumbnail_url ?? undefined,
-          video_url: p.video_url ?? undefined,
-          duration: p.duration
-            ? `${Math.floor(p.duration / 60)}:${Math.floor(p.duration % 60).toString().padStart(2, '0')}`
-            : undefined,
-          aspectRatio:
-            aspect === '9:16' || aspect === '16:9' || aspect === '1:1' ? aspect : undefined,
-          captionCount: items.length > 0 ? items.length : undefined,
-          presetLabel: presetMode ? presetMap[String(presetMode)] || String(presetMode).toUpperCase() : undefined,
-          sampleLine: firstText ? firstText.slice(0, 64) : undefined,
-          updated_at: new Date(p.updated_at).toLocaleDateString('th-TH', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-          }),
-        };
-      });
+    if (error) {
+      console.warn('Unable to load user videos:', error.message);
+    } else if (userVideosData && userVideosData.length > 0) {
+      userVideos = (userVideosData as RawVideoRow[]).map(mapVideoRowToProject);
     }
-  } catch {
-    // If table doesn't exist yet or query fails, userVideos stays []
+  } catch (err) {
+    console.warn('Unexpected error loading user videos:', err);
   }
 
   return (

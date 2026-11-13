@@ -23,8 +23,14 @@ import {
   splitSegmentAtCursor,
   mergeSegmentPair,
 } from './types';
-import { apiUrl, API_BASE_URL } from '@/lib/api';
+import { apiUrl, API_BASE_URL, resolveMediaUrl } from '@/lib/api';
 import { saveProjectAction } from '@/app/actions/project';
+import {
+  extractProjectEnvelope,
+  normalizeProjectStatus,
+  parseDurationSeconds,
+  sanitizeVideoFilename,
+} from '@/lib/projects/projectMapper';
 
 /** Pure utility function for formatting time codes */
 export function formatTime(timeInSeconds: number): string {
@@ -62,26 +68,24 @@ interface VideoEditorPageProps {
 
 export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
   // State
-  const initialSubtitlesRaw = initialProject?.subtitles?.items ?? initialProject?.subtitles;
-  const initialStylesRaw = initialProject?.subtitles?.styles ?? initialProject?.styles;
-  const initialFilenameRaw = initialProject?.subtitles?.video_filename ?? initialProject?.video_filename ?? 'sample_video.mp4';
-  const initialSubtitlesParsed = initialSubtitlesRaw ? normaliseSubtitles(initialSubtitlesRaw) : DEFAULT_SUBTITLES;
-
-  const formatVideoUrl = (url?: string) => {
-    if (!url) return '';
-    if (
-      url.startsWith('http://') ||
-      url.startsWith('https://') ||
-      url.startsWith('blob:') ||
-      url.startsWith('data:')
-    ) {
-      return url;
-    }
-    return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
-  };
+  const initialEnvelope = extractProjectEnvelope<SubtitleSegment, Partial<SubtitleStyle>>(
+    initialProject
+  );
+  const initialSubtitlesParsed =
+    initialProject?.subtitles !== undefined
+      ? normaliseSubtitles(initialEnvelope.items)
+      : DEFAULT_SUBTITLES;
+  const initialStylesRaw =
+    Object.keys(initialEnvelope.styles).length > 0
+      ? initialEnvelope.styles
+      : initialProject?.styles;
+  const initialFilenameRaw =
+    initialEnvelope.video_filename ??
+    sanitizeVideoFilename(initialProject?.video_filename) ??
+    '';
 
   const [projectId, setProjectId] = useState<string | null>(initialProject?.id || null);
-  const [videoUrl, setVideoUrl] = useState<string>(formatVideoUrl(initialProject?.video_url));
+  const [videoUrl, setVideoUrl] = useState<string>(resolveMediaUrl(initialProject?.video_url));
   const [thumbnailUrl, setThumbnailUrl] = useState<string>(initialProject?.thumbnail_url || '');
   const [videoFilename, setVideoFilename] = useState<string>(initialFilenameRaw);
   const [subtitles, setSubtitles] = useState<SubtitleSegment[]>(initialSubtitlesParsed);
@@ -218,7 +222,7 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
   // Playback state
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(
-    initialProject?.duration ? Number(initialProject.duration) : 9.1
+    parseDurationSeconds(initialProject?.duration) ?? 9.1
   );
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [volume, setVolume] = useState<number>(1);
@@ -313,6 +317,42 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
     projectIdRef.current = projectId;
   }, [projectId]);
 
+  const projectStatusRef = useRef<'draft' | 'done' | 'processing'>(
+    normalizeProjectStatus(initialProject?.status)
+  );
+
+  const buildFullStyles = useCallback(
+    () =>
+      normalizeSubtitleStyle({
+        ...globalStyles,
+        aspect_ratio: aspectRatio,
+        caption_length_mode: captionLengthMode,
+        custom_word_count: customWordCount,
+      }),
+    [globalStyles, aspectRatio, captionLengthMode, customWordCount]
+  );
+
+  const syncSessionSnapshot = useCallback(
+    (normalizedStyles: SubtitleStyle, activeProjectId?: string | null) => {
+      try {
+        const cleanFilename = sanitizeVideoFilename(videoFilename);
+        sessionStorage.setItem(
+          'subtitle_project',
+          JSON.stringify({
+            id: activeProjectId ?? projectIdRef.current ?? undefined,
+            video_url: videoUrl,
+            thumbnail_url: thumbnailUrl || undefined,
+            video_filename: cleanFilename,
+            subtitles,
+            globalStyles: normalizedStyles,
+            projectName,
+          })
+        );
+      } catch {}
+    },
+    [videoUrl, thumbnailUrl, videoFilename, subtitles, projectName]
+  );
+
   // Core background save routine that persists to Supabase and sessionStorage
   const performSave = useCallback(
     async (isBackground = true) => {
@@ -322,43 +362,32 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
         }
         setSaveStatus('saving');
 
-        const normalizedStyles = normalizeSubtitleStyle({
-          ...globalStyles,
-          aspect_ratio: aspectRatio,
-          caption_length_mode: captionLengthMode,
-          custom_word_count: customWordCount,
-        });
+        const normalizedStyles = buildFullStyles();
+        const cleanFilename = sanitizeVideoFilename(videoFilename);
 
         // 1. Sync to sessionStorage immediately
-        try {
-          sessionStorage.setItem(
-            'subtitle_project',
-            JSON.stringify({
-              video_url: videoUrl,
-              video_filename: videoFilename,
-              subtitles,
-              globalStyles: normalizedStyles,
-              projectName,
-            })
-          );
-        } catch {}
+        syncSessionSnapshot(normalizedStyles);
 
         // 2. Persist to Supabase Database
         const result = await saveProjectAction({
           id: projectIdRef.current || undefined,
           title: projectName || 'โปรเจกต์ไม่มีชื่อ',
-          status: 'draft',
-          duration: duration ? String(duration) : undefined,
+          status: projectIdRef.current ? projectStatusRef.current : 'draft',
+          duration: duration > 0 ? duration : undefined,
           video_url: videoUrl,
           thumbnail_url: thumbnailUrl || undefined,
-          video_filename: videoFilename,
-          subtitles: subtitles,
+          video_filename: cleanFilename,
+          subtitles,
           styles: normalizedStyles,
         });
 
         if (result.success && result.projectId) {
           setProjectId(result.projectId);
           projectIdRef.current = result.projectId;
+          if (result.status) {
+            projectStatusRef.current = result.status;
+          }
+          syncSessionSnapshot(normalizedStyles, result.projectId);
           setHasChanges(false);
           setSaveStatus('saved');
           if (!isBackground) {
@@ -368,10 +397,9 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
             window.history.replaceState(null, '', `/editor?id=${result.projectId}`);
           }
         } else {
-          setHasChanges(false);
-          setSaveStatus('saved');
+          setSaveStatus('unsaved');
           if (!isBackground) {
-            showToast(result.error || 'บันทึกฉบับร่างไว้ในเบราว์เซอร์แล้ว');
+            showToast(result.error || 'บันทึกคลาวด์ไม่สำเร็จ (เก็บฉบับร่างไว้ในเบราว์เซอร์แล้ว)');
           }
         }
       } catch (err) {
@@ -379,7 +407,7 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
         setSaveStatus('unsaved');
       }
     },
-    [videoUrl, videoFilename, subtitles, globalStyles, aspectRatio, captionLengthMode, customWordCount, projectName, duration, thumbnailUrl, showToast]
+    [buildFullStyles, syncSessionSnapshot, videoFilename, projectName, duration, videoUrl, thumbnailUrl, subtitles, showToast]
   );
 
   // Debounced auto-save whenever changes occur (1.5s after user stops typing or adjusting styles)
@@ -405,31 +433,14 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
   // Flush save on page unload / close
   useEffect(() => {
     const handleBeforeUnload = () => {
-      try {
-        const normalizedStyles = normalizeSubtitleStyle({
-          ...globalStyles,
-          aspect_ratio: aspectRatio,
-          caption_length_mode: captionLengthMode,
-          custom_word_count: customWordCount,
-        });
-        sessionStorage.setItem(
-          'subtitle_project',
-          JSON.stringify({
-            video_url: videoUrl,
-            video_filename: videoFilename,
-            subtitles,
-            globalStyles: normalizedStyles,
-            projectName,
-          })
-        );
-      } catch {}
+      syncSessionSnapshot(buildFullStyles());
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [videoUrl, videoFilename, subtitles, globalStyles, aspectRatio, captionLengthMode, customWordCount, projectName]);
+  }, [buildFullStyles, syncSessionSnapshot]);
 
   const handleLeftResizeStart = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
@@ -565,17 +576,11 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
       try {
         const parsed = JSON.parse(stored);
         if (parsed.video_url) {
-          const isFullUrl =
-            parsed.video_url.startsWith('http://') ||
-            parsed.video_url.startsWith('https://') ||
-            parsed.video_url.startsWith('blob:') ||
-            parsed.video_url.startsWith('data:');
-          const finalUrl = isFullUrl
-            ? parsed.video_url
-            : `${API_BASE_URL}${parsed.video_url.startsWith('/') ? '' : '/'}${parsed.video_url}`;
-          setVideoUrl(finalUrl);
+          setVideoUrl(resolveMediaUrl(parsed.video_url));
         }
-        if (parsed.video_filename) setVideoFilename(parsed.video_filename);
+        const parsedFilename = sanitizeVideoFilename(parsed.video_filename);
+        if (parsedFilename) setVideoFilename(parsedFilename);
+        if (parsed.thumbnail_url) setThumbnailUrl(parsed.thumbnail_url);
         if (parsed.globalStyles || parsed.styles) {
           const loadedStyles = normalizeSubtitleStyle(parsed.globalStyles || parsed.styles);
           setGlobalStyles(loadedStyles);
@@ -1104,14 +1109,7 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
       if (!res.ok) throw new Error('API request failed');
       const data = await res.json();
       if (data.video_url) {
-        const isFullUrl =
-          data.video_url.startsWith('http://') ||
-          data.video_url.startsWith('https://') ||
-          data.video_url.startsWith('blob:') ||
-          data.video_url.startsWith('data:');
-        const finalUrl = isFullUrl
-          ? data.video_url
-          : `${API_BASE_URL}${data.video_url.startsWith('/') ? '' : '/'}${data.video_url}`;
+        const finalUrl = resolveMediaUrl(data.video_url);
         if (videoRef.current) {
           videoRef.current.pause();
           videoRef.current.currentTime = 0;
@@ -1120,7 +1118,9 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
         setCurrentTime(0);
         setVideoUrl(finalUrl);
       }
-      if (data.video_filename) setVideoFilename(data.video_filename);
+      if (data.thumbnail_url) setThumbnailUrl(data.thumbnail_url);
+      const uploadedFilename = sanitizeVideoFilename(data.video_filename);
+      if (uploadedFilename) setVideoFilename(uploadedFilename);
       const extracted = normaliseSubtitles(data.subtitles ?? data.segments ?? data.captions);
       if (extracted.length > 0) {
         originalSubtitlesRef.current = JSON.parse(JSON.stringify(extracted));
@@ -1128,6 +1128,7 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
         setHistory([extracted]);
         setHistoryIndex(0);
       }
+      setHasChanges(true);
       showToast('แยกเสียงและสร้างซับสำเร็จ!');
     } catch (err) {
       console.warn('Backend unavailable:', err);
@@ -1226,15 +1227,16 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
         }
       }
 
-      const fullGlobalStyles = normalizeSubtitleStyle({
-        ...globalStyles,
-        aspect_ratio: aspectRatio,
-        caption_length_mode: captionLengthMode,
-        custom_word_count: customWordCount,
-      });
+      // Cancel any pending debounced draft save so it cannot race behind status='done'
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
+
+      const fullGlobalStyles = buildFullStyles();
 
       const payload = {
-        video_filename: effectiveFilename,
+        video_filename: effectiveFilename || undefined,
         video_url: videoUrl,
         video_width: vidW,
         video_height: vidH,
@@ -1274,24 +1276,36 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
       triggerBlobDownload(blob, `${exportName}.mp4`);
 
       showToast('เรนเดอร์วิดีโอสำเร็จและเริ่มดาวน์โหลดแล้ว!');
-      setHasChanges(false);
 
-      // Mark status as 'done' in Supabase
-      saveProjectAction({
-        id: projectId || undefined,
+      // Mark status as 'done' in Supabase without racing auto-save
+      const saveRes = await saveProjectAction({
+        id: projectIdRef.current || undefined,
         title: projectName,
         status: 'done',
-        duration: duration ? formatTime(duration) : undefined,
+        duration: duration > 0 ? duration : undefined,
         video_url: videoUrl,
         thumbnail_url: thumbnailUrl || undefined,
-        video_filename: videoFilename,
-        subtitles: subtitles,
+        video_filename: sanitizeVideoFilename(effectiveFilename || videoFilename),
+        subtitles,
         styles: fullGlobalStyles,
-      }).then((res) => {
-        if (res?.success && res.projectId) {
-          setProjectId(res.projectId);
-        }
       });
+
+      if (saveRes?.success && saveRes.projectId) {
+        setProjectId(saveRes.projectId);
+        projectIdRef.current = saveRes.projectId;
+        projectStatusRef.current = 'done';
+        syncSessionSnapshot(fullGlobalStyles, saveRes.projectId);
+        setHasChanges(false);
+        setSaveStatus('saved');
+        if (typeof window !== 'undefined' && !window.location.search.includes(saveRes.projectId)) {
+          window.history.replaceState(null, '', `/editor?id=${saveRes.projectId}`);
+        }
+      } else {
+        setSaveStatus('unsaved');
+        if (saveRes?.error) {
+          console.warn('Failed to mark rendered project as done:', saveRes.error);
+        }
+      }
     } catch (err: unknown) {
       const rawMsg = err instanceof Error ? err.message : String(err);
       const isNetworkErr =
@@ -1304,7 +1318,7 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
     } finally {
       setIsRendering(false);
     }
-  }, [projectId, projectName, duration, videoUrl, thumbnailUrl, videoFilename, aspectRatio, captionLengthMode, customWordCount, subtitles, globalStyles, showToast]);
+  }, [projectName, duration, videoUrl, thumbnailUrl, videoFilename, buildFullStyles, syncSessionSnapshot, subtitles, showToast]);
 
   // Open confirmation modal when Reset is clicked
   const handleResetClick = useCallback(() => {

@@ -61,26 +61,26 @@ export default function ProfileCard({ displayName, email }: ProfileCardProps) {
         onClick={() => setIsOpen((prev) => !prev)}
         aria-expanded={isOpen}
         aria-haspopup="true"
-        className={`group flex items-center justify-between gap-3 px-3.5 py-1.5 rounded-2xl bg-[#12101e]/90 hover:bg-[#181527] border transition-all duration-200 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] cursor-pointer select-none text-left focus:outline-none ${
-          isOpen ? 'border-white/20 bg-[#181527]' : 'border-white/[0.08] hover:border-white/15'
+        className={`group flex items-center justify-between gap-2.5 px-2.5 py-1.5 rounded-lg bg-[#0d0c12] hover:bg-[#14131c] border transition-colors duration-150 cursor-pointer select-none text-left focus:outline-none ${
+          isOpen ? 'border-white/30 bg-[#14131c]' : 'border-[#21202c] hover:border-white/20'
         }`}
       >
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 via-purple-600 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shadow-[0_2px_10px_rgba(139,92,246,0.35)] ring-1 ring-white/20 flex-shrink-0">
+        <div className="w-7 h-7 rounded-md bg-[#1c1a27] border border-white/[0.1] flex items-center justify-center text-white font-mono font-bold text-xs flex-shrink-0">
           {initial}
         </div>
 
-        <div className="flex flex-col text-left max-w-[140px] sm:max-w-[180px] min-w-0">
-          <span className="text-xs font-semibold text-white truncate leading-tight group-hover:text-zinc-100 transition-colors">
+        <div className="flex flex-col text-left max-w-[130px] sm:max-w-[170px] min-w-0">
+          <span className="text-xs font-semibold text-white truncate leading-tight">
             {displayName || 'User'}
           </span>
-          <span className="text-[11px] text-zinc-400 truncate leading-tight mt-0.5">
+          <span className="text-[10.5px] font-mono text-zinc-500 truncate leading-tight">
             {email}
           </span>
         </div>
 
         {/* Chevron Arrow */}
         <svg
-          className={`w-3.5 h-3.5 text-zinc-400 group-hover:text-white transition-transform duration-200 ml-0.5 flex-shrink-0 ${
+          className={`w-3.5 h-3.5 text-zinc-500 group-hover:text-zinc-200 transition-transform duration-150 ml-0.5 flex-shrink-0 ${
             isOpen ? 'rotate-180 text-white' : ''
           }`}
           fill="none"
@@ -91,10 +91,10 @@ export default function ProfileCard({ displayName, email }: ProfileCardProps) {
         </svg>
       </button>
 
-      {/* Options Dropdown Menu (Exact same width as card) */}
+      {/* Options Dropdown Menu */}
       {isOpen && (
         <div
-          className="absolute left-0 right-0 top-full mt-2 w-full rounded-2xl bg-[#12101e]/95 backdrop-blur-2xl border border-white/[0.08] shadow-[0_16px_36px_rgba(0,0,0,0.6)] p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150"
+          className="absolute right-0 top-full mt-1.5 min-w-full rounded-xl bg-[#0e0d14] border border-[#252432] shadow-[0_18px_40px_rgba(0,0,0,0.85)] p-1 z-50 origin-top-right anim-dropdown"
           role="menu"
           aria-orientation="vertical"
         >

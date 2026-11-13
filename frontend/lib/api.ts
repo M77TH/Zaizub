@@ -7,3 +7,12 @@ export const API_BASE_URL = (
 export function apiUrl(path: string) {
   return `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
 }
+
+export function resolveMediaUrl(url?: string | null): string {
+  const trimmed = typeof url === "string" ? url.trim() : "";
+  if (!trimmed) return "";
+  if (/^(https?:|blob:|data:)/i.test(trimmed)) {
+    return trimmed;
+  }
+  return apiUrl(trimmed);
+}

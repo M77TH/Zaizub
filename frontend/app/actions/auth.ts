@@ -2,6 +2,7 @@
 
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { toUserFacingAuthError } from '@/lib/auth/errors'
 import {
@@ -144,16 +145,21 @@ export async function updateProfile(
 
   const { error } = await supabase
     .from('profiles')
-    .update({
-      display_name: nameResult.displayName,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', user.id)
+    .upsert(
+      {
+        id: user.id,
+        display_name: nameResult.displayName,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'id' }
+    )
 
   if (error) {
     return { error: 'Unable to update profile. Please try again.' }
   }
 
+  revalidatePath('/profile')
+  revalidatePath('/my-video')
   return { success: true, message: 'Profile updated.' }
 }
 

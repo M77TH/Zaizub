@@ -171,14 +171,15 @@ def audio_args(path: str) -> list[str]:
 
 def probe_video_dimensions(video_path: str) -> tuple[int, int]:
     """
-    Returns (width, height) of the video file using ffprobe.
+    Returns display (width, height) of the video file using ffprobe, accounting for
+    stream rotation metadata so portrait phone videos report true upright dimensions.
     Defaults to 1080, 1920 if probing fails.
     """
     try:
         cmd = [
             'ffprobe', '-v', 'error',
             '-select_streams', 'v:0',
-            '-show_entries', 'stream=width,height',
+            '-show_entries', 'stream=width,height:stream_tags=rotate:stream_side_data=rotation',
             '-of', 'json',
             video_path
         ]
@@ -187,6 +188,22 @@ def probe_video_dimensions(video_path: str) -> tuple[int, int]:
         stream = data.get('streams', [{}])[0]
         w = int(stream.get('width', 1080))
         h = int(stream.get('height', 1920))
+
+        # Check stream rotation (phone vertical videos encoded sideways with rotate ±90/±270)
+        rot = stream.get('tags', {}).get('rotate')
+        if rot is None:
+            for sd in stream.get('side_data_list') or []:
+                if isinstance(sd, dict) and sd.get('rotation') is not None:
+                    rot = sd.get('rotation')
+                    break
+        if rot is not None:
+            try:
+                angle = abs(int(round(float(rot)))) % 360
+                if angle in (90, 270):
+                    w, h = h, w
+            except (TypeError, ValueError):
+                pass
+
         if w > 0 and h > 0:
             return w, h
     except Exception as e:
@@ -339,6 +356,18 @@ async def render_video(
             styles_raw = json.loads(styles_str) if isinstance(styles_str, str) else styles_str
         except Exception:
             styles_raw = {}
+
+    if not aspect_ratio and isinstance(styles_raw, dict):
+        aspect_ratio = styles_raw.get("aspect_ratio") or None
+
+    def _opt_float(v) -> Optional[float]:
+        try:
+            return float(v) if v is not None and v != "" else None
+        except (TypeError, ValueError):
+            return None
+
+    req_preview_w = _opt_float(req_preview_w)
+    req_preview_h = _opt_float(req_preview_h)
 
     logger.info(f"render-video: aspect_ratio={aspect_ratio!r}")
 

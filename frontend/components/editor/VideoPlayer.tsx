@@ -554,8 +554,10 @@ function VideoPlayer({
     [stageDims]
   );
 
+  const isWordHighlightEnabled = Boolean(activeEffectiveStyle.word_highlight);
   const isMultiWordHighlight =
-    Boolean(activeEffectiveStyle.word_highlight) && captionTokens.length > 1;
+    (isWordHighlightEnabled || activeEffectiveStyle.animation === 'typewriter') &&
+    captionTokens.length > 1;
 
   return (
     <div className="relative flex flex-1 flex-col min-h-0 overflow-hidden select-none bg-[#050508]">
@@ -590,8 +592,18 @@ function VideoPlayer({
             <span>·</span>
             <span className="tabular-nums">{activeEffectiveStyle.font_size}px</span>
             <span>·</span>
-            <span className={activeEffectiveStyle.word_highlight ? 'text-[#c4b5fd]' : 'text-zinc-500'}>
-              {activeEffectiveStyle.word_highlight ? 'WORD SYNC' : 'FULL LINE'}
+            <span
+              className={
+                isWordHighlightEnabled || activeEffectiveStyle.animation === 'typewriter'
+                  ? 'text-[#c4b5fd]'
+                  : 'text-zinc-500'
+              }
+            >
+              {isWordHighlightEnabled
+                ? 'WORD SYNC'
+                : activeEffectiveStyle.animation === 'typewriter'
+                ? 'TYPEWRITER'
+                : 'FULL LINE'}
             </span>
           </div>
 
@@ -980,11 +992,15 @@ function VideoPlayer({
                           ? ' '
                           : <wbr />
                         : null;
-                      const isWordActive = idx === activeWordIndex;
+                      const isWordActive = isWordHighlightEnabled && idx === activeWordIndex;
                       const isFutureKaraoke =
-                        activeEffectiveStyle.preset_mode === 'karaoke' && idx > activeWordIndex;
+                        isWordHighlightEnabled &&
+                        activeEffectiveStyle.preset_mode === 'karaoke' &&
+                        idx > activeWordIndex;
                       const isBadgeWord =
-                        activeEffectiveStyle.preset_mode === 'badge' && isWordActive;
+                        isWordHighlightEnabled &&
+                        activeEffectiveStyle.preset_mode === 'badge' &&
+                        isWordActive;
                       const isTypewriterHidden =
                         activeEffectiveStyle.animation === 'typewriter' && idx > activeWordIndex;
 
@@ -1027,9 +1043,10 @@ function VideoPlayer({
                         <React.Fragment key={idx}>
                           <span
                             style={{
-                              color: isWordActive
-                                ? activeEffectiveStyle.text_color
-                                : activeEffectiveStyle.base_text_color || '#ffffff',
+                              color:
+                                isWordActive || !isWordHighlightEnabled
+                                  ? activeEffectiveStyle.text_color
+                                  : activeEffectiveStyle.base_text_color || '#ffffff',
                               opacity: isFutureKaraoke ? 0.45 : 1,
                               transform: isWordActive ? 'translateY(-1px) scale(1.06)' : undefined,
                             }}

@@ -1214,17 +1214,15 @@ export function VideoEditorPage({ initialProject }: VideoEditorPageProps = {}) {
       // Accurately measure the actual displayed video stage dimensions on the user's screen
       let prevW: number | undefined = undefined;
       let prevH: number | undefined = undefined;
-      if (vidEl) {
-        const stageEl = (document.querySelector('[data-canvas-stage]') || document.querySelector('[data-subtitle-overlay]')?.parentElement) as HTMLElement | null;
-        if (stageEl && stageEl.clientWidth > 0 && stageEl.clientHeight > 0) {
-          prevW = stageEl.clientWidth;
-          prevH = stageEl.clientHeight;
-        } else {
-          const rect = vidEl.getBoundingClientRect();
-          if (rect.width > 0 && rect.height > 0) {
-            prevW = Math.round(rect.width);
-            prevH = Math.round(rect.height);
-          }
+      const stageEl = (document.querySelector('[data-canvas-stage]') || document.querySelector('[data-subtitle-overlay]')?.parentElement) as HTMLElement | null;
+      if (stageEl && stageEl.clientWidth > 0 && stageEl.clientHeight > 0) {
+        prevW = stageEl.clientWidth;
+        prevH = stageEl.clientHeight;
+      } else if (vidEl) {
+        const rect = vidEl.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          prevW = Math.round(rect.width);
+          prevH = Math.round(rect.height);
         }
       }
 

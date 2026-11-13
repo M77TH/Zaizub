@@ -482,6 +482,167 @@ def normalize_segment_word_tokens(
     return parsed_tokens
 
 
+def _clamp01(value: float) -> float:
+    return max(0.0, min(1.0, float(value)))
+
+
+def _cubic_bezier_ease(p1x: float, p1y: float, p2x: float, p2y: float, u: float) -> float:
+    """Evaluates a CSS cubic-bezier(p1x, p1y, p2x, p2y) easing curve at normalized time u in [0, 1]."""
+    u = _clamp01(u)
+    if u <= 0.0:
+        return 0.0
+    if u >= 1.0:
+        return 1.0
+    lo, hi = 0.0, 1.0
+    for _ in range(16):
+        mid = 0.5 * (lo + hi)
+        omt = 1.0 - mid
+        bx = 3.0 * (omt * omt * mid * p1x + omt * mid * mid * p2x) + mid * mid * mid
+        if bx < u:
+            lo = mid
+        else:
+            hi = mid
+    t = 0.5 * (lo + hi)
+    omt = 1.0 - t
+    return 3.0 * (omt * omt * t * p1y + omt * t * t * p2y) + t * t * t
+
+
+def _format_cs_timestamp(cs: int) -> str:
+    """Formats non-negative integer centiseconds to ASS H:MM:SS.cs."""
+    cs = max(0, int(cs))
+    total_secs, centisecs = divmod(cs, 100)
+    hours, rem_secs = divmod(total_secs, 3600)
+    minutes, secs = divmod(rem_secs, 60)
+    return f"{hours}:{minutes:02d}:{secs:02d}.{centisecs:02d}"
+
+
+def _is_neon_glow_style(s_map: Dict[str, Any]) -> bool:
+    """Mirrors VideoPlayer.tsx isNeonGlow check (karaoke preset or chromatic shadow matching text color)."""
+    preset_mode = str(s_map.get("preset_mode") or "default").lower()
+    if preset_mode == "karaoke":
+        return True
+    has_shd = bool(s_map.get("shadow", False))
+    txt_col = str(s_map.get("text_color") or "#FFFFFF").strip().lower()
+    shd_col = str(s_map.get("shadow_color") or "#000000").strip().lower()
+    return has_shd and shd_col == txt_col and shd_col not in ("#ffffff", "#000000")
+
+
+# Keyframes for CSS capShakeAlert (450ms loop): (dx_sign, dy_sign, ass_frz_deg).
+# ASS \frz rotates counter-clockwise for positive angles, opposite CSS rotate().
+_SHAKE_KEYFRAMES: Tuple[Tuple[float, float, float], ...] = (
+    (0.0, 0.0, 0.0),
+    (-1.0, 1.0, 1.5),
+    (1.0, -1.0, -1.5),
+    (-1.0, -1.0, 1.0),
+    (1.0, 1.0, -1.0),
+)
+_SHAKE_PHASE_SEC = 0.09  # 450ms / 5 phases
+
+
+def _get_anim_sample_times(anim: str, seg_dur: float) -> List[float]:
+    """Returns segment-relative sample times (seconds) covering keyframes & easing curves."""
+    if anim == "fade":
+        pts = [0.06, 0.14, 0.22, 0.30]
+    elif anim == "pop":
+        pts = [0.06, 0.12, 0.21, 0.28, 0.35]
+    elif anim == "bounce":
+        pts = [0.07, 0.15, 0.275, 0.34, 0.4125, 0.48, 0.55]
+    elif anim == "slide-up":
+        pts = [0.07, 0.16, 0.28, 0.42, 0.55]
+    elif anim == "typewriter":
+        pts = [0.07, 0.14, 0.22]
+    elif anim == "shake":
+        pts = []
+        k = 1
+        while k * _SHAKE_PHASE_SEC < seg_dur:
+            pts.append(round(k * _SHAKE_PHASE_SEC, 4))
+            k += 1
+        return pts
+    else:
+        return []
+    return [t for t in pts if t < seg_dur]
+
+
+def _eval_anim_state(
+    anim: str,
+    rel_sec: float,
+    css_px_size: float,
+    stage_to_canvas: float,
+    mid_rel_sec: float,
+) -> Tuple[float, float, float, float, float]:
+    """
+    Evaluates animation transforms at segment-relative time `rel_sec` matching frontend globals.css.
+    Returns (alpha_mult [0..1], dx_px, dy_px, scale_mult, ass_frz_deg).
+    """
+    t = max(0.0, float(rel_sec))
+
+    if anim == "fade":
+        # .anim-fade -> subFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)
+        dur = 0.30
+        if t >= dur:
+            return 1.0, 0.0, 0.0, 1.0, 0.0
+        e = _cubic_bezier_ease(0.16, 1.0, 0.3, 1.0, t / dur)
+        fade_dy = 4.0 * stage_to_canvas
+        return _clamp01(e), 0.0, fade_dy * (1.0 - e), 0.98 + 0.02 * e, 0.0
+
+    if anim == "pop":
+        # .anim-pop -> subPopIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275)
+        if t >= 0.35:
+            return 1.0, 0.0, 0.0, 1.0, 0.0
+        if t < 0.21:
+            u = t / 0.21
+            e = _cubic_bezier_ease(0.175, 0.885, 0.32, 1.275, u)
+            return _clamp01(e), 0.0, 0.0, 0.85 + 0.21 * e, 0.0
+        u = (t - 0.21) / 0.14
+        e = _cubic_bezier_ease(0.175, 0.885, 0.32, 1.275, u)
+        return 1.0, 0.0, 0.0, 1.06 - 0.06 * e, 0.0
+
+    if anim == "bounce":
+        # .cap-enter-bounce -> capEnterBounce 0.55s cubic-bezier(0.22, 1, 0.36, 1)
+        if t >= 0.55:
+            return 1.0, 0.0, 0.0, 1.0, 0.0
+        if t < 0.275:
+            e = _cubic_bezier_ease(0.22, 1.0, 0.36, 1.0, t / 0.275)
+            return _clamp01(e), 0.0, (0.80 - 1.05 * e) * css_px_size, 0.60 + 0.64 * e, 0.0
+        if t < 0.4125:
+            e = _cubic_bezier_ease(0.22, 1.0, 0.36, 1.0, (t - 0.275) / 0.1375)
+            return 1.0, 0.0, (-0.25 + 0.29 * e) * css_px_size, 1.24 - 0.28 * e, 0.0
+        e = _cubic_bezier_ease(0.22, 1.0, 0.36, 1.0, (t - 0.4125) / 0.1375)
+        return 1.0, 0.0, (0.04 - 0.04 * e) * css_px_size, 0.96 + 0.04 * e, 0.0
+
+    if anim == "slide-up":
+        # .cap-enter-rise -> capEnterRise 0.55s cubic-bezier(0.16, 1, 0.3, 1)
+        dur = 0.55
+        if t >= dur:
+            return 1.0, 0.0, 0.0, 1.0, 0.0
+        e = _cubic_bezier_ease(0.16, 1.0, 0.3, 1.0, t / dur)
+        return _clamp01(e), 0.0, 0.85 * css_px_size * (1.0 - e), 1.0, 0.0
+
+    if anim == "typewriter":
+        # .cap-enter-type -> capEnterType 0.22s ease-out
+        dur = 0.22
+        if t >= dur:
+            return 1.0, 0.0, 0.0, 1.0, 0.0
+        e = _cubic_bezier_ease(0.0, 0.0, 0.58, 1.0, t / dur)
+        return _clamp01(e), 0.0, 0.12 * css_px_size * (1.0 - e), 1.0, 0.0
+
+    if anim == "shake":
+        # .cap-phrase-shake -> capShakeAlert 0.45s ease-in-out infinite
+        k_bin = max(0, int(mid_rel_sec // _SHAKE_PHASE_SEC))
+        u = _clamp01((t - k_bin * _SHAKE_PHASE_SEC) / _SHAKE_PHASE_SEC)
+        e = _cubic_bezier_ease(0.42, 0.0, 0.58, 1.0, u)
+        p0 = _SHAKE_KEYFRAMES[k_bin % 5]
+        p1 = _SHAKE_KEYFRAMES[(k_bin + 1) % 5]
+        sx = 3.0 * stage_to_canvas
+        sy = 1.0 * stage_to_canvas
+        dx = (p0[0] + (p1[0] - p0[0]) * e) * sx
+        dy = (p0[1] + (p1[1] - p0[1]) * e) * sy
+        rot = p0[2] + (p1[2] - p0[2]) * e
+        return 1.0, dx, dy, 1.0, rot
+
+    return 1.0, 0.0, 0.0, 1.0, 0.0
+
+
 def generate_ass_content(
     subtitles: List[Dict[str, Any]],
     styles: Dict[str, Any] = None,
@@ -506,6 +667,12 @@ def generate_ass_content(
     ref_video_h = 1920.0 if ratio < 0.9 else 1080.0
     scale_h = video_height / ref_video_h
 
+    # Scale preview CSS pixel animations (e.g. capShakeAlert ±3px, subFadeIn 4px) to PlayRes canvas pixels
+    if preview_height and float(preview_height) > 0:
+        stage_to_canvas = max(1.0, min(6.0, float(video_height) / float(preview_height)))
+    else:
+        stage_to_canvas = max(1.0, video_height / 560.0)
+
     lines = [
         "[Script Info]",
         "Title: Zaizub Auto Subtitles",
@@ -520,7 +687,97 @@ def generate_ass_content(
         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
     ]
 
-    def build_ass_style(style_name: str, s_map: Dict[str, Any]) -> str:
+    def resolve_style_metrics(s_map: Dict[str, Any]) -> Dict[str, Any]:
+        txt_col = str(s_map.get("text_color") or "#FFFFFF")
+        base_txt_col = str(s_map.get("base_text_color") or "#FFFFFF")
+        shd_col = str(s_map.get("shadow_color") or "#000000")
+        out_col = str(s_map.get("outline_color") or shd_col or "#000000")
+        badge_col = str(s_map.get("badge_color") or txt_col or "#22C55E")
+        bg_col = str(s_map.get("bg_color") or "#000000")
+        _, _, _, bg_eff_op = parse_color_rgba(bg_col, float(s_map.get("bg_opacity", 0.0)))
+
+        has_shd = bool(s_map.get("shadow", False))
+        has_out = bool(s_map.get("outline", False))
+        preset_mode = str(s_map.get("preset_mode") or "default").lower()
+        is_neon = _is_neon_glow_style(s_map)
+
+        raw_out_thick = float(s_map.get("outline_thickness", 3.0 if has_out else 0.0))
+        raw_shd_thick = float(s_map.get("shadow_thickness", 3.0 if has_shd else 0.0))
+        has_bg_box = bg_eff_op > 0.05
+
+        text_out_thick = round(max(0.5, raw_out_thick) * scale_h, 1) if has_out else 0.0
+        text_shd_thick = round(max(0.5, raw_shd_thick) * scale_h, 1) if has_shd else 0.0
+        text_out_c = hex_to_ass_color(out_col, 1.0) if has_out else "&HFF000000&"
+        text_bak_c = hex_to_ass_color(shd_col, 0.72) if has_shd else "&HFF000000&"
+        text_out_bgr = hex_to_ass_bgr(out_col)
+        text_shd_bgr = hex_to_ass_bgr(shd_col)
+        text_out_op = 1.0 if has_out else 0.0
+        text_shd_op = 0.72 if has_shd else 0.0
+
+        if has_bg_box:
+            brd_style = 3
+            padding_y = float(s_map.get("padding_y", 8.0))
+            out_thick = max(4.0, round(padding_y * scale_h * 1.15, 1))
+            shd_thick = 0.0
+            out_c = hex_to_ass_color(bg_col, bg_eff_op)
+            bak_c = hex_to_ass_color(bg_col, bg_eff_op)
+            base_out_bgr = hex_to_ass_bgr(bg_col)
+            base_shd_bgr = hex_to_ass_bgr(bg_col)
+            style_out_op = bg_eff_op
+            style_shd_op = bg_eff_op
+        elif is_neon:
+            brd_style = 1
+            out_thick = round(max(2.5, raw_out_thick) * scale_h, 1)
+            shd_thick = round(max(1.0, raw_shd_thick) * scale_h, 1) if has_shd else 0.0
+            out_c = hex_to_ass_color(txt_col, 0.55)
+            bak_c = hex_to_ass_color("#000000", 0.65)
+            base_out_bgr = hex_to_ass_bgr(txt_col)
+            base_shd_bgr = "&H000000&"
+            style_out_op = 0.55
+            style_shd_op = 0.65 if has_shd else 0.0
+        else:
+            brd_style = 1
+            out_thick = text_out_thick
+            shd_thick = text_shd_thick
+            out_c = text_out_c
+            bak_c = text_bak_c
+            base_out_bgr = text_out_bgr
+            base_shd_bgr = text_shd_bgr
+            style_out_op = text_out_op
+            style_shd_op = text_shd_op
+
+        return {
+            "txt_col": txt_col,
+            "base_txt_col": base_txt_col,
+            "badge_col": badge_col,
+            "active_bgr": hex_to_ass_bgr(txt_col),
+            "base_bgr": hex_to_ass_bgr(base_txt_col),
+            "badge_bgr": hex_to_ass_bgr(badge_col),
+            "base_out_bgr": base_out_bgr,
+            "base_shd_bgr": base_shd_bgr,
+            "out_c": out_c,
+            "bak_c": bak_c,
+            "brd_style": brd_style,
+            "out_thick": out_thick,
+            "shd_thick": shd_thick,
+            "style_out_op": style_out_op,
+            "style_shd_op": style_shd_op,
+            "text_out_thick": text_out_thick,
+            "text_shd_thick": text_shd_thick,
+            "text_out_c": text_out_c,
+            "text_bak_c": text_bak_c,
+            "text_out_bgr": text_out_bgr,
+            "text_shd_bgr": text_shd_bgr,
+            "text_out_op": text_out_op,
+            "text_shd_op": text_shd_op,
+            "has_bg_box": has_bg_box,
+            "has_out": has_out,
+            "has_shd": has_shd,
+            "is_neon": is_neon,
+            "preset_mode": preset_mode,
+        }
+
+    def build_ass_styles(style_name: str, s_map: Dict[str, Any]) -> List[str]:
         f_family = s_map.get("font_family") or "Kanit"
         raw_font_size = float(s_map.get("font_size", 56))
         f_size = max(8.0, round(libass_font_size(f_family, raw_font_size * scale_h), 1))
@@ -528,51 +785,24 @@ def generate_ass_content(
         bld = -1 if s_map.get("bold", True) else 0
         ita = -1 if s_map.get("italic", False) else 0
         und = -1 if s_map.get("underline", False) else 0
-
-        txt_col = str(s_map.get("text_color") or "#FFFFFF")
-        shd_col = str(s_map.get("shadow_color") or "#000000")
-        out_col = str(s_map.get("outline_color") or shd_col or "#000000")
-        bg_col = str(s_map.get("bg_color") or "#000000")
-        _, _, _, bg_eff_op = parse_color_rgba(bg_col, float(s_map.get("bg_opacity", 0.0)))
-
-        has_shd = bool(s_map.get("shadow", False))
-        has_out = bool(s_map.get("outline", False))
-        preset_mode = str(s_map.get("preset_mode") or "default").lower()
-
-        raw_out_thick = float(s_map.get("outline_thickness", 3.0 if has_out else 0.0))
-        raw_shd_thick = float(s_map.get("shadow_thickness", 2.0 if has_shd else 0.0))
         letter_spacing = round(float(s_map.get("letter_spacing", 0.0)) * scale_h, 1)
 
-        if bg_eff_op > 0.05:
-            brd_style = 3
-            padding_y = float(s_map.get("padding_y", 8.0))
-            out_thick = max(4.0, round(padding_y * scale_h * 1.15, 1))
-            shd_thick = 0.0
-            pri_c = hex_to_ass_color(txt_col, 1.0)
-            sec_c = "&H000000FF&"
-            out_c = hex_to_ass_color(bg_col, bg_eff_op)
-            bak_c = hex_to_ass_color(bg_col, bg_eff_op)
-        else:
-            brd_style = 1
-            pri_c = hex_to_ass_color(txt_col, 1.0)
-            sec_c = "&H000000FF&"
-            if preset_mode == "karaoke":
-                out_thick = round(max(2.5, raw_out_thick) * scale_h, 1)
-                shd_thick = round(max(1.0, raw_shd_thick) * scale_h, 1) if has_shd else 0.0
-                out_c = hex_to_ass_color(txt_col, 0.55)
-                bak_c = hex_to_ass_color("#000000", 0.65)
-            else:
-                out_thick = round(max(0.5, raw_out_thick) * scale_h, 1) if has_out else 0.0
-                shd_thick = round(max(0.5, raw_shd_thick) * scale_h, 1) if has_shd else 0.0
-                out_c = hex_to_ass_color(out_col, 1.0) if has_out else "&HFF000000&"
-                bak_c = hex_to_ass_color(shd_col, 0.72) if has_shd else "&HFF000000&"
+        m = resolve_style_metrics(s_map)
+        pri_c = hex_to_ass_color(m["txt_col"], 1.0)
+        sec_c = "&H000000FF&"
 
-        return (
-            f"Style: {style_name},{f_family},{f_size},{pri_c},{sec_c},{out_c},{bak_c},"
-            f"{bld},{ita},{und},0,100,100,{letter_spacing},0,{brd_style},{out_thick},{shd_thick},5,20,20,20,1"
-        )
+        out = [
+            f"Style: {style_name},{f_family},{f_size},{pri_c},{sec_c},{m['out_c']},{m['bak_c']},"
+            f"{bld},{ita},{und},0,100,100,{letter_spacing},0,{m['brd_style']},{m['out_thick']},{m['shd_thick']},5,20,20,20,1"
+        ]
+        if m["has_bg_box"]:
+            out.append(
+                f"Style: {style_name}_Text,{f_family},{f_size},{pri_c},{sec_c},{m['text_out_c']},{m['text_bak_c']},"
+                f"{bld},{ita},{und},0,100,100,{letter_spacing},0,1,{m['text_out_thick']},{m['text_shd_thick']},5,20,20,20,1"
+            )
+        return out
 
-    lines.append(build_ass_style("Default", styles))
+    lines.extend(build_ass_styles("Default", styles))
 
     custom_styles_map: Dict[Any, str] = {}
     for sub in subtitles:
@@ -580,39 +810,27 @@ def generate_ass_content(
         if sub_style and isinstance(sub_style, dict):
             s_id = f"Style_{sub.get('id', len(custom_styles_map) + 1)}"
             custom_styles_map[sub.get("id")] = s_id
-            lines.append(build_ass_style(s_id, {**styles, **sub_style}))
+            lines.extend(build_ass_styles(s_id, {**styles, **sub_style}))
 
     lines.append("")
     lines.append("[Events]")
     lines.append("Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text")
 
-    def build_anim_override(anim: str, pixel_x: int, pixel_y: int, allow_entry: bool, allow_exit: bool) -> Tuple[str, str]:
-        """Returns (position_tag, animation_tag)."""
-        offset_y = max(12, int(round(28 * scale_h)))
-        if anim == "slide-up" and allow_entry:
-            pos = rf"{{\an5\move({pixel_x},{pixel_y + offset_y},{pixel_x},{pixel_y},0,240)}}"
-        else:
-            pos = rf"{{\an5\pos({pixel_x},{pixel_y})}}"
-
-        tags: List[str] = []
-        if anim == "fade":
-            fad_in = 200 if allow_entry else 0
-            fad_out = 150 if allow_exit else 0
-            if fad_in or fad_out:
-                tags.append(rf"\fad({fad_in},{fad_out})")
-        elif anim == "pop" and allow_entry:
-            tags.append(r"\t(0,150,\fscx110\fscy110)\t(150,260,\fscx100\fscy100)")
-        elif anim == "bounce" and allow_entry:
-            tags.append(r"\t(0,140,\fscx116\fscy116)\t(140,260,\fscx95\fscy95)\t(260,360,\fscx100\fscy100)")
-        elif anim == "slide-up" and allow_entry:
-            tags.append(r"\fad(160,0)")
-        elif anim == "shake" and allow_entry:
-            tags.append(r"\t(0,70,\frz-2.5)\t(70,140,\frz2.5)\t(140,210,\frz-1.5)\t(210,280,\frz0)")
-        elif anim == "typewriter":
-            tags.append(r"\q2")
-
-        anim_str = f"{{{''.join(tags)}}}" if tags else ""
-        return pos, anim_str
+    def format_alpha_block(
+        f0: float,
+        o0: float,
+        s0: float,
+        f1: float,
+        o1: float,
+        s1: float,
+        slice_ms: int,
+    ) -> str:
+        a1_0, a3_0, a4_0 = opacity_to_ass_alpha(f0), opacity_to_ass_alpha(o0), opacity_to_ass_alpha(s0)
+        a1_1, a3_1, a4_1 = opacity_to_ass_alpha(f1), opacity_to_ass_alpha(o1), opacity_to_ass_alpha(s1)
+        part = rf"\1a{a1_0}\3a{a3_0}\4a{a4_0}"
+        if (a1_1, a3_1, a4_1) != (a1_0, a3_0, a4_0):
+            part += rf"\t(0,{slice_ms},\1a{a1_1}\3a{a3_1}\4a{a4_1})"
+        return part
 
     for sub in subtitles:
         start_sec = float(sub.get("start", 0.0))
@@ -626,6 +844,7 @@ def generate_ass_content(
 
         eff_style = {**styles, **(sub.get("style") or {})}
         assigned_style = custom_styles_map.get(sub.get("id"), "Default")
+        m = resolve_style_metrics(eff_style)
 
         pos_mode = eff_style.get("position", "bottom")
         default_y = 50.0 if pos_mode == "center" else (12.0 if pos_mode in ("top", "custom") else 82.0)
@@ -648,7 +867,7 @@ def generate_ass_content(
 
         uppercase = bool(eff_style.get("uppercase", False))
         anim = str(eff_style.get("animation") or "none").lower()
-        preset_mode = str(eff_style.get("preset_mode") or "default").lower()
+        preset_mode = m["preset_mode"]
         raw_word_hl = eff_style.get("word_highlight")
         if raw_word_hl is None:
             word_highlight = preset_mode in ("tiktok", "badge", "karaoke", "danger", "frosted", "warm")
@@ -656,39 +875,184 @@ def generate_ass_content(
             word_highlight = bool(raw_word_hl)
 
         tokens = normalize_segment_word_tokens(sub, raw_text, start_sec, end_sec, uppercase=uppercase)
+        is_word_by_word = (word_highlight or anim == "typewriter") and len(tokens) > 1
 
-        # Multi-word highlight / karaoke / badge / typewriter path
-        if (word_highlight or anim == "typewriter") and len(tokens) > 1:
+        seg_cs0 = int(round(start_sec * 100))
+        seg_cs1 = max(seg_cs0 + 1, int(round(end_sec * 100)))
+        seg_dur = (seg_cs1 - seg_cs0) / 100.0
+
+        # Precompute contiguous centisecond word intervals & wrapped line layout
+        wrapped_lines: Optional[List[List[Dict[str, Any]]]] = None
+        flat_tokens: List[Dict[str, Any]] = []
+        token_start_cs: List[int] = []
+        static_wrapped_text = ""
+
+        if is_word_by_word:
             wrapped_lines = wrap_word_tokens(tokens, inner_box_pixel_width, css_px_size, bold=is_bold)
-            active_bgr = hex_to_ass_bgr(str(eff_style.get("text_color") or "#FACC15"))
-            base_bgr = hex_to_ass_bgr(str(eff_style.get("base_text_color") or "#FFFFFF"))
-            badge_bgr = hex_to_ass_bgr(str(eff_style.get("badge_color") or eff_style.get("text_color") or "#22C55E"))
-
-            _, _, _, eff_bg_op = parse_color_rgba(
-                str(eff_style.get("bg_color") or "#000000"),
-                float(eff_style.get("bg_opacity", 0.0)),
-            )
-            has_bg_box = eff_bg_op > 0.05
-
-            out_col = str(eff_style.get("outline_color") or eff_style.get("shadow_color") or "#000000")
-            base_out_bgr = hex_to_ass_bgr(out_col)
-            has_out = bool(eff_style.get("outline", True))
-            base_bord = round(float(eff_style.get("outline_thickness", 3.0)) * scale_h, 1) if has_out else 0.0
-            badge_bord = round(max(4.0, 5.5 * scale_h), 1)
-            glow_bord = round(max(3.0, 4.0 * scale_h), 1)
-
             flat_tokens = [tok for ln in wrapped_lines for tok in ln]
-            flat_total = len(flat_tokens)
-            for active_idx in range(flat_total):
-                cur_tok = flat_tokens[active_idx]
-                w_start_ts = format_ass_timestamp(cur_tok["start"])
-                w_end_ts = format_ass_timestamp(cur_tok["end"])
-                if w_end_ts == w_start_ts:
-                    continue
+            n_tok = len(flat_tokens)
+            seg_span_cs = seg_cs1 - seg_cs0
+            prev_cs = seg_cs0
+            for idx, tok in enumerate(flat_tokens):
+                if idx == 0:
+                    w_cs = seg_cs0
+                elif seg_span_cs >= n_tok:
+                    raw_cs = int(round(float(tok["start"]) * 100))
+                    w_cs = max(prev_cs + 1, min(seg_cs1 - (n_tok - idx), raw_cs))
+                else:
+                    w_cs = seg_cs0 + int((idx * seg_span_cs) // n_tok)
+                token_start_cs.append(w_cs)
+                prev_cs = w_cs
+        else:
+            display_raw = raw_text.upper() if uppercase else raw_text
+            if (
+                tokens
+                and len(tokens) >= 3
+                and sum(1 for t in tokens if _THAI_SCRIPT_RE.search(str(t["word"]))) >= 3
+                and display_raw == " ".join(str(t["word"]) for t in tokens)
+            ):
+                display_raw = join_subtitle_words([str(t["word"]) for t in tokens])
+            static_wrapped_text = wrap_thai_text(display_raw, css_px_size, inner_box_pixel_width, bold=is_bold)
 
-                allow_entry = active_idx == 0
-                allow_exit = active_idx == flat_total - 1
-                pos_tag, anim_tag = build_anim_override(anim, pixel_x, pixel_y, allow_entry, allow_exit)
+        # Partition segment timeline at both word boundaries and animation keyframe steps
+        cuts = {seg_cs0, seg_cs1}
+        for w_cs in token_start_cs:
+            if seg_cs0 < w_cs < seg_cs1:
+                cuts.add(w_cs)
+        for rel_t in _get_anim_sample_times(anim, seg_dur):
+            c = seg_cs0 + int(round(rel_t * 100))
+            if seg_cs0 < c < seg_cs1:
+                cuts.add(c)
+
+        sorted_cuts = sorted(cuts)
+        badge_bord = round(max(4.0, 5.5 * scale_h), 1)
+        glow_bord = round(max(3.0, 4.0 * scale_h), 1)
+        inactive_glow_bord = round(max(2.0, float(eff_style.get("outline_thickness", 2.5 if m["has_out"] else 2.0))) * scale_h, 1)
+        keep_lines_fixed = is_word_by_word or anim in ("pop", "bounce", "typewriter", "shake")
+
+        for slice_idx in range(len(sorted_cuts) - 1):
+            c0 = sorted_cuts[slice_idx]
+            c1 = sorted_cuts[slice_idx + 1]
+            if c1 <= c0:
+                continue
+
+            slice_ms = (c1 - c0) * 10
+            rel0 = (c0 - seg_cs0) / 100.0
+            rel1 = (c1 - seg_cs0) / 100.0
+            mid_rel = 0.5 * (rel0 + rel1)
+
+            a0, dx0, dy0, sc0, frz0 = _eval_anim_state(anim, rel0, css_px_size, stage_to_canvas, mid_rel)
+            a1, dx1, dy1, sc1, frz1 = _eval_anim_state(anim, rel1, css_px_size, stage_to_canvas, mid_rel)
+
+            x0, y0 = int(round(pixel_x + dx0)), int(round(pixel_y + dy0))
+            x1, y1 = int(round(pixel_x + dx1)), int(round(pixel_y + dy1))
+
+            ctrl_tags: List[str] = [r"\an5"]
+            if keep_lines_fixed:
+                ctrl_tags.append(r"\q2")
+            if x0 != x1 or y0 != y1:
+                ctrl_tags.append(rf"\move({x0},{y0},{x1},{y1},0,{slice_ms})")
+            else:
+                ctrl_tags.append(rf"\pos({x0},{y0})")
+
+            frz0_r = round(frz0, 2)
+            frz1_r = round(frz1, 2)
+            if abs(frz0_r) > 0.01 or abs(frz1_r) > 0.01:
+                ctrl_tags.append(rf"\frz{frz0_r:g}")
+                if abs(frz1_r - frz0_r) > 0.01:
+                    ctrl_tags.append(rf"\t(0,{slice_ms},\frz{frz1_r:g})")
+
+            start_ts = _format_cs_timestamp(c0)
+            end_ts = _format_cs_timestamp(c1)
+            head_tag = f"{{{''.join(ctrl_tags)}}}"
+
+            if is_word_by_word and wrapped_lines is not None:
+                active_idx = 0
+                for t_i, w_cs in enumerate(token_start_cs):
+                    if w_cs <= c0:
+                        active_idx = t_i
+                    else:
+                        break
+
+                if m["has_bg_box"]:
+                    # Two-layer split avoids BorderStyle=3 double-darkened overlap seams on scaled active words
+                    # and preserves crisp outline/shadow on top of the translucent background box.
+                    box_sc0 = round(sc0 * 100.0, 1)
+                    box_sc1 = round(sc1 * 100.0, 1)
+                    box_scale = rf"\fscx{box_sc0:g}\fscy{box_sc0:g}"
+                    if abs(box_sc1 - box_sc0) > 0.1:
+                        box_scale += rf"\t(0,{slice_ms},\fscx{box_sc1:g}\fscy{box_sc1:g})"
+                    vis_box_alpha = format_alpha_block(0.0, a0 * m["style_out_op"], a0 * m["style_shd_op"], 0.0, a1 * m["style_out_op"], a1 * m["style_shd_op"], slice_ms)
+                    hid_box_alpha = r"\1a&HFF&\3a&HFF&\4a&HFF&"
+
+                    box_lines: List[str] = []
+                    txt_lines: List[str] = []
+                    running_idx = 0
+                    for ln in wrapped_lines:
+                        box_parts: List[str] = []
+                        txt_parts: List[str] = []
+                        prev_raw_word: Optional[str] = None
+                        for tok in ln:
+                            idx = running_idx
+                            running_idx += 1
+                            raw_word = str(tok["word"])
+                            w_txt = escape_ass_text(raw_word)
+
+                            is_hidden_tw = anim == "typewriter" and idx > active_idx
+                            is_word_active = word_highlight and idx == active_idx
+
+                            word_scale = 1.06 if is_word_active else 1.0
+                            ws0 = round(word_scale * sc0 * 100.0, 1)
+                            ws1 = round(word_scale * sc1 * 100.0, 1)
+                            scale_tag = rf"\fscx{ws0:g}\fscy{ws0:g}"
+                            if abs(ws1 - ws0) > 0.1:
+                                scale_tag += rf"\t(0,{slice_ms},\fscx{ws1:g}\fscy{ws1:g})"
+
+                            tok_fill_op = 0.0 if is_hidden_tw else 1.0
+                            tok_out_op = 0.0 if is_hidden_tw else m["text_out_op"]
+                            tok_shd_op = 0.0 if is_hidden_tw else m["text_shd_op"]
+                            alpha_tag = format_alpha_block(
+                                a0 * tok_fill_op, a0 * tok_out_op, a0 * tok_shd_op,
+                                a1 * tok_fill_op, a1 * tok_out_op, a1 * tok_shd_op,
+                                slice_ms,
+                            )
+                            fg_bgr = m["active_bgr"] if (is_word_active or not word_highlight) else m["base_bgr"]
+                            color_tag = rf"\1c{fg_bgr}\3c{m['text_out_bgr']}\4c{m['text_shd_bgr']}\bord{m['text_out_thick']}\shad{m['text_shd_thick']}\blur0"
+
+                            if prev_raw_word is not None and needs_space_between_words(prev_raw_word, raw_word):
+                                box_sp_alpha = hid_box_alpha if is_hidden_tw else vis_box_alpha
+                                box_parts.append(f"{{{box_scale}{box_sp_alpha}}} ")
+                                sp_scale = rf"\fscx{box_sc0:g}\fscy{box_sc0:g}"
+                                if abs(box_sc1 - box_sc0) > 0.1:
+                                    sp_scale += rf"\t(0,{slice_ms},\fscx{box_sc1:g}\fscy{box_sc1:g})"
+                                sp_alpha = format_alpha_block(
+                                    a0 * tok_fill_op, a0 * tok_out_op, a0 * tok_shd_op,
+                                    a1 * tok_fill_op, a1 * tok_out_op, a1 * tok_shd_op,
+                                    slice_ms,
+                                )
+                                txt_parts.append(
+                                    rf"{{\3c{m['text_out_bgr']}\4c{m['text_shd_bgr']}\bord{m['text_out_thick']}\shad{m['text_shd_thick']}\blur0{sp_scale}{sp_alpha}}} "
+                                )
+
+                            box_parts.append(f"{{{box_scale}{hid_box_alpha if is_hidden_tw else vis_box_alpha}}}{w_txt}")
+                            txt_parts.append(f"{{{color_tag}{scale_tag}{alpha_tag}}}{w_txt}")
+                            prev_raw_word = raw_word
+
+                        if box_parts:
+                            box_lines.append("".join(box_parts))
+                        if txt_parts:
+                            txt_lines.append("".join(txt_parts))
+
+                    if box_lines and txt_lines:
+                        box_body = r"\N".join(box_lines)
+                        txt_body = r"\N".join(txt_lines)
+                        lines.append(
+                            f"Dialogue: 0,{start_ts},{end_ts},{assigned_style},,{margin_lr},{margin_lr},20,,{head_tag}{box_body}"
+                        )
+                        lines.append(
+                            f"Dialogue: 1,{start_ts},{end_ts},{assigned_style}_Text,,{margin_lr},{margin_lr},20,,{head_tag}{txt_body}"
+                        )
+                    continue
 
                 rendered_lines: List[str] = []
                 running_idx = 0
@@ -701,58 +1065,144 @@ def generate_ass_content(
                         raw_word = str(tok["word"])
                         w_txt = escape_ass_text(raw_word)
 
-                        if anim == "typewriter" and idx > active_idx:
-                            continue
+                        is_hidden_tw = anim == "typewriter" and idx > active_idx
+                        is_word_active = word_highlight and idx == active_idx
+                        is_future_karaoke = word_highlight and preset_mode == "karaoke" and idx > active_idx
+
+                        # Determine token visual properties cleanly without \r resets (preserves line \frz)
+                        word_scale = 1.06 if is_word_active else 1.0
+                        ws0 = round(word_scale * sc0 * 100.0, 1)
+                        ws1 = round(word_scale * sc1 * 100.0, 1)
+                        scale_tag = rf"\fscx{ws0:g}\fscy{ws0:g}"
+                        if abs(ws1 - ws0) > 0.1:
+                            scale_tag += rf"\t(0,{slice_ms},\fscx{ws1:g}\fscy{ws1:g})"
+
+                        if is_hidden_tw:
+                            tok_fill_op = 0.0
+                            tok_out_op = 0.0
+                            tok_shd_op = 0.0
+                        else:
+                            dim_mult = 0.45 if is_future_karaoke else 1.0
+                            tok_fill_op = dim_mult
+                            if is_word_active and preset_mode == "badge":
+                                tok_out_op = 1.0 * dim_mult
+                                tok_shd_op = 0.0
+                            elif is_word_active and m["is_neon"]:
+                                tok_out_op = 0.65 * dim_mult
+                                tok_shd_op = (0.65 if m["has_shd"] else 0.0) * dim_mult
+                            elif not is_word_active and word_highlight and m["is_neon"]:
+                                tok_out_op = 0.45 * dim_mult
+                                tok_shd_op = (0.55 if m["has_shd"] else 0.0) * dim_mult
+                            else:
+                                tok_out_op = m["style_out_op"] * dim_mult
+                                tok_shd_op = m["style_shd_op"] * dim_mult
+
+                        alpha_tag = format_alpha_block(
+                            a0 * tok_fill_op,
+                            a0 * tok_out_op,
+                            a0 * tok_shd_op,
+                            a1 * tok_fill_op,
+                            a1 * tok_out_op,
+                            a1 * tok_shd_op,
+                            slice_ms,
+                        )
 
                         if word_highlight:
-                            if idx == active_idx:
-                                if has_bg_box:
-                                    part = rf"{{\1c{active_bgr}\1a&H00&\fscx106\fscy106}}{w_txt}{{\r{assigned_style}}}"
-                                elif preset_mode == "badge":
-                                    part = rf"{{\1c&H000000&\1a&H00&\3c{badge_bgr}\bord{badge_bord}\shad0\fscx106\fscy106}}{w_txt}{{\r{assigned_style}}}"
-                                elif preset_mode == "karaoke":
-                                    part = rf"{{\1c{active_bgr}\1a&H00&\3c{active_bgr}\bord{glow_bord}\blur4\fscx106\fscy106}}{w_txt}{{\r{assigned_style}}}"
+                            if is_word_active:
+                                if preset_mode == "badge":
+                                    color_tag = rf"\1c&H000000&\3c{m['badge_bgr']}\4c&H000000&\bord{badge_bord}\shad0\blur0"
+                                elif m["is_neon"]:
+                                    color_tag = rf"\1c{m['active_bgr']}\3c{m['active_bgr']}\4c&H000000&\bord{glow_bord}\shad{m['shd_thick']}\blur4"
                                 else:
-                                    part = rf"{{\1c{active_bgr}\1a&H00&\3c{base_out_bgr}\bord{base_bord}\fscx106\fscy106}}{w_txt}{{\r{assigned_style}}}"
+                                    color_tag = rf"\1c{m['active_bgr']}\3c{m['base_out_bgr']}\4c{m['base_shd_bgr']}\bord{m['out_thick']}\shad{m['shd_thick']}\blur0"
                             else:
-                                alpha_tag = r"\1a&H88&" if (preset_mode == "karaoke" and idx > active_idx) else r"\1a&H00&"
-                                if has_bg_box:
-                                    part = rf"{{\1c{base_bgr}{alpha_tag}\fscx100\fscy100}}{w_txt}"
+                                if m["is_neon"]:
+                                    color_tag = rf"\1c{m['base_bgr']}\3c{m['active_bgr']}\4c&H000000&\bord{inactive_glow_bord}\shad{m['shd_thick']}\blur3"
                                 else:
-                                    part = rf"{{\1c{base_bgr}{alpha_tag}\3c{base_out_bgr}\bord{base_bord}\blur0\fscx100\fscy100}}{w_txt}"
+                                    color_tag = rf"\1c{m['base_bgr']}\3c{m['base_out_bgr']}\4c{m['base_shd_bgr']}\bord{m['out_thick']}\shad{m['shd_thick']}\blur0"
                         else:
-                            part = w_txt
+                            # Typewriter with word_highlight=False: preserve primary text_color and style appearance
+                            if m["is_neon"]:
+                                color_tag = rf"\1c{m['active_bgr']}\3c{m['active_bgr']}\4c&H000000&\bord{m['out_thick']}\shad{m['shd_thick']}\blur3"
+                            else:
+                                color_tag = rf"\1c{m['active_bgr']}\3c{m['base_out_bgr']}\4c{m['base_shd_bgr']}\bord{m['out_thick']}\shad{m['shd_thick']}\blur0"
 
                         if prev_raw_word is not None and needs_space_between_words(prev_raw_word, raw_word):
-                            line_parts.append(" ")
-                        line_parts.append(part)
+                            sp_mult = 0.0 if is_hidden_tw else (0.45 if is_future_karaoke else 1.0)
+                            sp_alpha = format_alpha_block(
+                                a0 * sp_mult,
+                                a0 * m["style_out_op"] * sp_mult,
+                                a0 * m["style_shd_op"] * sp_mult,
+                                a1 * sp_mult,
+                                a1 * m["style_out_op"] * sp_mult,
+                                a1 * m["style_shd_op"] * sp_mult,
+                                slice_ms,
+                            )
+                            sp_sc0 = round(sc0 * 100.0, 1)
+                            sp_sc1 = round(sc1 * 100.0, 1)
+                            sp_scale = rf"\fscx{sp_sc0:g}\fscy{sp_sc0:g}"
+                            if abs(sp_sc1 - sp_sc0) > 0.1:
+                                sp_scale += rf"\t(0,{slice_ms},\fscx{sp_sc1:g}\fscy{sp_sc1:g})"
+                            line_parts.append(
+                                rf"{{\3c{m['base_out_bgr']}\4c{m['base_shd_bgr']}\bord{m['out_thick']}\shad{m['shd_thick']}\blur0{sp_scale}{sp_alpha}}} "
+                            )
+
+                        line_parts.append(f"{{{color_tag}{scale_tag}{alpha_tag}}}{w_txt}")
                         prev_raw_word = raw_word
 
                     if line_parts:
                         rendered_lines.append("".join(line_parts))
 
-                if rendered_lines:
-                    full_text = r"\N".join(rendered_lines)
+                body_text = r"\N".join(rendered_lines)
+                if body_text:
                     lines.append(
-                        f"Dialogue: 0,{w_start_ts},{w_end_ts},{assigned_style},,{margin_lr},{margin_lr},20,,{pos_tag}{anim_tag}{full_text}"
+                        f"Dialogue: 0,{start_ts},{end_ts},{assigned_style},,{margin_lr},{margin_lr},20,,{head_tag}{body_text}"
                     )
-        else:
-            start_ts = format_ass_timestamp(start_sec)
-            end_ts = format_ass_timestamp(end_sec)
-            pos_tag, anim_tag = build_anim_override(anim, pixel_x, pixel_y, True, True)
-            glow_tag = r"{\blur3}" if preset_mode == "karaoke" else ""
-            display_raw = raw_text.upper() if uppercase else raw_text
-            if (
-                tokens
-                and len(tokens) >= 3
-                and sum(1 for t in tokens if _THAI_SCRIPT_RE.search(str(t["word"]))) >= 3
-                and display_raw == " ".join(str(t["word"]) for t in tokens)
-            ):
-                display_raw = join_subtitle_words([str(t["word"]) for t in tokens])
-            wrapped_text = wrap_thai_text(display_raw, css_px_size, inner_box_pixel_width, bold=is_bold)
-            lines.append(
-                f"Dialogue: 0,{start_ts},{end_ts},{assigned_style},,{margin_lr},{margin_lr},20,,{pos_tag}{anim_tag}{glow_tag}{wrapped_text}"
-            )
+            else:
+                body_text = static_wrapped_text
+                if body_text:
+                    scale_tags: List[str] = []
+                    if abs(sc0 - 1.0) > 0.002 or abs(sc1 - 1.0) > 0.002:
+                        s0_pct = round(sc0 * 100.0, 1)
+                        s1_pct = round(sc1 * 100.0, 1)
+                        scale_tags.append(rf"\fscx{s0_pct:g}\fscy{s0_pct:g}")
+                        if abs(s1_pct - s0_pct) > 0.1:
+                            scale_tags.append(rf"\t(0,{slice_ms},\fscx{s1_pct:g}\fscy{s1_pct:g})")
+
+                    if m["has_bg_box"] and (m["has_out"] or m["has_shd"]):
+                        box_ctrl = ctrl_tags + scale_tags + [
+                            format_alpha_block(0.0, a0 * m["style_out_op"], a0 * m["style_shd_op"], 0.0, a1 * m["style_out_op"], a1 * m["style_shd_op"], slice_ms)
+                        ]
+                        txt_ctrl = ctrl_tags + scale_tags
+                        if a0 < 0.999 or a1 < 0.999 or m["text_out_op"] < 0.999 or m["text_shd_op"] < 0.999:
+                            txt_ctrl.append(
+                                format_alpha_block(a0, a0 * m["text_out_op"], a0 * m["text_shd_op"], a1, a1 * m["text_out_op"], a1 * m["text_shd_op"], slice_ms)
+                            )
+                        lines.append(
+                            f"Dialogue: 0,{start_ts},{end_ts},{assigned_style},,{margin_lr},{margin_lr},20,,{{{''.join(box_ctrl)}}}{body_text}"
+                        )
+                        lines.append(
+                            f"Dialogue: 1,{start_ts},{end_ts},{assigned_style}_Text,,{margin_lr},{margin_lr},20,,{{{''.join(txt_ctrl)}}}{body_text}"
+                        )
+                    else:
+                        full_ctrl = ctrl_tags + scale_tags
+                        if a0 < 0.999 or a1 < 0.999:
+                            full_ctrl.append(
+                                format_alpha_block(
+                                    a0,
+                                    a0 * m["style_out_op"],
+                                    a0 * m["style_shd_op"],
+                                    a1,
+                                    a1 * m["style_out_op"],
+                                    a1 * m["style_shd_op"],
+                                    slice_ms,
+                                )
+                            )
+                        if m["is_neon"] and not m["has_bg_box"]:
+                            full_ctrl.append(r"\blur3")
+                        lines.append(
+                            f"Dialogue: 0,{start_ts},{end_ts},{assigned_style},,{margin_lr},{margin_lr},20,,{{{''.join(full_ctrl)}}}{body_text}"
+                        )
 
     return "\n".join(lines) + "\n"
 

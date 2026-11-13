@@ -702,7 +702,7 @@ header::-webkit-scrollbar, header *::-webkit-scrollbar {
 
 /* ============================================================
    Studio Card Hover System (No Lift, No Zoom)
-   Flowing Neon Border Beam + Viewfinder Reticle + Slide-In Action Bar
+   Flowing Light-Purple Border Beam + Corner Viewfinder Brackets
    ============================================================ */
 @keyframes studioBeamRotate {
   0% {
@@ -713,24 +713,7 @@ header::-webkit-scrollbar, header *::-webkit-scrollbar {
   }
 }
 
-@keyframes studioButtonSheen {
-  0% {
-    opacity: 0;
-    transform: translate3d(-150%, 0, 0) skewX(-18deg);
-  }
-  20% {
-    opacity: 1;
-  }
-  80% {
-    opacity: 0.9;
-  }
-  100% {
-    opacity: 0;
-    transform: translate3d(260%, 0, 0) skewX(-18deg);
-  }
-}
-
-/* Flowing dual-arc neon border masked strictly to a 1.5px perimeter ring */
+/* Flowing dual-arc light-purple border masked to a 1.5px perimeter ring */
 .studio-beam-mask {
   padding: 1.5px;
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
@@ -750,16 +733,16 @@ header::-webkit-scrollbar, header *::-webkit-scrollbar {
   aspect-ratio: 1 / 1;
   background: conic-gradient(
     from 0deg,
-    transparent 0deg 35deg,
-    rgba(124, 58, 237, 0.45) 75deg,
-    #a78bfa 120deg,
-    #f5f3ff 146deg,
-    #38bdf8 164deg,
-    transparent 180deg 215deg,
-    rgba(124, 58, 237, 0.45) 255deg,
-    #a78bfa 300deg,
-    #f5f3ff 326deg,
-    #38bdf8 344deg,
+    transparent 0deg 40deg,
+    rgba(167, 139, 250, 0.25) 75deg,
+    #c4b5fd 120deg,
+    #f3e8ff 145deg,
+    #ddd6fe 162deg,
+    transparent 180deg 220deg,
+    rgba(167, 139, 250, 0.25) 255deg,
+    #c4b5fd 300deg,
+    #f3e8ff 325deg,
+    #ddd6fe 342deg,
     transparent 360deg
   );
   transform: translate3d(-50%, -50%, 0) rotate(0deg);
@@ -768,16 +751,16 @@ header::-webkit-scrollbar, header *::-webkit-scrollbar {
 
 .studio-card-ambient {
   background: radial-gradient(
-    80% 60% at 50% 0%,
-    rgba(139, 92, 246, 0.14),
-    rgba(56, 189, 248, 0.04) 52%,
+    80% 55% at 50% 0%,
+    rgba(196, 181, 253, 0.08),
+    rgba(167, 139, 250, 0.025) 52%,
     transparent 80%
   );
   opacity: 0;
-  transition: opacity 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 260ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Monitor media stays 1:1 (zero zoom), subtle contrast lift on hover */
+/* Monitor media stays 1:1 (zero zoom), clean subtle clarity lift on hover */
 .studio-card-media {
   opacity: 0.9;
   filter: brightness(0.96) contrast(0.99);
@@ -786,60 +769,60 @@ header::-webkit-scrollbar, header *::-webkit-scrollbar {
     filter 280ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Soft focal dim scrim behind reticle so bright/busy thumbnails stay legible */
+/* Subtle focal scrim behind play icon & corner brackets */
 .studio-card-vignette {
   background: radial-gradient(
     circle at 50% 50%,
-    rgba(8, 6, 18, 0.52) 0%,
-    rgba(8, 6, 18, 0.18) 58%,
-    rgba(124, 58, 237, 0.12) 100%
+    rgba(10, 8, 20, 0.36) 0%,
+    rgba(10, 8, 20, 0.12) 60%,
+    rgba(196, 181, 253, 0.07) 100%
   );
   opacity: 0;
-  transition: opacity 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 240ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Viewfinder corner brackets locking smoothly inward toward the center target */
+/* Corner viewfinder brackets sliding softly inward from the edges */
 .studio-reticle-corner {
   opacity: 0;
-  filter: drop-shadow(0 0 6px rgba(167, 139, 250, 0.85));
+  filter: drop-shadow(0 0 5px rgba(196, 181, 253, 0.72));
   transition:
-    transform 320ms cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 220ms ease;
+    transform 280ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 200ms ease;
 }
 
 .studio-reticle-tl {
-  transform: translate3d(-10px, -10px, 0);
+  transform: translate3d(-3px, -3px, 0);
 }
 
 .studio-reticle-tr {
-  transform: translate3d(10px, -10px, 0);
+  transform: translate3d(3px, -3px, 0);
 }
 
 .studio-reticle-bl {
-  transform: translate3d(-10px, 10px, 0);
+  transform: translate3d(-3px, 3px, 0);
 }
 
 .studio-reticle-br {
-  transform: translate3d(10px, 10px, 0);
+  transform: translate3d(3px, 3px, 0);
 }
 
 .studio-reticle-compact .studio-reticle-tl {
-  transform: translate3d(-4px, -4px, 0);
+  transform: translate3d(-2px, -2px, 0);
 }
 
 .studio-reticle-compact .studio-reticle-tr {
-  transform: translate3d(4px, -4px, 0);
+  transform: translate3d(2px, -2px, 0);
 }
 
 .studio-reticle-compact .studio-reticle-bl {
-  transform: translate3d(-4px, 4px, 0);
+  transform: translate3d(-2px, 2px, 0);
 }
 
 .studio-reticle-compact .studio-reticle-br {
-  transform: translate3d(4px, 4px, 0);
+  transform: translate3d(2px, 2px, 0);
 }
 
-/* Frosted center play reveal (fade + subtle horizontal arrow nudge, no scale zoom) */
+/* Frosted center play reveal (fade + subtle horizontal arrow cue, no scale zoom) */
 .studio-card-play {
   opacity: 0;
   transition:
@@ -850,25 +833,7 @@ header::-webkit-scrollbar, header *::-webkit-scrollbar {
 
 .studio-card-play svg {
   transform: translateX(-2px);
-  transition: transform 280ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-/* Slide-in studio action tray inside grid viewport */
-.studio-card-actionbar {
-  opacity: 0;
-  transform: translate3d(0, 100%, 0);
-  transition:
-    transform 300ms cubic-bezier(0.16, 1, 0.3, 1) 40ms,
-    opacity 220ms ease 40ms;
-}
-
-/* Slide-in quick edit pill for strip rows */
-.studio-strip-action {
-  opacity: 0;
-  transform: translate3d(14px, 0, 0);
-  transition:
-    transform 280ms cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 220ms ease;
+  transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Bottom scrub accent line */
@@ -876,7 +841,7 @@ header::-webkit-scrollbar, header *::-webkit-scrollbar {
   width: 0%;
   opacity: 0.45;
   transition:
-    width 460ms cubic-bezier(0.16, 1, 0.3, 1),
+    width 440ms cubic-bezier(0.16, 1, 0.3, 1),
     opacity 220ms ease;
 }
 
@@ -886,12 +851,7 @@ header::-webkit-scrollbar, header *::-webkit-scrollbar {
   height: 32%;
   transition:
     opacity 240ms cubic-bezier(0.22, 1, 0.36, 1),
-    height 300ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.studio-cta-sheen {
-  opacity: 0;
-  transform: translate3d(-150%, 0, 0) skewX(-18deg);
+    height 280ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Hover & keyboard focus-visible activation */
@@ -906,13 +866,13 @@ header::-webkit-scrollbar, header *::-webkit-scrollbar {
 
 .studio-card:hover .studio-beam-spinner,
 .studio-card:has(a:focus-visible, button:focus-visible) .studio-beam-spinner {
-  animation: studioBeamRotate 2.4s linear infinite;
+  animation: studioBeamRotate 2.6s linear infinite;
 }
 
 .studio-card:hover .studio-card-media,
 .studio-card:has(a:focus-visible) .studio-card-media {
   opacity: 1;
-  filter: brightness(1.02) contrast(1.04);
+  filter: brightness(1.03) contrast(1.03);
 }
 
 .studio-card:hover .studio-reticle-corner,
@@ -924,21 +884,13 @@ header::-webkit-scrollbar, header *::-webkit-scrollbar {
 .studio-card:hover .studio-card-play,
 .studio-card:has(a:focus-visible) .studio-card-play {
   opacity: 1;
-  border-color: rgba(233, 213, 255, 0.65);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65), 0 0 22px rgba(139, 92, 246, 0.45);
+  border-color: rgba(221, 214, 254, 0.6);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55), 0 0 18px rgba(196, 181, 253, 0.35);
 }
 
 .studio-card:hover .studio-card-play svg,
 .studio-card:has(a:focus-visible) .studio-card-play svg {
   transform: translateX(1px);
-}
-
-.studio-card:hover .studio-card-actionbar,
-.studio-card:has(a:focus-visible) .studio-card-actionbar,
-.studio-card:hover .studio-strip-action,
-.studio-card:has(a:focus-visible) .studio-strip-action {
-  opacity: 1;
-  transform: translate3d(0, 0, 0);
 }
 
 .studio-card:hover .studio-card-scrub,
@@ -953,10 +905,6 @@ header::-webkit-scrollbar, header *::-webkit-scrollbar {
   height: 68%;
 }
 
-.studio-card:hover .studio-cta-sheen {
-  animation: studioButtonSheen 680ms cubic-bezier(0.22, 1, 0.36, 1) 1 forwards;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .studio-beam-mask,
   .studio-card-ambient,
@@ -965,16 +913,13 @@ header::-webkit-scrollbar, header *::-webkit-scrollbar {
   .studio-reticle-corner,
   .studio-card-play,
   .studio-card-play svg,
-  .studio-card-actionbar,
-  .studio-strip-action,
   .studio-card-scrub,
   .studio-card-rail {
     transition-duration: 1ms;
   }
 
   .studio-card:hover .studio-beam-spinner,
-  .studio-card:has(a:focus-visible, button:focus-visible) .studio-beam-spinner,
-  .studio-card:hover .studio-cta-sheen {
+  .studio-card:has(a:focus-visible, button:focus-visible) .studio-beam-spinner {
     animation: none;
   }
 }

@@ -161,7 +161,7 @@ export default function VideoCard({
             ? hasUploadError
               ? 'border-rose-500/40 bg-[#120b10]'
               : 'border-[#8b5cf6]/45 bg-[#0e0c18] shadow-[0_0_24px_-12px_rgba(139,92,246,0.45)]'
-            : 'studio-card border-[#1f1e29] bg-[#0c0b11] hover:border-[#8b5cf6]/45 hover:bg-[#110e1b] hover:shadow-[0_10px_32px_-8px_rgba(124,58,237,0.34),0_6px_18px_rgba(0,0,0,0.52)]'
+            : 'studio-card border-[#1f1e29] bg-[#0c0b11] hover:border-[#a78bfa]/40 hover:bg-[#100d19] hover:shadow-[0_10px_28px_-10px_rgba(167,139,250,0.28),0_6px_18px_rgba(0,0,0,0.5)]'
         } ${menuOpen ? 'z-30' : ''}`}
       >
         {!isProcessing && <CardHoverChrome rounded="xl" showLeftRail />}
@@ -198,9 +198,9 @@ export default function VideoCard({
             </Link>
           )}
 
-          <div className="min-w-0 flex-1 relative flex items-center">
+          <div className="min-w-0 flex-1">
             {isRenaming ? (
-              <form onSubmit={handleRenameSubmit} className="w-full">
+              <form onSubmit={handleRenameSubmit}>
                 <input
                   type="text"
                   value={title}
@@ -215,26 +215,13 @@ export default function VideoCard({
                 {video.title}
               </span>
             ) : (
-              <>
-                <Link
-                  href={`/editor?id=${video.id}`}
-                  className="block font-semibold text-sm text-zinc-100 group-hover:text-[#ede9fe] truncate transition-colors duration-200"
-                  title={video.title}
-                >
-                  {video.title}
-                </Link>
-                <div
-                  aria-hidden="true"
-                  className="pointer-events-none hidden sm:flex items-center absolute right-0 inset-y-0 pl-8 bg-gradient-to-l from-[#110e1b] via-[#110e1b]/85 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                >
-                  <span className="studio-strip-action inline-flex items-center gap-1.5 rounded-md border border-[#8b5cf6]/45 bg-[#17122a] px-2.5 py-0.5 text-[11px] font-bold text-[#f3e8ff] shadow-[0_0_16px_rgba(124,58,237,0.3)]">
-                    <span>เปิดแก้ไข</span>
-                    <svg className="w-3 h-3 text-[#c4b5fd]" fill="none" stroke="currentColor" strokeWidth="2.4" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M13 6l6 6-6 6" />
-                    </svg>
-                  </span>
-                </div>
-              </>
+              <Link
+                href={`/editor?id=${video.id}`}
+                className="block font-semibold text-sm text-zinc-100 group-hover:text-[#ede9fe] truncate transition-colors duration-200"
+                title={video.title}
+              >
+                {video.title}
+              </Link>
             )}
             {isProcessing && (
               <p className={`text-[11.5px] truncate mt-0.5 ${hasUploadError ? 'text-rose-300' : 'text-[#c4b5fd]'}`}>
@@ -437,7 +424,7 @@ export default function VideoCard({
 
   return (
     <div
-      className={`studio-card group relative flex flex-col rounded-2xl border border-[#1f1e29] bg-[#0c0b11] hover:border-[#8b5cf6]/45 hover:bg-[#110e1b] hover:shadow-[0_12px_36px_-8px_rgba(124,58,237,0.34),0_8px_24px_rgba(0,0,0,0.65)] transition-[border-color,background-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none overflow-visible ${
+      className={`studio-card group relative flex flex-col rounded-2xl border border-[#1f1e29] bg-[#0c0b11] hover:border-[#a78bfa]/40 hover:bg-[#100d19] hover:shadow-[0_10px_30px_-10px_rgba(167,139,250,0.28),0_8px_24px_rgba(0,0,0,0.58)] transition-[border-color,background-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none overflow-visible ${
         menuOpen ? 'z-30' : ''
       }`}
     >
@@ -446,14 +433,13 @@ export default function VideoCard({
       {/* 1. Full-Bleed Rounded Top Monitor Viewport */}
       <Link
         href={`/editor?id=${video.id}`}
-        className="relative z-[2] aspect-video w-full rounded-t-[15px] overflow-hidden block cursor-pointer bg-[#050508] border-b border-white/[0.05] group-hover:border-[#8b5cf6]/30 transition-colors duration-300"
+        className="relative z-[2] aspect-video w-full rounded-t-[15px] overflow-hidden block cursor-pointer bg-[#050508] border-b border-white/[0.05] group-hover:border-[#a78bfa]/25 transition-colors duration-300"
       >
         <CardThumbnailMedia
           thumbnailUrl={resolvedThumbnailUrl}
           videoUrl={resolvedVideoUrl}
           title={video.title}
           variant="grid"
-          presetLabel={video.presetLabel}
         />
 
         {/* Top & Bottom Edge Scrims for Overlay Legibility */}
@@ -461,14 +447,14 @@ export default function VideoCard({
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#0c0b11]/90 via-black/20 to-transparent" />
 
         {/* Top-Left Status Badge */}
-        <div className="pointer-events-none absolute top-2.5 left-2.5 z-[5] inline-flex items-center gap-1.5 rounded-md bg-[#09080d]/75 backdrop-blur-md border border-white/10 group-hover:border-white/25 transition-colors duration-200 px-2 py-0.5 font-mono text-[10px] font-bold tracking-wider">
+        <div className="pointer-events-none absolute top-3 left-3 z-[5] inline-flex items-center gap-1.5 rounded-md bg-[#09080d]/75 backdrop-blur-md border border-white/10 group-hover:border-white/25 transition-colors duration-200 px-2 py-0.5 font-mono text-[10px] font-bold tracking-wider">
           <span className={`w-1.5 h-1.5 rounded-full ${statusMeta.dot}`} />
           <span className={statusMeta.color}>{statusMeta.label}</span>
         </div>
 
         {/* Top-Right Telemetry Chip (Aspect Ratio & Duration) */}
         {(video.aspectRatio || video.duration) && (
-          <div className="pointer-events-none absolute top-2.5 right-2.5 z-[5] inline-flex items-center gap-1.5 rounded-md bg-black/70 backdrop-blur-md border border-white/10 group-hover:border-white/25 transition-colors duration-200 px-2 py-0.5 font-mono text-[10px] font-semibold text-zinc-100 tabular-nums">
+          <div className="pointer-events-none absolute top-3 right-3 z-[5] inline-flex items-center gap-1.5 rounded-md bg-black/70 backdrop-blur-md border border-white/10 group-hover:border-white/25 transition-colors duration-200 px-2 py-0.5 font-mono text-[10px] font-semibold text-zinc-100 tabular-nums">
             {video.aspectRatio && (
               <span className="text-zinc-400">{video.aspectRatio}</span>
             )}

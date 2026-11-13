@@ -477,15 +477,26 @@ export default function MyVideoClient({
     [mergedVideos]
   );
 
-  // Keep queued/session-uploaded clips inside the gallery grid so loading/completed cards appear inline instead of taking over LATEST CUT
-  const showSpotlight =
-    activeTab === 'all' && sortBy === 'recent' && !searchQuery.trim() && filteredVideos.length > 0;
-  const spotlightVideo = showSpotlight
-    ? filteredVideos.find((v) => v.status !== 'processing' && !sessionUploadedIds.has(v.id)) ?? null
-    : null;
-  const remainingVideos = spotlightVideo
-    ? filteredVideos.filter((v) => v.id !== spotlightVideo.id)
-    : filteredVideos;
+  // Pin the most recently edited clip in LATEST CUT across all 3 views (all / done / draft),
+  // while keeping queued/session-uploaded clips inline inside the gallery list.
+  const spotlightVideo = useMemo(
+    () =>
+      mergedVideos.find(
+        (v) => v.status !== 'processing' && !sessionUploadedIds.has(v.id)
+      ) ?? null,
+    [mergedVideos, sessionUploadedIds]
+  );
+
+  const shouldExcludeSpotlightFromGrid =
+    Boolean(spotlightVideo) &&
+    activeTab === 'all' &&
+    sortBy === 'recent' &&
+    !searchQuery.trim();
+
+  const remainingVideos =
+    spotlightVideo && shouldExcludeSpotlightFromGrid
+      ? filteredVideos.filter((v) => v.id !== spotlightVideo.id)
+      : filteredVideos;
 
   const handleDeletePrompt = (id: string) => {
     const target = videos.find((v) => v.id === id);
@@ -889,7 +900,7 @@ export default function MyVideoClient({
                 <VideoCard
                   key={video.id}
                   video={video}
-                  index={spotlightVideo ? idx + 1 : idx}
+                  index={shouldExcludeSpotlightFromGrid ? idx + 1 : idx}
                   layout="strip"
                   onDelete={handleDeletePrompt}
                   onRename={handleRename}
@@ -905,7 +916,7 @@ export default function MyVideoClient({
                 <VideoCard
                   key={video.id}
                   video={video}
-                  index={spotlightVideo ? idx + 1 : idx}
+                  index={shouldExcludeSpotlightFromGrid ? idx + 1 : idx}
                   layout="grid"
                   onDelete={handleDeletePrompt}
                   onRename={handleRename}

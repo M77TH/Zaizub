@@ -96,7 +96,7 @@ export function StudioScrubBar({
     <div
       className={`pointer-events-none absolute inset-x-0 bottom-0 h-[1.5px] overflow-hidden ${zIndexClass}`}
     >
-      <div className="studio-card-scrub h-full bg-gradient-to-r from-[#7c3aed] via-[#a78bfa] to-[#c084fc] shadow-[0_0_6px_rgba(139,92,246,0.6)]" />
+      <div className="studio-card-scrub h-full bg-gradient-to-r from-[#7c3aed]/55 via-[#8b5cf6]/65 to-[#a78bfa]/55 shadow-[0_0_4px_rgba(139,92,246,0.28)]" />
     </div>
   );
 }
@@ -195,23 +195,23 @@ export function CardThumbnailMedia({
         className={`pointer-events-none absolute ${config.reticleBoxClass} z-[2]`}
       >
         <span
-          className={`studio-reticle-corner studio-reticle-tl absolute top-0 left-0 ${config.cornerSizeClass} ${config.topCornerRadiusClass} border-t-[1.5px] border-l-[1.5px] border-[#a78bfa]/90`}
+          className={`studio-reticle-corner studio-reticle-tl absolute top-0 left-0 ${config.cornerSizeClass} ${config.topCornerRadiusClass} border-t-[1.5px] border-l-[1.5px] border-[#a78bfa]/60`}
         />
         <span
-          className={`studio-reticle-corner studio-reticle-tr absolute top-0 right-0 ${config.cornerSizeClass} ${config.topRightCornerRadiusClass} border-t-[1.5px] border-r-[1.5px] border-[#a78bfa]/90`}
+          className={`studio-reticle-corner studio-reticle-tr absolute top-0 right-0 ${config.cornerSizeClass} ${config.topRightCornerRadiusClass} border-t-[1.5px] border-r-[1.5px] border-[#a78bfa]/60`}
         />
         <span
-          className={`studio-reticle-corner studio-reticle-bl absolute bottom-0 left-0 ${config.cornerSizeClass} ${config.bottomCornerRadiusClass} border-b-[1.5px] border-l-[1.5px] border-[#c084fc]/90`}
+          className={`studio-reticle-corner studio-reticle-bl absolute bottom-0 left-0 ${config.cornerSizeClass} ${config.bottomCornerRadiusClass} border-b-[1.5px] border-l-[1.5px] border-[#a78bfa]/55`}
         />
         <span
-          className={`studio-reticle-corner studio-reticle-br absolute bottom-0 right-0 ${config.cornerSizeClass} ${config.bottomRightCornerRadiusClass} border-b-[1.5px] border-r-[1.5px] border-[#c084fc]/90`}
+          className={`studio-reticle-corner studio-reticle-br absolute bottom-0 right-0 ${config.cornerSizeClass} ${config.bottomRightCornerRadiusClass} border-b-[1.5px] border-r-[1.5px] border-[#a78bfa]/55`}
         />
       </div>
 
       {/* Center frosted glass play reveal (no scale zoom) */}
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center z-[2]">
         <span
-          className={`studio-card-play flex items-center justify-center rounded-full border border-[#a78bfa]/40 bg-[#0a0814]/75 text-[#d8b4fe] backdrop-blur-md ${config.playSizeClass}`}
+          className={`studio-card-play flex items-center justify-center rounded-full border border-[#a78bfa]/25 bg-[#0a0814]/75 text-[#c4b5fd]/85 backdrop-blur-md ${config.playSizeClass}`}
         >
           <svg
             className={config.playIconClass}

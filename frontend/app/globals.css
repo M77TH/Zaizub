@@ -742,17 +742,17 @@ header::-webkit-scrollbar, header *::-webkit-scrollbar {
   aspect-ratio: 1 / 1;
   background: conic-gradient(
     from 0deg,
-    rgba(139, 92, 246, 0.16) 0deg 35deg,
-    rgba(139, 92, 246, 0.42) 78deg,
-    #8b5cf6 112deg,
-    #c084fc 136deg,
-    #a78bfa 156deg,
-    rgba(139, 92, 246, 0.16) 185deg 215deg,
-    rgba(139, 92, 246, 0.42) 258deg,
-    #8b5cf6 292deg,
-    #c084fc 316deg,
-    #a78bfa 336deg,
-    rgba(139, 92, 246, 0.16) 360deg
+    rgba(139, 92, 246, 0.08) 0deg 35deg,
+    rgba(139, 92, 246, 0.24) 78deg,
+    rgba(139, 92, 246, 0.56) 112deg,
+    rgba(167, 139, 250, 0.68) 136deg,
+    rgba(167, 139, 250, 0.45) 156deg,
+    rgba(139, 92, 246, 0.08) 185deg 215deg,
+    rgba(139, 92, 246, 0.24) 258deg,
+    rgba(139, 92, 246, 0.56) 292deg,
+    rgba(167, 139, 250, 0.68) 316deg,
+    rgba(167, 139, 250, 0.45) 336deg,
+    rgba(139, 92, 246, 0.08) 360deg
   );
   transform: translate3d(-50%, -50%, 0) rotate(0deg);
   animation: studioBeamRotate 6.5s linear infinite;
@@ -769,22 +769,22 @@ header::-webkit-scrollbar, header *::-webkit-scrollbar {
   height: 100%;
   background: linear-gradient(
     90deg,
-    rgba(139, 92, 246, 0.18) 0%,
-    #8b5cf6 8%,
-    #c084fc 15%,
-    #a78bfa 21%,
-    rgba(139, 92, 246, 0.18) 28%,
-    rgba(139, 92, 246, 0.18) 33.3333%,
-    #8b5cf6 41.3333%,
-    #c084fc 48.3333%,
-    #a78bfa 54.3333%,
-    rgba(139, 92, 246, 0.18) 61.3333%,
-    rgba(139, 92, 246, 0.18) 66.6667%,
-    #8b5cf6 74.6667%,
-    #c084fc 81.6667%,
-    #a78bfa 87.6667%,
-    rgba(139, 92, 246, 0.18) 94.6667%,
-    rgba(139, 92, 246, 0.18) 100%
+    rgba(139, 92, 246, 0.09) 0%,
+    rgba(139, 92, 246, 0.48) 8%,
+    rgba(167, 139, 250, 0.66) 15%,
+    rgba(167, 139, 250, 0.44) 21%,
+    rgba(139, 92, 246, 0.09) 28%,
+    rgba(139, 92, 246, 0.09) 33.3333%,
+    rgba(139, 92, 246, 0.48) 41.3333%,
+    rgba(167, 139, 250, 0.66) 48.3333%,
+    rgba(167, 139, 250, 0.44) 54.3333%,
+    rgba(139, 92, 246, 0.09) 61.3333%,
+    rgba(139, 92, 246, 0.09) 66.6667%,
+    rgba(139, 92, 246, 0.48) 74.6667%,
+    rgba(167, 139, 250, 0.66) 81.6667%,
+    rgba(167, 139, 250, 0.44) 87.6667%,
+    rgba(139, 92, 246, 0.09) 94.6667%,
+    rgba(139, 92, 246, 0.09) 100%
   );
   transform: translate3d(-33.3333%, 0, 0);
   animation: studioBeamGlide 6s linear infinite;
@@ -795,8 +795,8 @@ header::-webkit-scrollbar, header *::-webkit-scrollbar {
 .studio-card-ambient {
   background: radial-gradient(
     80% 55% at 50% 0%,
-    rgba(139, 92, 246, 0.1),
-    rgba(124, 58, 237, 0.03) 52%,
+    rgba(139, 92, 246, 0.045),
+    rgba(124, 58, 237, 0.015) 52%,
     transparent 80%
   );
   opacity: 0;
@@ -818,7 +818,7 @@ header::-webkit-scrollbar, header *::-webkit-scrollbar {
     circle at 50% 50%,
     rgba(10, 8, 20, 0.34) 0%,
     rgba(10, 8, 20, 0.12) 60%,
-    rgba(139, 92, 246, 0.08) 100%
+    rgba(139, 92, 246, 0.035) 100%
   );
   opacity: 0;
   transition: opacity 380ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -827,7 +827,7 @@ header::-webkit-scrollbar, header *::-webkit-scrollbar {
 /* Corner viewfinder brackets kept strictly inside the viewport radius clip curve */
 .studio-reticle-corner {
   opacity: 0;
-  filter: drop-shadow(0 0 4px rgba(139, 92, 246, 0.65));
+  filter: drop-shadow(0 0 2.5px rgba(139, 92, 246, 0.3));
   transition:
     transform 480ms cubic-bezier(0.22, 1, 0.36, 1),
     opacity 340ms ease;
@@ -890,7 +890,10 @@ header::-webkit-scrollbar, header *::-webkit-scrollbar {
 
 /* Hover & keyboard focus-visible activation */
 .studio-card:hover .studio-beam-mask,
-.studio-card:has(a:focus-visible, button:focus-visible) .studio-beam-mask,
+.studio-card:has(a:focus-visible, button:focus-visible) .studio-beam-mask {
+  opacity: 0.78;
+}
+
 .studio-card:hover .studio-card-ambient,
 .studio-card:has(a:focus-visible, button:focus-visible) .studio-card-ambient,
 .studio-card:hover .studio-card-vignette,
@@ -908,20 +911,20 @@ header::-webkit-scrollbar, header *::-webkit-scrollbar {
 .studio-card:hover .studio-card-media,
 .studio-card:has(a:focus-visible) .studio-card-media {
   opacity: 1;
-  filter: brightness(1.03) contrast(1.03);
+  filter: brightness(1.02) contrast(1.02);
 }
 
 .studio-card:hover .studio-reticle-corner,
 .studio-card:has(a:focus-visible) .studio-reticle-corner {
-  opacity: 1;
+  opacity: 0.9;
   transform: translate3d(0, 0, 0);
 }
 
 .studio-card:hover .studio-card-play,
 .studio-card:has(a:focus-visible) .studio-card-play {
   opacity: 1;
-  border-color: rgba(192, 132, 252, 0.7);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55), 0 0 18px rgba(139, 92, 246, 0.42);
+  border-color: rgba(167, 139, 250, 0.42);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5), 0 0 10px rgba(139, 92, 246, 0.2);
 }
 
 .studio-card:hover .studio-card-play svg,

@@ -606,14 +606,14 @@ export default function MyVideoClient({
         {spotlightVideo && (
           <section className="mt-4 mb-6">
             <div
-              className="studio-card group/spotlight relative flex flex-col sm:flex-row items-stretch rounded-xl border border-[#22202d] bg-[#0b0a0f] hover:border-[#8b5cf6]/25 hover:bg-[#100d19] hover:shadow-[0_10px_30px_-10px_rgba(167,139,250,0.28),0_10px_26px_rgba(0,0,0,0.56)] transition-[border-color,background-color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none overflow-visible"
+              className="studio-card group/spotlight relative flex flex-col sm:flex-row items-stretch rounded-xl border border-[#22202d] bg-[#0b0a0f] hover:border-[#8b5cf6]/18 hover:bg-[#0e0c15] hover:shadow-[0_8px_24px_-12px_rgba(139,92,246,0.16),0_8px_22px_rgba(0,0,0,0.52)] transition-[border-color,background-color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none overflow-visible"
             >
               <CardHoverChrome rounded="xl" beamMode="wide" />
 
               {/* Left Compact 1:1 Monitor Thumbnail */}
               <Link
                 href={`/editor?id=${spotlightVideo.id}`}
-                className="relative z-[2] mx-auto mt-3 sm:m-0 w-40 h-40 md:w-[164px] md:h-[164px] aspect-square flex-shrink-0 self-center bg-[#040406] rounded-lg sm:rounded-none sm:rounded-l-[11px] border sm:border-0 sm:border-r border-[#1c1b24] sm:group-hover/spotlight:border-[#a78bfa]/30 transition-colors duration-300 overflow-hidden block"
+                className="relative z-[2] mx-auto mt-3 sm:m-0 w-40 h-40 md:w-[164px] md:h-[164px] aspect-square flex-shrink-0 self-center bg-[#040406] rounded-lg sm:rounded-none sm:rounded-l-[11px] border sm:border-0 sm:border-r border-[#1c1b24] sm:group-hover/spotlight:border-[#8b5cf6]/20 transition-colors duration-300 overflow-hidden block"
               >
                 <CardThumbnailMedia
                   thumbnailUrl={spotlightThumb}
@@ -701,7 +701,7 @@ export default function MyVideoClient({
                   <div className="flex items-center gap-1.5 ml-auto">
                     <Link
                       href={`/editor?id=${spotlightVideo.id}`}
-                      className="group/cta inline-flex items-center gap-1.5 rounded-lg bg-[#7c3aed] hover:bg-[#8b5cf6] group-hover/spotlight:bg-[#8b5cf6] group-hover/spotlight:shadow-[0_0_18px_-4px_rgba(196,181,253,0.55)] text-white px-3 py-1.5 text-xs font-bold transition-all duration-300"
+                      className="group/cta inline-flex items-center gap-1.5 rounded-lg bg-[#7c3aed] hover:bg-[#8b5cf6] group-hover/spotlight:bg-[#8b5cf6] group-hover/spotlight:shadow-[0_0_12px_-4px_rgba(139,92,246,0.28)] text-white px-3 py-1.5 text-xs font-bold transition-all duration-300"
                     >
                       <span>เปิดแก้ไขต่อ</span>
                       <svg

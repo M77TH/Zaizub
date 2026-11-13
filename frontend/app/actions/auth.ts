@@ -91,7 +91,8 @@ export async function register(
   }
 
   const supabase = await createClient()
-  const emailRedirectTo = await getEmailRedirectTo()
+  const nextPath = safeNextPath(formData.get('next'))
+  const emailRedirectTo = await getEmailRedirectTo(nextPath)
 
   const { data, error } = await supabase.auth.signUp({
     email: parsed.email,
@@ -114,7 +115,7 @@ export async function register(
     }
   }
 
-  redirect('/my-video')
+  redirect(nextPath)
 }
 
 export async function logout(): Promise<never> {

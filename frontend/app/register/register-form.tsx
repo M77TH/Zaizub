@@ -1,11 +1,12 @@
 'use client'
 
-import { useActionState, useState } from 'react'
+import { useActionState, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { register, type AuthActionState } from '@/app/actions/auth'
 import { createClient } from '@/lib/supabase/client'
 import AuthStudioShell from '@/components/auth/AuthStudioShell'
+import { getPendingUploads } from '@/lib/pendingUploadQueue'
 
 const initialState: AuthActionState = null
 
@@ -16,6 +17,19 @@ export default function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [googlePending, setGooglePending] = useState(false)
   const [facebookPending, setFacebookPending] = useState(false)
+  const [pendingQueueCount, setPendingQueueCount] = useState(0)
+
+  useEffect(() => {
+    let mounted = true
+    getPendingUploads()
+      .then((jobs) => {
+        if (mounted) setPendingQueueCount(jobs.length)
+      })
+      .catch(() => {})
+    return () => {
+      mounted = false
+    }
+  }, [])
 
   const handleGoogleLogin = async () => {
     if (googlePending || facebookPending) return
@@ -133,6 +147,17 @@ export default function RegisterForm() {
             </div>
           ) : (
             <div>
+              {pendingQueueCount > 0 && (
+                <div className="mb-4 flex items-center gap-2.5 rounded-xl border border-violet-500/30 bg-violet-500/10 px-3.5 py-2.5 text-left text-xs text-violet-200">
+                  <span className="h-2 w-2 flex-shrink-0 rounded-full bg-violet-400 animate-pulse" />
+                  <span>
+                    {lang === 'en'
+                      ? 'Your video is queued — sign up to start processing automatically.'
+                      : 'วิดีโอของคุณอยู่ในคิวแล้ว — สมัครสมาชิกเพื่อเริ่มประมวลผลทันที'}
+                  </span>
+                </div>
+              )}
+
               <form action={formAction} className="space-y-3 sm:space-y-3.5">
                 <input type="hidden" name="next" value={next} />
 

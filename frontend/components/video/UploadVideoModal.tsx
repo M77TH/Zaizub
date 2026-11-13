@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiUrl } from '@/lib/api';
 import { saveProjectAction } from '@/app/actions/project';
@@ -10,7 +10,6 @@ interface UploadVideoModalProps {
   onClose: () => void;
 }
 
-type ModeTab = 'file' | 'link';
 type UploadState = 'idle' | 'uploading' | 'transcribing' | 'success' | 'error';
 
 export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalProps) {
@@ -19,17 +18,12 @@ export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalPr
   const xhrRef = useRef<XMLHttpRequest | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const [activeMode, setActiveMode] = useState<ModeTab>('file');
   const [videoLink, setVideoLink] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadState, setUploadState] = useState<UploadState>('idle');
   const [uploadPercent, setUploadPercent] = useState<number>(0);
-  const [loadedBytes, setLoadedBytes] = useState<number>(0);
-  const [totalBytes, setTotalBytes] = useState<number>(0);
   const [errorMessage, setErrorMessage] = useState<string>('');
-  const [transcribingSeconds, setTranscribingSeconds] = useState<number>(0);
-  const [stageMessage, setStageMessage] = useState<string>('');
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const resetState = useCallback(() => {
@@ -49,11 +43,7 @@ export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalPr
     setVideoLink('');
     setUploadState('idle');
     setUploadPercent(0);
-    setLoadedBytes(0);
-    setTotalBytes(0);
     setErrorMessage('');
-    setStageMessage('');
-    setTranscribingSeconds(0);
     setIsDragging(false);
   }, []);
 
@@ -65,6 +55,17 @@ export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalPr
     resetState();
     onClose();
   }, [uploadState, resetState, onClose]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, handleClose]);
 
   const validateFile = (file: File): string | null => {
     const validExtensions = ['.mp4', '.mov', '.webm', '.m4v'];
@@ -93,21 +94,10 @@ export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalPr
     startUpload(file);
   };
 
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 B';
-    const mb = bytes / (1024 * 1024);
-    if (mb >= 1) return `${mb.toFixed(1)} MB`;
-    const kb = bytes / 1024;
-    return `${kb.toFixed(0)} KB`;
-  };
-
   const startUpload = (file: File) => {
     setUploadState('uploading');
     setUploadPercent(0);
-    setLoadedBytes(0);
-    setTotalBytes(file.size);
     setErrorMessage('');
-    setStageMessage('กำลังอัปโหลดไฟล์วิดีโอ...');
 
     const xhr = new XMLHttpRequest();
     xhrRef.current = xhr;
@@ -117,17 +107,13 @@ export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalPr
       if (e.lengthComputable && e.total > 0) {
         const pct = Math.min(100, Math.round((e.loaded / e.total) * 100));
         setUploadPercent(pct);
-        setLoadedBytes(e.loaded);
-        setTotalBytes(e.total);
 
         // When bytes finish reaching server (100% uploaded)
         if (e.loaded >= e.total) {
           setUploadPercent(100);
           setTimeout(() => {
             setUploadState('transcribing');
-            setTranscribingSeconds(0);
             setUploadPercent(0);
-            setStageMessage('เซิร์ฟเวอร์ได้รับไฟล์แล้ว กำลังประมวลผลเสียง...');
 
             // Estimate duration: ~0.8s per MB, clamped between 5s and 35s
             const estimatedSeconds = Math.max(6, Math.min(35, Math.round((file.size / (1024 * 1024)) * 0.8) + 4));
@@ -136,15 +122,6 @@ export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalPr
             let elapsed = 0;
             timerRef.current = setInterval(() => {
               elapsed += 1;
-              setTranscribingSeconds(elapsed);
-
-              if (elapsed < 3) {
-                setStageMessage('กำลังแยกแทร็กเสียงและสร้างภาพพรีวิว...');
-              } else if (elapsed < estimatedSeconds * 0.65) {
-                setStageMessage('WhisperX กำลังถอดเสียงและจัดคำบรรยาย...');
-              } else {
-                setStageMessage('กำลังตรวจสอบคำและความแม่นยำของไทม์โค้ด...');
-              }
 
               // Smooth asymptotic progress that slows down naturally as it nears 95% without fake sudden stuck
               setUploadPercent((prev) => {
@@ -282,24 +259,11 @@ export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalPr
     setErrorMessage('');
     setUploadState('transcribing');
     setUploadPercent(0);
-    setTranscribingSeconds(0);
-    setStageMessage('กำลังเชื่อมต่อและดาวน์โหลดวิดีโอจากลิงก์...');
 
     if (timerRef.current) clearInterval(timerRef.current);
     let linkElapsed = 0;
     timerRef.current = setInterval(() => {
       linkElapsed += 1;
-      setTranscribingSeconds(linkElapsed);
-
-      if (linkElapsed < 4) {
-        setStageMessage('กำลังดาวน์โหลดข้อมูลวิดีโอจากลิงก์...');
-      } else if (linkElapsed < 8) {
-        setStageMessage('กำลังแยกแทร็กเสียงและเตรียมประมวลผล...');
-      } else if (linkElapsed < 20) {
-        setStageMessage('WhisperX กำลังถอดเสียงและจัดคำบรรยาย...');
-      } else {
-        setStageMessage('กำลังปรับแต่งคำบรรยายและเวลาให้สมบูรณ์...');
-      }
 
       // Smooth progression up to 95%
       setUploadPercent((prev) => {
@@ -430,84 +394,59 @@ export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalPr
 
   if (!isOpen) return null;
 
+  const isBusy = uploadState === 'uploading' || uploadState === 'transcribing';
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-[subFadeIn_0.2s_ease-out]">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="upload-modal-title"
+      onClick={handleClose}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md anim-backdrop"
+    >
       <div
-        className="relative w-full max-w-xl overflow-hidden rounded-3xl border border-purple-500/20 bg-[#100e18] p-6 sm:p-8 text-gray-200 shadow-[0_0_60px_rgba(139,92,246,0.2)] transition-all"
+        className="relative w-full max-w-[540px] overflow-hidden rounded-2xl border border-[#262433] bg-[#0b0a10] p-5 sm:p-6 text-zinc-200 shadow-[0_32px_90px_rgba(0,0,0,0.92),0_0_0_1px_rgba(139,92,246,0.08)] anim-modal"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Glow ambient background */}
-        <div className="absolute top-0 right-1/4 -z-10 h-48 w-48 rounded-full bg-purple-600/15 blur-3xl pointer-events-none" />
+        {/* Subtle top ambient violet hairline */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#8b5cf6]/60 to-transparent" />
 
         {/* Modal Header */}
-        <div className="flex items-center justify-between pb-5 border-b border-white/5">
-          <div>
-            <h3 className="text-xl font-bold text-white tracking-tight flex items-center gap-2.5">
-              <span>สร้างวิดีโอใหม่</span>
-              <span className="rounded-full bg-purple-500/15 border border-purple-500/30 px-2.5 py-0.5 text-[11px] font-semibold text-purple-300">
-                AI Auto-Caption
-              </span>
-            </h3>
-            <p className="text-xs text-gray-400 mt-1">
-              อัปโหลดไฟล์วิดีโอหรือใส่ลิงก์เพื่อถอดเสียงและสร้างซับไตเติ้ลอัตโนมัติ
-            </p>
+        <div className="flex items-start justify-between gap-3 pb-4 border-b border-white/[0.06]">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-b from-[#1d1830] to-[#12101d] border border-[#2f284a] text-[#a78bfa] shadow-[0_6px_18px_-6px_rgba(124,58,237,0.45)]">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="4" width="20" height="16" rx="2.5" />
+                <polygon points="10 9 16 12 10 15 10 9" fill="currentColor" stroke="none" />
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <h3 id="upload-modal-title" className="font-display text-[17px] font-bold text-white tracking-tight leading-snug">
+                นำเข้าวิดีโอใหม่
+              </h3>
+              <p className="text-xs text-zinc-400 mt-0.5 truncate">
+                อัปโหลดไฟล์ MP4 / MOV หรือวางลิงก์เพื่อสร้างซับไตเติลอัตโนมัติ
+              </p>
+            </div>
           </div>
+
           <button
+            type="button"
             onClick={handleClose}
-            className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition-colors"
-            title="ปิด"
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-[#22202d] bg-[#121118] text-zinc-400 hover:border-[#343146] hover:bg-[#191724] hover:text-white transition-colors cursor-pointer"
+            title="ปิด (Esc)"
+            aria-label="ปิดหน้าต่าง"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
         </div>
 
-        {/* Navigation Tabs (Upload File vs Video Link) */}
-        {uploadState === 'idle' || uploadState === 'error' ? (
-          <div className="mt-5 flex rounded-xl bg-white/[0.04] p-1 border border-white/[0.06]">
-            <button
-              type="button"
-              onClick={() => {
-                setActiveMode('file');
-                setErrorMessage('');
-              }}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all ${activeMode === 'file'
-                  ? 'bg-purple-600 text-white shadow-md'
-                  : 'text-gray-400 hover:text-gray-200'
-                }`}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="17 8 12 3 7 8" />
-                <line x1="12" y1="3" x2="12" y2="15" />
-              </svg>
-              <span>อัปโหลดไฟล์</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveMode('link');
-                setErrorMessage('');
-              }}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-all ${activeMode === 'link'
-                  ? 'bg-purple-600 text-white shadow-md'
-                  : 'text-gray-400 hover:text-gray-200'
-                }`}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-              </svg>
-              <span>ลิงก์วิดีโอ (URL)</span>
-            </button>
-          </div>
-        ) : null}
-
         {/* Error message alert */}
         {errorMessage && (
-          <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-rose-500/30 bg-rose-950/30 px-3.5 py-2.5 text-xs text-rose-300">
+          <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-rose-500/35 bg-rose-950/30 px-3.5 py-2.5 text-xs text-rose-300">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0">
               <circle cx="12" cy="12" r="10" />
               <line x1="12" y1="8" x2="12" y2="12" />
@@ -518,137 +457,188 @@ export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalPr
         )}
 
         {/* Main Content Area */}
-        <div className="mt-5">
+        <div className="mt-4">
           {uploadState === 'idle' || uploadState === 'error' ? (
-            activeMode === 'file' ? (
-              /* Tab 1: File Dropzone */
+            <div>
+              {/* Studio File Dropzone */}
               <div
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
-                className={`relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center cursor-pointer transition-all duration-200 ${isDragging
-                    ? 'border-purple-400 bg-purple-500/10 scale-[1.01]'
-                    : 'border-white/10 bg-white/[0.02] hover:border-purple-500/40 hover:bg-white/[0.04]'
-                  }`}
+                className={`group relative flex flex-col items-center justify-center rounded-xl border border-dashed px-6 py-7 text-center cursor-pointer transition-all duration-200 overflow-hidden ${
+                  isDragging
+                    ? 'border-[#8b5cf6] bg-[#141024] ring-2 ring-[#8b5cf6]/25 scale-[1.005]'
+                    : 'border-[#2c293b] bg-[#08070c] hover:border-[#8b5cf6]/60 hover:bg-[#0e0c16]'
+                }`}
               >
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-600/15 border border-purple-500/20 text-purple-400 mb-4 transition-transform group-hover:scale-105">
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                {/* Ambient spotlight glow on hover / drag */}
+                <div
+                  className={`pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(124,58,237,0.14),transparent_70%)] transition-opacity duration-300 ${
+                    isDragging ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                  }`}
+                />
+
+                <div
+                  className={`relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-b from-[#1f1a33] to-[#12101d] border text-[#a78bfa] mb-3.5 shadow-[0_10px_28px_-8px_rgba(124,58,237,0.45)] transition-all duration-200 group-hover:-translate-y-0.5 ${
+                    isDragging
+                      ? 'border-[#8b5cf6] text-[#c4b5fd] scale-105'
+                      : 'border-[#31294f] group-hover:border-[#8b5cf6]/60'
+                  }`}
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                     <polyline points="17 8 12 3 7 8" />
                     <line x1="12" y1="3" x2="12" y2="15" />
                   </svg>
                 </div>
-                <p className="text-base font-semibold text-white">
-                  ลากและวางไฟล์วิดีโอที่นี่ หรือ <span className="text-purple-400 underline underline-offset-2">เลือกไฟล์</span>
+
+                <p className="relative text-[15px] font-bold text-white tracking-tight">
+                  {isDragging ? 'ปล่อยไฟล์เพื่อเริ่มนำเข้าทันที' : 'ลากไฟล์วิดีโอมาวางที่นี่'}
                 </p>
-                <p className="text-xs text-gray-400 mt-2">
-                  รองรับไฟล์ MP4, MOV, WebM ขนาดสูงสุดไม่เกิน 50 MB
-                </p>
+
+                <div className="relative mt-2 flex items-center justify-center gap-2 text-xs text-zinc-400">
+                  <span>หรือ</span>
+                  <span className="inline-flex items-center gap-1 rounded-md border border-[#302a4a] bg-[#181525] px-2.5 py-1 text-xs font-semibold text-[#c4b5fd] group-hover:bg-[#7c3aed] group-hover:border-[#8b5cf6] group-hover:text-white transition-colors">
+                    เลือกไฟล์จากเครื่อง
+                  </span>
+                </div>
+
+                {/* Spec chips */}
+                <div className="relative mt-5 flex flex-wrap items-center justify-center gap-1.5 font-mono text-[10.5px] text-zinc-400">
+                  {['MP4', 'MOV', 'WebM'].map((ext) => (
+                    <span
+                      key={ext}
+                      className="rounded-md border border-[#22202e] bg-[#111018] px-2 py-0.5 text-zinc-300"
+                    >
+                      {ext}
+                    </span>
+                  ))}
+                  <span className="text-zinc-600 mx-0.5">·</span>
+                  <span className="text-zinc-400">สูงสุด 50 MB</span>
+                </div>
               </div>
-            ) : (
-              /* Tab 2: Link Input Form */
-              <form onSubmit={handleProcessLink} className="space-y-4">
-                <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-                  <label className="block text-xs font-semibold text-gray-300 mb-2">
-                    วางลิงก์วิดีโอ (YouTube, TikTok หรือ Direct MP4 URL)
-                  </label>
-                  <div className="relative flex items-center">
+
+              {/* Divider */}
+              <div className="my-4 flex items-center gap-3">
+                <div className="h-px flex-1 bg-white/[0.07]" />
+                <span className="text-[11px] font-medium text-zinc-500">หรือวางลิงก์วิดีโอ</span>
+                <div className="h-px flex-1 bg-white/[0.07]" />
+              </div>
+
+              {/* Link Input Below Upload */}
+              <form onSubmit={handleProcessLink} className="space-y-2">
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="relative flex-1 flex items-center">
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="pointer-events-none absolute left-3.5 text-zinc-500"
+                    >
+                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                    </svg>
                     <input
                       type="url"
                       value={videoLink}
-                      onChange={(e) => setVideoLink(e.target.value)}
-                      placeholder="https://www.youtube.com/watch?v=... หรือ https://..."
-                      className="w-full rounded-xl border border-white/10 bg-[#0d0c13] px-4 py-3 text-sm text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500 transition-colors"
-                      autoFocus
+                      onChange={(e) => {
+                        setVideoLink(e.target.value);
+                        if (errorMessage) setErrorMessage('');
+                      }}
+                      placeholder="https://www.youtube.com/watch?v=... หรือลิงก์ TikTok / MP4"
+                      aria-label="ลิงก์วิดีโอ (URL)"
+                      className="w-full h-10 rounded-xl border border-[#262434] bg-[#08070c] pl-10 pr-9 text-sm text-white placeholder-zinc-600 focus:border-[#8b5cf6] focus:ring-2 focus:ring-[#8b5cf6]/20 focus:outline-none transition-all"
                     />
+                    {videoLink && (
+                      <button
+                        type="button"
+                        onClick={() => setVideoLink('')}
+                        className="absolute right-2.5 flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+                        aria-label="ล้างลิงก์"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                          <line x1="18" y1="6" x2="6" y2="18" />
+                          <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
-                  <p className="text-[11px] text-gray-400 mt-2.5">
-                    ระบบจะดาวน์โหลดคลิป แยกเสียง และถอดคำบรรยายด้วย AI ให้คุณโดยอัตโนมัติ
-                  </p>
+
+                  <button
+                    type="submit"
+                    disabled={!videoLink.trim()}
+                    className="flex h-10 flex-shrink-0 items-center justify-center gap-1.5 rounded-xl bg-[#7c3aed] hover:bg-[#8b5cf6] px-4 text-xs font-bold text-white shadow-[0_8px_24px_-8px_rgba(124,58,237,0.65)] transition-all disabled:opacity-40 disabled:shadow-none disabled:cursor-not-allowed cursor-pointer active:scale-[0.99]"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                      <polygon points="5 3 19 12 5 21 5 3" />
+                    </svg>
+                    <span>นำเข้าลิงก์</span>
+                  </button>
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={!videoLink.trim()}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 py-3 text-sm font-bold text-white shadow-[0_0_25px_rgba(139,92,246,0.35)] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polygon points="5 3 19 12 5 21 5 3" />
-                  </svg>
-                  <span>ดึงวิดีโอและสร้างซับไตเติ้ล</span>
-                </button>
+                <p className="text-[11px] text-zinc-500 pl-0.5">
+                  รองรับลิงก์จาก YouTube, TikTok หรือ Direct MP4 URL
+                </p>
               </form>
-            )
+            </div>
           ) : (
-            /* Upload Progress & AI Transcribing Overlay View */
-            <div className="rounded-2xl border border-purple-500/20 bg-white/[0.03] p-6">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-500/20 text-purple-300 flex-shrink-0">
+            /* Upload Progress & Transcribing Overlay View */
+            <div className="rounded-xl border border-[#252333] bg-[#08070c] p-5">
+              <div className="flex items-center gap-3.5 mb-4">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#151322] border border-[#2c2744] text-[#a78bfa] flex-shrink-0">
                   {uploadState === 'uploading' && (
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-bounce">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                       <line x1="12" y1="19" x2="12" y2="5" />
                       <polyline points="5 12 12 5 19 12" />
                     </svg>
                   )}
                   {uploadState === 'transcribing' && (
-                    <div className="h-6 w-6 rounded-full border-2 border-purple-400 border-t-transparent animate-spin" />
+                    <div className="h-5 w-5 rounded-full border-2 border-[#a78bfa] border-t-transparent animate-spin" />
                   )}
                   {uploadState === 'success' && (
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-emerald-400">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-emerald-400">
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
                   )}
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-white truncate max-w-[260px] sm:max-w-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-white truncate">
                       {selectedFile ? selectedFile.name : videoLink || 'วิดีโอจากลิงก์'}
                     </p>
-                    <span className="text-xs font-bold text-purple-300 tabular-nums">
+                    <span className="font-mono text-xs font-bold text-[#c4b5fd] tabular-nums flex-shrink-0">
                       {uploadState === 'success'
                         ? '100%'
                         : `${Math.round(uploadPercent)}%`}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-400 mt-0.5">
+                  <p className="text-xs text-zinc-400 mt-0.5 truncate">
                     {uploadState === 'uploading'
-                      ? `อัปโหลด ${formatFileSize(loadedBytes)} จาก ${formatFileSize(totalBytes)}`
+                      ? 'กำลังอัปโหลด...'
                       : uploadState === 'transcribing'
-                        ? stageMessage || `AI กำลังถอดเสียงและสร้างซับไตเติ้ล (${transcribingSeconds} วิ)...`
-                        : 'เตรียมเปิดพื้นที่ทำงานใน Editor...'}
+                        ? 'กำลังประมวลผล...'
+                        : 'เสร็จสมบูรณ์'}
                   </p>
                 </div>
               </div>
 
               {/* Progress Bar */}
-              <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-black/50 border border-white/10">
+              <div className="relative h-2 w-full overflow-hidden rounded-full bg-[#151420] border border-[#252333]">
                 <div
-                  className={`h-full transition-all duration-200 ease-out rounded-full shadow-[0_0_12px_rgba(168,85,247,0.5)] ${uploadState === 'success'
+                  className={`h-full transition-all duration-200 ease-out rounded-full ${
+                    uploadState === 'success'
                       ? 'bg-emerald-500 w-full'
-                      : 'bg-gradient-to-r from-purple-500 via-indigo-500 to-purple-400'
-                    }`}
+                      : 'bg-gradient-to-r from-[#7c3aed] to-[#a78bfa]'
+                  }`}
                   style={{ width: `${uploadState === 'success' ? 100 : Math.max(4, Math.round(uploadPercent))}%` }}
                 />
-              </div>
-
-              {/* Step indicator footer */}
-              <div className="mt-5 pt-4 border-t border-white/5 flex items-center justify-between text-xs text-gray-400">
-                <div className="flex items-center gap-2">
-                  <span className={`h-2 w-2 rounded-full ${uploadState === 'uploading' ? 'bg-purple-400 animate-ping' : 'bg-emerald-400'}`} />
-                  <span className={uploadState === 'uploading' ? 'text-purple-300 font-medium' : ''}>
-                    {activeMode === 'link' ? '1. ดึงข้อมูลวิดีโอ' : '1. อัปโหลดวิดีโอ'}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`h-2 w-2 rounded-full ${uploadState === 'transcribing' ? 'bg-purple-400 animate-ping' : uploadState === 'success' ? 'bg-emerald-400' : 'bg-gray-600'}`} />
-                  <span className={uploadState === 'transcribing' ? 'text-purple-300 font-medium' : ''}>2. AI ถอดเสียงซับไตเติ้ล</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`h-2 w-2 rounded-full ${uploadState === 'success' ? 'bg-emerald-400 animate-ping' : 'bg-gray-600'}`} />
-                  <span className={uploadState === 'success' ? 'text-emerald-300 font-medium' : ''}>3. เข้าสู่ Editor</span>
-                </div>
               </div>
             </div>
           )}
@@ -658,7 +648,7 @@ export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalPr
         <input
           ref={fileInputRef}
           type="file"
-          accept="video/mp4,video/quicktime,video/webm"
+          accept="video/mp4,video/quicktime,video/webm,video/x-m4v,.mp4,.mov,.webm,.m4v"
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];
@@ -667,16 +657,18 @@ export default function UploadVideoModal({ isOpen, onClose }: UploadVideoModalPr
           }}
         />
 
-        {/* Modal Actions */}
-        <div className="mt-6 flex items-center justify-end gap-3">
-          <button
-            type="button"
-            onClick={handleClose}
-            className="px-4 py-2 text-xs font-medium text-gray-300 hover:text-white rounded-xl hover:bg-white/5 transition-colors"
-          >
-            {uploadState === 'uploading' || uploadState === 'transcribing' ? 'ยกเลิก' : 'ปิด'}
-          </button>
-        </div>
+        {/* Cancel Action only when actively processing */}
+        {isBusy && (
+          <div className="mt-4 flex items-center justify-end">
+            <button
+              type="button"
+              onClick={handleClose}
+              className="rounded-lg border border-[#262434] bg-[#121118] px-3.5 py-1.5 text-xs font-medium text-zinc-300 hover:border-rose-500/40 hover:bg-rose-500/10 hover:text-rose-200 transition-colors cursor-pointer"
+            >
+              ยกเลิกการประมวลผล
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

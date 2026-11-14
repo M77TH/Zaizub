@@ -103,6 +103,43 @@ def cleanup_stale_temp_storage(max_age_seconds: int = 3600):
             except Exception:
                 pass
 
+_nvenc_ok: Optional[bool] = None
+
+def nvenc_available() -> bool:
+    """True when this machine's ffmpeg can really encode with the GPU (NVENC). Probed once with a 1-frame encode; ZAIZUB_NVENC=0 forces the CPU."""
+    global _nvenc_ok
+    if _nvenc_ok is None:
+        if os.environ.get("ZAIZUB_NVENC", "1") == "0":
+            _nvenc_ok = False
+        else:
+            try:
+                subprocess.run(['ffmpeg', '-v', 'error', '-f', 'lavfi', '-i', 'color=black:s=256x256', '-frames:v', '1', '-c:v', 'h264_nvenc', '-f', 'null', '-'],
+                               check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20)
+                _nvenc_ok = True
+            except Exception:
+                _nvenc_ok = False
+        logger.info(f"H.264 encoder: {'GPU (h264_nvenc)' if _nvenc_ok else 'CPU (libx264)'}")
+    return _nvenc_ok
+
+def h264_args(quality: int, gpu: bool, maxrate: Optional[str] = None) -> list[str]:
+    """Video encoder arguments. `quality` is the x264 CRF.
+    NVENC needs a higher constant-quality (-cq) for the same look: measured on real clips, cq = CRF + 7 gives the same VMAF
+    within ~0.6 (CRF 18 -> cq 25, CRF 24 -> cq 31). Plain p5 beat p7 + AQ + lookahead + B-frames (bigger files, no gain)."""
+    cap = ['-maxrate', maxrate, '-bufsize', f"{int(maxrate[:-1]) * 2}k"] if maxrate else []
+    if gpu:
+        return ['-c:v', 'h264_nvenc', '-pix_fmt', 'yuv420p', '-preset', 'p5', '-tune', 'hq', '-rc', 'vbr', '-cq', str(quality + 7), '-b:v', '0', *cap]
+    return ['-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-preset', 'medium', '-crf', str(quality), *cap]
+
+def run_h264(make_cmd, quality: int, maxrate: Optional[str] = None):
+    """Run an ffmpeg command on the GPU when available, and redo it on the CPU if the GPU encode fails. make_cmd(video_args) -> argv."""
+    if nvenc_available():
+        try:
+            return subprocess.run(make_cmd(h264_args(quality, True, maxrate)), check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        except subprocess.CalledProcessError as e:
+            logger.warning(f"GPU encode failed, retrying on CPU: {(e.stderr or b'').decode('utf-8', 'ignore')[-300:]}")
+    return subprocess.run(make_cmd(h264_args(quality, False, maxrate)), check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+
 class DeleteMediaRequest(BaseModel):
     urls: Optional[List[str]] = []
     paths: Optional[List[str]] = []
@@ -114,22 +151,16 @@ def create_web_preview(input_path: str, preview_path: str):
     Capped at 720p on the short side (1280x720 landscape / 720x1280 portrait), CRF 24, 1.5 Mbps ceiling
     so a 2-minute video stays ~10-20 MB for Supabase.
     """
-    cmd = [
+    run_h264(lambda v: [
         'ffmpeg', '-y',
         '-i', input_path,
         '-vf', "scale='if(gt(iw,ih),min(1280,iw),min(720,iw))':-2",
-        '-c:v', 'libx264',
-        '-pix_fmt', 'yuv420p',
-        '-preset', 'medium',
-        '-crf', '24',
-        '-maxrate', '1500k',
-        '-bufsize', '3000k',
+        *v,
         '-c:a', 'aac',
         '-b:a', '128k',
         '-movflags', '+faststart',
         preview_path
-    ]
-    subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    ], 24, '1500k')
 
 
 def create_thumbnail(input_path: str, thumbnail_path: str):
@@ -438,21 +469,18 @@ async def render_video(
         else:
             filter_str = ass_filter
 
-        burn_cmd = [
-            'ffmpeg', '-y',
-            '-i', input_video_path,
-            '-vf', filter_str,
-            '-c:v', 'libx264',
-            '-pix_fmt', 'yuv420p',
-            '-preset', 'medium',
-            '-crf', '18',
-            *audio_args(input_video_path),
-            '-movflags', '+faststart',
-            output_video_path
-        ]
+        audio = audio_args(input_video_path)
 
         def _run_burn():
-            return subprocess.run(burn_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            return run_h264(lambda v: [
+                'ffmpeg', '-y',
+                '-i', input_video_path,
+                '-vf', filter_str,
+                *v,
+                *audio,
+                '-movflags', '+faststart',
+                output_video_path
+            ], 18)
 
         await asyncio.to_thread(_run_burn)
 
